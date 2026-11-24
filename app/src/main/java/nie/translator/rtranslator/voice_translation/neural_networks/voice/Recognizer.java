@@ -268,7 +268,14 @@ public class Recognizer extends NeuralNetworkApi {
                 synchronized (lock) {
                     Log.e("recognizer","recognizingCalled");
                     if (data != null) {
-                        dataToRecognize.addLast(new DataContainer(data, beamSize, languageCode));
+                        if ("ne".equals(languageCode)) {
+                            //MagiTranslator: decode Nepali twice in one batch (constrained + free) and keep the best
+                            DataContainer dual = new DataContainer(data, beamSize, languageCode, languageCode);
+                            dual.neDual = true;
+                            dataToRecognize.addLast(dual);
+                        } else {
+                            dataToRecognize.addLast(new DataContainer(data, beamSize, languageCode));
+                        }
                         if (dataToRecognize.size() >= 1 && !recognizing) {
                             recognize();
                         }
@@ -451,7 +458,7 @@ public class Recognizer extends NeuralNetworkApi {
                         if(batchSize == 2){
                             outputValues2 = value[1][0];
                             if(!finished2) {
-                                                                max2 = Utils.getIndexOfLargest(j >= 4 ? constrainedLogits(outputValues2, data.languageCode2, completeOutput2) : outputValues2);  // scoring keeps the raw logits
+                                                                max2 = Utils.getIndexOfLargest(j >= 4 ? constrainedLogits(outputValues2, data.neDual ? null : data.languageCode2, completeOutput2) : outputValues2);  // scoring keeps the raw logits
                                 completeOutput2.add(max2);
                             }
                         }
@@ -547,7 +554,19 @@ public class Recognizer extends NeuralNetworkApi {
                         android.util.Log.i("result", "score 1: " + outputProbability1);
                         android.util.Log.i("result", "score 2: " + outputProbability2);
 
-                        notifyMultiResult(correctText(firstText), data.languageCode, outputProbability1, correctText(secondText), data.languageCode2, outputProbability2);
+                        if (data.neDual) {
+                            //keep-best with lexicographic acceptance (hard = loop/foreign script, then score)
+                            String constrained = correctText(firstText);
+                            String free = correctText(secondText);
+                            long hard1 = nepaliHardScore(constrained, execution1HitMaxLength);
+                            long hard2 = nepaliHardScore(free, execution2HitMaxLength);
+                            boolean pickFree = hard2 < hard1 || (hard2 == hard1 && outputProbability2 > outputProbability1);
+                            android.util.Log.i("result", "ne keep-best: constrained hard=" + hard1 + " free hard=" + hard2 + " -> " + (pickFree ? "free" : "constrained"));
+                            outputs.close();
+                            notifyResult(pickFree ? free : constrained, data.languageCode, pickFree ? outputProbability2 : outputProbability1, true);
+                        } else {
+                            notifyMultiResult(correctText(firstText), data.languageCode, outputProbability1, correctText(secondText), data.languageCode2, outputProbability2);
+                        }
                     }
                     //closing all results
                     outputs.close();
@@ -641,6 +660,18 @@ public class Recognizer extends NeuralNetworkApi {
             }
         }
         return logits;
+    }
+
+    /** Hard violations of a Nepali hypothesis: looping, empty output, or letters outside Devanagari. */
+    private static long nepaliHardScore(String text, boolean hitMaxLength) {
+        if (hitMaxLength || text == null || text.isEmpty() || text.equals(UNDEFINED_TEXT)) return 1_000_000L;
+        long foreign = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c) && (c < '\u0900' || c > '\u097F')) foreign++;
+            if (c == '\uFFFD') foreign++;   //broken byte sequence
+        }
+        return foreign;
     }
 
     private String correctText(String text){
@@ -753,6 +784,7 @@ public class Recognizer extends NeuralNetworkApi {
         private float[] data;
         private String languageCode;
         private String languageCode2;
+        private boolean neDual = false;
         private int beamSize;
 
         private DataContainer(float[] data, int beamSize, String languageCode){
