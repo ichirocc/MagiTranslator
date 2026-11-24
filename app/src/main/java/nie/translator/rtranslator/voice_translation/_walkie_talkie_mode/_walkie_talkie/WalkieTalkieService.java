@@ -320,6 +320,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
         firstResultTranslateListener = new Translator.TranslateListener() {
             @Override
             public void onTranslatedText(String textToTranslate, String translatedText, String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
+                if (isFinal) nie.translator.rtranslator.tools.Haptics.translationReady(WalkieTalkieService.this);  //Android 16 envelope haptics
                 ((Global) getApplication()).getTTSLanguages(true, new Global.GetLocalesListListener() {
                     @Override
                     public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
@@ -363,6 +364,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
         secondResultTranslateListener = new Translator.TranslateListener() {
             @Override
             public void onTranslatedText(String textToTranslate, String translatedText, String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
+                if (isFinal) nie.translator.rtranslator.tools.Haptics.translationReady(WalkieTalkieService.this);  //Android 16 envelope haptics
                 ((Global) getApplication()).getTTSLanguages(true, new Global.GetLocalesListListener() {
                     @Override
                     public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {

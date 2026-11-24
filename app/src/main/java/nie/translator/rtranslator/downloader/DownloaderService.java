@@ -339,8 +339,33 @@ public class DownloaderService extends Service {
                 .setContentText(summaryText)
                 .setProgress(100, averageProgress, false);
 
-        // Push the lightweight update
-        notificationManager.notify(SUMMARY_ID, summaryBuilder.build());
+        // Android 16: Live Update style progress (ProgressStyle) with one segment per model download
+        try {
+            java.util.ArrayList<Notification.ProgressStyle.Segment> segments = new java.util.ArrayList<>();
+            for (int i = 0; i < downloaders.size(); i++) {
+                segments.add(new Notification.ProgressStyle.Segment(100));
+            }
+            Notification.ProgressStyle style = new Notification.ProgressStyle()
+                    .setProgressSegments(segments)
+                    .setProgress(totalProgress)
+                    .setStyledByProgress(true);
+            Notification.Builder live = new Notification.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                    .setContentTitle(summaryTitle)
+                    .setContentText(summaryText)
+                    .setGroup(GROUP_KEY_DOWNLOADS)
+                    .setGroupSummary(true)
+                    .setOnlyAlertOnce(true)
+                    .setOngoing(true)
+                    .setStyle(style);
+            android.os.Bundle extras = new android.os.Bundle();
+            extras.putBoolean("android.requestPromotedOngoing", true);   //ask for a promoted Live Update chip
+            live.addExtras(extras);
+            notificationManager.notify(SUMMARY_ID, live.build());
+        } catch (Throwable t) {
+            // Push the lightweight update (fallback)
+            notificationManager.notify(SUMMARY_ID, summaryBuilder.build());
+        }
     }
 
     private void deleteDownloadNotification(int safeId) {

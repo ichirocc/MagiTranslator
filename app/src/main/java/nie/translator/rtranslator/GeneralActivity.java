@@ -35,6 +35,20 @@ public abstract class GeneralActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@androidx.annotation.Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Android 16 (targetSdk 36) enforces predictive back: Activity.onBackPressed() overrides are no
+        // longer called. Route the system back gesture to them through the dispatcher. The callback is
+        // disabled while running so that super.onBackPressed() falls through to the default behaviour.
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                setEnabled(false);
+                try {
+                    GeneralActivity.this.onBackPressed();
+                } finally {
+                    setEnabled(true);
+                }
+            }
+        });
         // if the models are not loaded and an activity different than LoadingActivity or AccessActivity is created,
         // that means that the system has killed the app, and now it is launching the app with the last activity (restoring it).
         // In this case we start the loading activity instead, otherwise the app will crash for the lack of loaded models.
