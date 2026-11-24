@@ -239,24 +239,18 @@ public class Translator extends NeuralNetworkApi {
     }
 
     private boolean isMadladDownloaded() {
-        String base = Global.USE_EXTERNAL_MEMORY_FOR_RESOURCES
-                ? Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad/Int8WO/madlad_decoder_8bit.onnx"
-                : global.getFilesDir().getPath() + "/Translation/Madlad/Int4Acc4/madlad_decoder_4bit.onnx";
-        return new File(base).exists();
+        return new nie.translator.rtranslator.downloader.DownloadManager(global).checkDownloadCompleted(global.getMadladDownloadInfo());
     }
 
     private boolean isHyMtDownloaded() {
-        String base = Global.USE_EXTERNAL_MEMORY_FOR_RESOURCES
-                ? Environment.getExternalStorageDirectory().getPath() + "/models/Translation/HY-MT/model_int8_final.onnx"
-                : global.getFilesDir().getPath() + "/Translation/HY-MT/model_int8_final.onnx";
-        return new File(base).exists();
+        return new nie.translator.rtranslator.downloader.DownloadManager(global).checkDownloadCompleted(global.getHyMtDownloadInfo());
     }
 
     /** Nepali is only supported by Madlad; Japanese <-> Vietnamese prefers HY-MT (higher quality). */
     private int resolveModeForPair(int currentMode, boolean preferMozilla, CustomLocale input, CustomLocale output) {
         boolean nepali = "ne".equals(input.getCode()) || "ne".equals(output.getCode());
         if (nepali) {
-            return isMadladDownloaded() ? MADLAD : currentMode;   //Mozilla has no Nepali model
+            return isMadladDownloaded() ? MADLAD_CACHE : currentMode;   //the downloaded Madlad is the cache variant; Mozilla has no Nepali model
         }
         if (preferMozilla) return MOZILLA;   //user asked for low latency in voice modes
         if (isHyMtDownloaded()) return HY_MT;

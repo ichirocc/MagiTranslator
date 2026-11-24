@@ -163,7 +163,7 @@ public class VoiceTranslationActivity extends GeneralActivity {
         }
         if(!startedByIntent){
             SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
-            fragment = sharedPreferences.getInt("fragment", DEFAULT_FRAGMENT);
+            fragment = sharedPreferences.getInt("fragment", WALKIE_TALKIE_FRAGMENT);  //MagiTranslator: first launch opens the 1-phone face-to-face mode
         }
         setFragment(fragment, fragment == WALKIE_TALKIE_FRAGMENT || fragment == PAIRING_FRAGMENT);
         if(getResources() != null) {
