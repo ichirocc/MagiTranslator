@@ -1,0 +1,2 @@
+# vendored third-party source: keep every byte as upstream (no line-ending conversion)
+* -text
