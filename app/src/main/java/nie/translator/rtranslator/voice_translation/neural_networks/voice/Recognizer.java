@@ -445,15 +445,13 @@ public class Recognizer extends NeuralNetworkApi {
                         value = (float[][][]) decoderOutput.getValue();
                         outputValues = value[0][0];
                         if(!finished1) {
-                            if (j >= 4) applyLanguageConstraints(outputValues, data.languageCode, completeOutput);
-                            max = Utils.getIndexOfLargest(outputValues);
+                                                        max = Utils.getIndexOfLargest(j >= 4 ? constrainedLogits(outputValues, data.languageCode, completeOutput) : outputValues);  // scoring keeps the raw logits
                             completeOutput.add(max);
                         }
                         if(batchSize == 2){
                             outputValues2 = value[1][0];
                             if(!finished2) {
-                                if (j >= 4) applyLanguageConstraints(outputValues2, data.languageCode2, completeOutput2);
-                                max2 = Utils.getIndexOfLargest(outputValues2);
+                                                                max2 = Utils.getIndexOfLargest(j >= 4 ? constrainedLogits(outputValues2, data.languageCode2, completeOutput2) : outputValues2);  // scoring keeps the raw logits
                                 completeOutput2.add(max2);
                             }
                         }
@@ -606,10 +604,16 @@ public class Recognizer extends NeuralNetworkApi {
      * For Nepali we (1) allow only Devanagari / punctuation byte tokens, (2) suppress special tokens,
      * (3) apply a repetition penalty and (4) block repeated 3-grams.
      */
-    private void applyLanguageConstraints(float[] logits, @Nullable String languageCode, ArrayList<Integer> generated) {
-        if (!"ne".equals(languageCode)) return;
+    /**
+     * Returns the logits used only to pick the next token. The raw logits stay untouched for the
+     * probability score, otherwise renormalising over the Devanagari subset would inflate the Nepali
+     * score and break the two-language auto detection (e.g. ja vs ne).
+     */
+    private float[] constrainedLogits(float[] raw, @Nullable String languageCode, ArrayList<Integer> generated) {
+        if (!"ne".equals(languageCode)) return raw;
         boolean[] allowed = getNeAllowedTokens();
-        if (allowed.length == 0) return;
+        if (allowed.length == 0) return raw;
+        float[] logits = raw.clone();
         for (int t = 0; t < logits.length; t++) {
             boolean ok = (t < allowed.length && allowed[t]) || t == EOS_TOKEN_ID;
             if (!ok) logits[t] = Float.NEGATIVE_INFINITY;
@@ -636,6 +640,7 @@ public class Recognizer extends NeuralNetworkApi {
                 }
             }
         }
+        return logits;
     }
 
     private String correctText(String text){

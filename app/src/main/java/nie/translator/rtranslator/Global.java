@@ -255,6 +255,11 @@ public class Global extends Application implements DefaultLifecycleObserver {
     }
 
     public ArrayList<CustomLocale> getTranslatorLanguages(RTranslatorMode rtranslatorMode, final boolean recycleResult) {
+        //MagiTranslator: the language pair decides the model inside Translator, so the list is always ja/ne/vi
+        ArrayList<CustomLocale> focus = new ArrayList<>();
+        for (String code : Translator.FOCUS_LANGUAGES) focus.add(CustomLocale.getInstance(code));
+        if (translatorLanguages.isEmpty()) translatorLanguages = focus;
+        if (true) return focus;
         if (recycleResult) {
             if(isUseMozillaForVoiceTranslation() && (rtranslatorMode == RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == RTranslatorMode.WALKIE_TALKIE_MODE)) {
                 return getMozillaLanguages(true);

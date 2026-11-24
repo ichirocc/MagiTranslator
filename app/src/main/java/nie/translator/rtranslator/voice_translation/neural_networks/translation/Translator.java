@@ -189,11 +189,12 @@ public class Translator extends NeuralNetworkApi {
     }
 
     /** Nepali is only supported by Madlad; Japanese <-> Vietnamese prefers HY-MT (higher quality). */
-    private int resolveModeForPair(int currentMode, CustomLocale input, CustomLocale output) {
+    private int resolveModeForPair(int currentMode, boolean preferMozilla, CustomLocale input, CustomLocale output) {
         boolean nepali = "ne".equals(input.getCode()) || "ne".equals(output.getCode());
         if (nepali) {
-            return isMadladDownloaded() ? MADLAD : currentMode;
+            return isMadladDownloaded() ? MADLAD : currentMode;   //Mozilla has no Nepali model
         }
+        if (preferMozilla) return MOZILLA;   //user asked for low latency in voice modes
         if (isHyMtDownloaded()) return HY_MT;
         return currentMode;
     }
@@ -703,8 +704,29 @@ public class Translator extends NeuralNetworkApi {
                 performMode = MOZILLA;
             }
 
+            //MagiTranslator: pick the model from the language pair (ne -> Madlad, ja<->vi -> HY-MT when available)
+            boolean preferMozilla = performMode == MOZILLA && global.isUseMozillaForVoiceTranslation()
+                    && (rtranslatorMode == Global.RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == Global.RTranslatorMode.WALKIE_TALKIE_MODE);
+            performMode = resolveModeForPair(performMode, preferMozilla, inputLanguage, outputLanguage);
+            if(performMode != MOZILLA && performMode != mode){
+                switchModelSync(performMode);   //Mozilla runs beside the big model, so we never unload for it
+            }
+
+            //Nepali needs Madlad: fail clearly instead of feeding Nepali to a model that cannot handle it
+            if(("ne".equals(inputLanguage.getCode()) || "ne".equals(outputLanguage.getCode())) && performMode != MADLAD && performMode != MADLAD_CACHE){
+                Log.e("translation_error", "Nepali requires the Madlad model, download it in Models Manager");
+                if (responseListener != null) {
+                    mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0));
+                } else {
+                    mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0));
+                }
+                return;
+            }
+
             //check if the input and output languages are compatible with the translation model
-            ArrayList<CustomLocale> supportedLanguages = global.getTranslatorLanguages(rtranslatorMode, true);
+            ArrayList<CustomLocale> supportedLanguages = performMode != MOZILLA
+                    ? getSupportedLanguages(global, false, performMode)
+                    : global.getTranslatorLanguages(rtranslatorMode, true);
             if(!supportedLanguages.contains(inputLanguage) || !supportedLanguages.contains(outputLanguage)){
                 Log.w("translation_error", "Languages "+inputLanguage.getDisplayLanguage()+", "+outputLanguage.getDisplayLanguage()+" not supported");
                 //if we are using mozilla for a voice mode we can try to fall back to the bigger multilingual model (because it is also loaded in memory)
@@ -726,14 +748,6 @@ public class Translator extends NeuralNetworkApi {
                         mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0));
                     }
                     return;
-                }
-            }
-
-            //MagiTranslator: pick the model from the language pair (ne -> Madlad, otherwise HY-MT when available)
-            if(performMode != MOZILLA){
-                performMode = resolveModeForPair(performMode, inputLanguage, outputLanguage);
-                if(performMode != mode){
-                    switchModelSync(performMode);
                 }
             }
 
