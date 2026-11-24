@@ -462,6 +462,7 @@ Gradle 設定、SDK、AndroidX、依存、推論環境、モデル保存場所�
 | minify / shrinkResources | **見送り** | ONNX Runtime・JNI・Gson の反射利用があり、keep ルール検証なしの有効化はクラッシュの危険 | — |
 | 19.10 UI 日本語化 | **対応** | `res/values-ja/strings.xml`（209 件） | 要実機 |
 | 19.9 Madlad 導線 | 未対応 | — | — |
+| §7.2 beam N-best 候補（3.0.0-magi.5） | **新設** | `executeCacheDecoder` が要求時（`ThreadLocal NBEST`）に完了文を確率順で返す。`Backend.translateNBest` → jane が単一区間入力で上位3仮説を候補化し、辞書式選択（HARD→スコア＋MBR） | JaNeLibraryTest（否定を保つ第2仮説が選ばれる） |
 
 ---
 

@@ -106,6 +106,22 @@ public class JaNeLibraryTest {
                 TranslationValidator.validateJaToNe("明日は行きません。", "म भोलि जान्छु।", java.util.Collections.emptyList()));
         yes(JaNeTranslator.better(good, bad), "hard issues beat score");
 
+        // N-best: the beam's 2nd hypothesis keeps the negation and must win over a fluent but wrong 1-best
+        Backend nb = new Backend() {
+            public String translate(String text, String s, String t) {
+                if (text.equals("म भोलि जान्छु।")) return "明日行きます。";
+                if (text.equals("म भोलि जाँदिनँ।")) return "明日は行きません。";
+                return text;
+            }
+            public java.util.List<String> translateNBest(String text, String s, String t, int n) {
+                return java.util.Arrays.asList("म भोलि जान्छु।", "म भोलि जाँदिनँ।");
+            }
+        };
+        JaNeTranslator.Result rn = new JaNeTranslator(nb, Glossary.withDefaults()).translate("明日は行きません", "ja", "ne");
+        for (JaNeTranslator.Candidate c : rn.candidates) System.out.println("     " + c);
+        eq("म भोलि जाँदिनँ।", rn.text, "n-best hypothesis with negation selected");
+        eq(2, rn.candidates.size(), "two beam candidates");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

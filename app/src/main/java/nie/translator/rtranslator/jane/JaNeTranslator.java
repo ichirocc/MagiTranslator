@@ -45,6 +45,7 @@ public final class JaNeTranslator {
     private final Backend backend;
     private final Glossary glossary;
     private int maxCandidates = 4;
+    private int nBest = 3;
     private static final double MBR_WEIGHT = 0.3;
 
     public JaNeTranslator(Backend backend, Glossary glossary) {
@@ -53,6 +54,9 @@ public final class JaNeTranslator {
     }
 
     public void setMaxCandidates(int n) { maxCandidates = Math.max(1, n); }
+
+    /** Beam hypotheses taken per single-segment input (1 = only the best). */
+    public void setNBest(int n) { nBest = Math.max(1, n); }
 
     public Result translate(String text, String src, String tgt) throws Exception {
         if ("ja".equals(src) && "ne".equals(tgt)) return jaToNe(text);
@@ -96,10 +100,22 @@ public final class JaNeTranslator {
         int i = 0;
         for (Map.Entry<String, List<String>> e : inputs.entrySet()) {
             if (i++ >= maxCandidates) break;
-            String out = translateSegments(e.getValue(), "ja", "ne");
-            out = NePostEditor.edit(out);
-            if (out.isEmpty()) continue;
-            cands.add(new Candidate(e.getKey(), String.join(" ", e.getValue()), out, null, Double.NaN));
+            List<String> segs = e.getValue();
+            if (segs.size() == 1 && nBest > 1) {
+                // one model call, several beam hypotheses: diversity at no extra encoder cost
+                List<String> hyps = backend.translateNBest(segs.get(0), "ja", "ne", nBest);
+                for (int k = 0; k < hyps.size(); k++) {
+                    String out = NePostEditor.edit(hyps.get(k));
+                    if (out.isEmpty()) continue;
+                    String label = k == 0 ? e.getKey() : e.getKey() + "#" + (k + 1);
+                    if (k > 0) required.put(label, required.getOrDefault(e.getKey(), Collections.emptyList()));
+                    cands.add(new Candidate(label, segs.get(0), out, null, Double.NaN));
+                }
+            } else {
+                String out = NePostEditor.edit(translateSegments(segs, "ja", "ne"));
+                if (out.isEmpty()) continue;
+                cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
+            }
         }
         return rerank(cands, whole, required, "ne", "ja");
     }

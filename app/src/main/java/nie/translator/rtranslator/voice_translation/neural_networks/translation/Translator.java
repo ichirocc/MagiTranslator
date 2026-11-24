@@ -36,6 +36,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
@@ -183,6 +184,8 @@ public class Translator extends NeuralNetworkApi {
 
     // per-thread: internal jane candidate / back-translation calls must not notify the UI (was a shared flag)
     private static final ThreadLocal<Boolean> SILENT = new ThreadLocal<>();
+    // when set (by the jane backend), executeCacheDecoder appends the beam N-best token sequences here
+    private static final ThreadLocal<List<int[]>> NBEST = new ThreadLocal<>();
     // beam used by the jane backend, refreshed on every call (the backend lambda is cached)
     private volatile int janeBeamSize = JA_NE_BEAM_SIZE;
     // serialises translations: model switching and jane calls share the ONNX sessions
@@ -202,7 +205,17 @@ public class Translator extends NeuralNetworkApi {
                         glossary.load(r);
                     }
                 }
-                janeTranslator = new nie.translator.rtranslator.jane.JaNeTranslator((t, src, tgt) -> silentTranslate(t, src, tgt, janeBeamSize), glossary);
+                janeTranslator = new nie.translator.rtranslator.jane.JaNeTranslator(new nie.translator.rtranslator.jane.Backend() {
+                    @Override
+                    public String translate(String t, String src, String tgt) throws Exception {
+                        return silentTranslate(t, src, tgt, janeBeamSize);
+                    }
+
+                    @Override
+                    public List<String> translateNBest(String t, String src, String tgt, int n) throws Exception {
+                        return silentTranslateNBest(t, src, tgt, janeBeamSize, n);
+                    }
+                }, glossary);
             }
             janeBeamSize = beamSize;
             nie.translator.rtranslator.jane.JaNeTranslator.Result r = janeTranslator.translate(text, in.getCode(), out.getCode());
@@ -213,6 +226,33 @@ public class Translator extends NeuralNetworkApi {
             e.printStackTrace();
             return null;   //fall back to the normal pipeline
         }
+    }
+
+    /** Beam N-best of a single model call (falls back to the 1-best when the text must be split). */
+    private List<String> silentTranslateNBest(String text, String src, String tgt, int beamSize, int n) throws Exception {
+        CustomLocale in = CustomLocale.getInstance(src), out = CustomLocale.getInstance(tgt);
+        ArrayList<String> results = new ArrayList<>();
+        if (beamSize < 2 || tokenize(text, in, out, true).getInputIDs().length >= 200) {
+            results.add(silentTranslate(text, src, tgt, beamSize));
+            return results;
+        }
+        Boolean previous = SILENT.get();
+        SILENT.set(Boolean.TRUE);
+        ArrayList<int[]> sink = new ArrayList<>();
+        NBEST.set(sink);
+        try {
+            String best = performNNTextTranslation(text, new String[]{""}, in, out, beamSize, false, null);
+            if (best != null && !best.trim().isEmpty()) results.add(best.trim());
+            for (int[] ids : sink) {
+                if (results.size() >= n) break;
+                String d = tokenizer.decode(ids);
+                if (d != null && !d.trim().isEmpty() && !results.contains(d.trim())) results.add(d.trim());
+            }
+        } finally {
+            NBEST.remove();
+            if (previous == null) SILENT.remove(); else SILENT.set(previous);
+        }
+        return results;
     }
 
     private String silentTranslate(String text, String src, String tgt, int beamSize) throws Exception {
@@ -1557,6 +1597,18 @@ public class Translator extends NeuralNetworkApi {
             if(emptyPreLogits != null) emptyPreLogits.close();
             if(emptyPreLogitsBatch != null) emptyPreLogitsBatch.close();
 
+            //MagiTranslator: optionally expose the N-best list (finished sentences first, best score first)
+            List<int[]> nbestSink = NBEST.get();
+            if(nbestSink != null && beamSize > 1){
+                ArrayList<Integer> order = new ArrayList<>();
+                for(int i = 0; i < finishedBeamSentences.size(); i++) order.add(i);
+                final ArrayList<Double> probs = finishedBeamSentencesProbabilities;
+                order.sort((a, b) -> Double.compare(probs.get(b), probs.get(a)));
+                for(int i : order) nbestSink.add(finishedBeamSentences.get(i));
+                if(nbestSink.isEmpty()){
+                    for(ArrayList<Integer> beam : completeBeamOutput) nbestSink.add(beam.stream().mapToInt(k -> k).toArray());
+                }
+            }
             //selection of the best final result
             if(beamSize == 1){
                 return completeBeamOutput[0].stream().mapToInt(k -> k).toArray();
