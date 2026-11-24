@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mic">麥克風</string>
+    <string name="btHeadset">藍牙耳機</string>
+    <string name="exit">退出</string>
+    <string name="retry">重試</string>
+    <string name="continue_without_tts">繼續</string>
+    <string name="delete">刪除</string>
+    <string name="no_devices">無設備</string>
+    <string name="available">可用</string>
+    <string name="not_available">不可用</string>
+    <string name="loading">載入中…</string>
+    <string name="forward">轉送</string>
+    <string name="conversation">對話</string>
+    <string name="connection">連接</string>
+    <string name="translate">翻譯</string>
+    <string name="fix">修復</string>
+    <string name="automatic">自動的</string>
+    <string name="chat">聊天</string>
+    <string name="select_tts">選擇 TTS</string>
+    <string name="unzipping">正在解壓縮...</string>
+    <string name="testing_integrity">測試中…</string>
+    <string name="paused">已暫停：</string>
+    <string name="applying_settings">正在套用新設定...</string>
+    <string name="dictionary">詞典</string>
+    <string name="apply">套用</string>
+    <string name="speech_recognition_model">語音辨識模型</string>
+    <string name="translation_dictionaries">翻譯詞典</string>
+    <string name="performance">效能</string>
+    <string name="quality">品質</string>
+    <string name="versatility">通用性</string>
+    <string name="translation_model">翻譯模型</string>
+    <string name="system_and_other_apps">系統和其他應用程式</string>
+    <string name="ram">記憶體</string>
+    <string name="cancel">取消</string>
+    <string name="continue_text">繼續</string>
+    <string name="ok">確定</string>
+    <string name="translation_enhancements">翻譯增強</string>
+    <string name="no">否</string>
+    <string name="yes">是</string>
+    <string name="general">一般</string>
+    <string name="edit">編輯</string>
+    <string name="back">返回</string>
+    <string name="pause">暫停</string>
+    <string name="resume">繼續</string>
+    <string name="offline">離線</string>
+    <string name="reset">重設</string>
+    <string name="options">選項</string>
+    <string name="from">從</string>
+    <string name="to">到</string>
+    <string name="theme">主題</string>
+    <string name="system_default">跟隨系統</string>
+    <string name="light">淺色</string>
+    <string name="dark">深色</string>
+
+    <string name="description_button_tts_manual">手動朗讀訊息</string>
+    <string name="description_button_tts_auto">自動朗讀訊息</string>
+    <string name="description_stop_search">停止搜尋</string>
+    <string name="description_start_search">開始搜尋</string>
+    <string name="description_checkbox_privacy">接受隱私權政策</string>
+    <string name="description_disconnect_peer">中斷對方連線</string>
+    <string name="description_chat_tab">聊天分頁</string>
+    <string name="description_connection_tab">連線分頁</string>
+    <string name="description_switch_languages">互換語言</string>
+    <string name="description_copy_input_text">複製輸入文字</string>
+    <string name="description_copy_translated_text">複製翻譯後的文字</string>
+    <string name="description_clear_text">清除文字</string>
+    <string name="description_text_fullscreen">全螢幕顯示翻譯文字</string>
+    <string name="description_start_microphone">開啟麥克風</string>
+    <string name="description_stop_microphone">關閉麥克風</string>
+    <string name="description_close_text_mode">關閉文字輸入模式</string>
+    <string name="description_send">傳送文字訊息</string>
+    <string name="description_start_automatic_recognition">開始自動辨識</string>
+    <string name="description_stop_automatic_recognition">停止自動辨識</string>
+    <string name="description_start_manual_recognition">開始手動辨識 %1$s</string>
+    <string name="description_stop_manual_recognition">停止手動辨識 %1$s</string>
+    <string name="description_double_tap_fullscreen">點兩下以全螢幕開啟</string>
+    <string name="description_message_fullscreen">全螢幕開啟訊息</string>
+    <string name="description_exit_fullscreen">結束全螢幕</string>
+    <string name="description_mode">模式說明</string>
+    <string name="description_read_full">閱讀完整說明</string>
+    <string name="description_start_download">開始下載</string>
+    <string name="description_delete_resource">刪除資源</string>
+    <string name="description_download_error">下載錯誤</string>
+    <string name="description_start_walkietalkie">啟動 WalkieTalkie</string>
+    <string name="description_manage_mozilla_button">管理效能模式語言</string>
+
+    <string name="notification_channel_name">背景通知</string>
+
+    <string name="privacy_check_box">我聲明我已閱讀 <a href="https://github.com/niedev/RTranslator/blob/v2.00/privacy/Privacy_Policy_en.md">隱私政策</a></string>
+
+    <string name="toast_working_background">RTranslator 將在背景中運行</string>
+    <string name="toast_download_completed">下載完成</string>
+    <string name="toast_download_error">下載時出現錯誤，請打開 RTranslator 重試</string>
+    <string name="toast_missing_notification_permission">為確保此模式在背景中正常運行，請啟用通知</string>
+
+
+    <string name="dialog_confirm_delete">確認取消</string>
+    <string name="dialog_confirm_exit">確認退出</string>
+    <string name="dialog_confirm_disconnection">確定要斷開連接嗎&#160;</string>
+    <string name="dialog_confirm_connection">確定要連接嗎&#160;</string>
+    <string name="dialog_confirm_connection_request">接受來自&#160;的連接請求</string>
+    <string name="dialog_select_personal_language">選擇個人語言</string>
+    <string name="dialog_select_first_language">選擇主要語言</string>
+    <string name="dialog_select_second_language">選擇次要語言</string>
+    <string name="dialog_insert_name">輸入您的名字</string>
+    <string name="dialog_confirm_apply_quit">確定要退出而不套用新設定嗎？</string>
+    <string name="dialog_confirm_delete_resource">確定要刪除此資源嗎？</string>
+    <string name="dialog_search_hint">搜尋語言…</string>
+    <string name="dialog_no_languages">找不到語言</string>
+
+    <string name="menu_image_select_from_gallery">從相簿選擇</string>
+    <string name="menu_image_remove">刪除</string>
+
+    <string name="hint_edit_text_message">撰寫訊息</string>
+    <string name="hint_user_name">姓名</string>
+    <string name="hint_text">插入文字</string>
+
+    <string name="error_missing_location_permissions">無法在沒有位置和藍牙權限的情況下使用對話模式，請前往設定授予權限，或重新安裝應用程式</string>
+    <string name="error_missing_mic_permissions">沒有麥克風權限，語音辨識無法運作，請前往設定授予權限或重新安裝應用程式</string>
+    <string name="error_missing_mic_permissions_walkietalkie">未授予麥克風權限，無法使用 WalkieTalkie 模式。請前往設定授予權限，或重新安裝應用程式</string>
+    <string name="error_tts_toast">缺少 TTS</string>
+    <string name="error_tts">TTS 初始化時出現錯誤，是否要在沒有 TTS 的情況下繼續？</string>
+    <string name="error_missing_tts">此裝置上沒有 Google TTS 引擎，請下載以使用 TTS</string>
+    <string name="error_missing_bluetooth_le">此裝置不支援低功耗藍牙，無法使用對話模式</string>
+    <string name="error_internet_lack_loading">啟動 RTranslator 需要網際網路連線，請檢查您的連線</string>
+    <string name="error_internet_lack_accessing">執行此操作需要網際網路連線，請檢查您的連線</string>
+    <string name="error_internet_lack_services">無法翻譯訊息，請檢查網際網路連線</string>
+    <string name="error_internet_lack_loading_languages">查看語言需要網際網路連線，請檢查您的連線並重試</string>
+    <string name="error_connection_rejected">拒絕了連接請求</string>
+    <string name="error_connection">連接錯誤</string>
+    <string name="error_starting_search">啟動搜尋錯誤</string>
+    <string name="error_cannot_interact_connection">連接期間無法與設備互動</string>
+    <string name="error_cannot_interact_disconnection">斷開連接期間無法與設備互動</string>
+    <string name="error_wait_initialization">請等待初始化</string>
+    <string name="error_selecting_image">選擇圖片時出錯，請使用另一個相簿選擇</string>
+    <string name="error_wait_download_end">請等待下載完成</string>
+    <string name="error_age_unchecked">您必須年滿 14 歲才能使用此應用程式</string>
+    <string name="error_privacy_unchecked">您必須閱讀隱私政策才能使用此應用程式</string>
+    <string name="error_missing_username">請輸入名字</string>
+    <string name="error_wrong_username">文字包含非法字符，僅允許以下字符：</string>
+    <string name="error_models_loading">載入翻譯和語音辨識模型檔案時出錯，可能有些檔案損壞，請嘗試重新啟動應用程式，如果問題仍然存在，請按下修復按鈕，僅重新下載損壞的檔案。</string>
+    <string name="error_models_loading_short">載入新模型時發生錯誤</string>
+    <string name="error_download">下載時出錯，請確保您有網際網路連線並重試：</string>
+    <string name="error_transfer">從外部記憶體到內部記憶體傳輸下載檔案時出錯，請確保您沒有取出 SD 卡或其他外部存儲設備，並保持應用程式開啟重新嘗試：</string>
+    <string name="error_ram">您的裝置記憶體小於 6GB，應用程式至少需要 6GB 記憶體才能運行，您仍然可以嘗試使用，但可能會崩潰。</string>
+    <string name="error_storage">存儲空間不足，下載可能失敗</string>
+    <string name="error_missing_mozilla">您已選擇 Mozilla 作為翻譯模型，但尚未下載其任何語言。請先下載至少一個語言模型，再選擇 Mozilla。</string>
+    <string name="error_missing_hy">您已選擇 HY-MT 作為翻譯模型，但尚未下載。請先下載該模型，再進行選擇。</string>
+    <string name="error_missing_madlad">您已選擇 Madlad 作為翻譯模型，但尚未下載。請先下載該模型，再進行選擇。</string>
+    <string name="error_missing_mozilla_voice">您已啟用在 WalkieTalkie 和對話模式下使用 Mozilla 模型，但尚未下載任何 Mozilla 模型。請先下載後再啟用此選項。</string>
+    <string name="error_missing_tatoeba">您已啟用 Tatoeba，但尚未下載。請先下載 Tatoeba，再啟用它。</string>
+    <string name="error_missing_general">缺少所需資源</string>
+    <string name="error_apply_unknown">未知錯誤，請重試。</string>
+    <string name="error_delete_last_download">這是最後一個已下載的翻譯模型，無法刪除所有翻譯模型。請先下載另一個翻譯模型，再刪除此模型。</string>
+    <string name="error_bluetooth_off">藍牙已關閉，無法使用對話模式，請開啟藍牙後再使用此模式。</string>
+
+    <string name="title_image_selector">用户頭像</string>
+
+    <string name="home_walkietalkie_mode">對講機模式</string>
+    <string name="home_conversation_mode">對話模式</string>
+    <string name="title_fragment_conversation">對話</string>
+    <string name="title_fragment_walkie_talkie">對講機</string>
+    <string name="title_fragment_notice">通知</string>
+    <string name="title_fragment_user_data">輸入您的資料</string>
+    <string name="title_fragment_download">模型下載</string>
+    <string name="title_mozilla_voice">語音翻譯模式的效能模型</string>
+    <string name="title_whisper_ram_reduction">降低語音辨識記憶體占用</string>
+
+    <string name="title_activity_settings">設定</string>
+    <string name="title_activity_credit">API 管理</string>
+
+    <string name="header_recents_peers">最近</string>
+    <string name="header_found_peers">找到的</string>
+    <string name="header_connected_peers">已連接</string>
+
+    <string name="description_discovery">此畫面將搜尋並使我們對其他使用 RTranslator 的設備可見，以便能夠與它們建立連接並開始對話</string>
+    <string name="description_fragment_user_data">您的名字將顯示給所有附近的設備，而您的個人資料照片僅顯示在您已經進行過對話的設備上</string>
+    <string name="description_fragment_download">現在 RTranslator 將下載翻譯和語音辨識所需的神經網路模型，完成後您可以開始使用應用程式（即使是離線狀態下）。</string>
+    <string name="description_conversation">對話模式是 RTranslator 的主要功能，它允許您實時翻譯多個人之間的對話，為了更好的體驗，建議將藍牙耳機連接到手機，此外應用程式在背景運行和手機待機時也會繼續工作（然而，一些手機在應用程式背景運行時可能會有性能問題）</string>
+    <string name="description_walkie_talkie">對講機模式是 RTranslator 的次要功能，它不支持實時翻譯，但設計成只需使用一部手機，它會自動檢測並將語音從一種語言翻譯成另一種語言，應用程式在背景運行和手機待機時也會繼續工作</string>
+    <string name="description_notice">RTranslator 使用 <a href="https://openai.com/index/whisper/">OpenAi 的 Whisper</a> 進行語音辨識，使用 <a href="https://ai.meta.com/research/no-language-left-behind/">Meta 的 NLLB</a> 進行翻譯，這些模型需要相當多的計算能力和至少 6GB 的記憶體來執行，所以請確保您使用的是現代智慧手機，以避免速度變慢或崩潰。更多有關 RTranslator 的資訊，請訪問應用程式的 GitHub 項目<a href="https://github.com/niedev/RTranslator">這裡</a></string>
+    <string name="description_download">正在下載 %1$s</string>
+    <string name="description_transfer">正在將 %1$s 傳輸到內部記憶體</string>
+    <string name="description_unzip">正在解壓縮 %1$s</string>
+    <string name="description_integrity_check">正在檢查 %1$s 的完整性</string>
+    <string name="description_tts">說話時，RTranslator 使用系統預設的 TTS 引擎，推薦的 TTS 是 <a href="https://play.google.com/store/apps/details?id=com.google.android.tts">Google TTS</a>，但您可以選擇您喜歡的，要選擇它，請點擊下面的按鈕</string>
+    <string name="description_permission_notification">通知僅用於改善背景作業，例如下載或其他背景工作。本應用程式絕不會傳送通知。</string>
+    <string name="description_permission_pairing">若要使用對話模式，請允許 RTranslator 使用藍牙。</string>
+    <string name="description_permission_walkietalkie">若要使用 WalkieTalkie 模式，請允許 RTranslator 存取您的麥克風。</string>
+    <string name="description_permission_conversation">若要在對話模式中翻譯您的語音，請允許 RTranslator 存取您的麥克風。若不授予此權限，該模式仍可使用，但您只能傳送文字訊息或接收並播放翻譯。</string>
+    <string name="description_model_mozilla">由 Mozilla 開發的單語言輕量模型，品質與 2024 年的 Google 翻譯相當。\n\n模型：Mozilla 16-60M fp32</string>
+    <string name="description_model_hy">由騰訊開發的中等規模模型，品質最佳，優於 Google 翻譯，可與 Deepseek v3 和 Gemini 3.0 相媲美。\n\n模型：HY-MT-1.5 1.8B int8</string>
+    <string name="description_model_madlad">由 Google 開發的大型模型，品質介於 Mozilla 與 HY-MT 模型之間，但支援 400 種語言。\n\n模型：Madlad 3B int4</string>
+    <string name="description_mozilla_voice">在 WalkieTalkie 和對話模式下使用效能模型（Mozilla），以降低即時翻譯模式的延遲，但品質較差。</string>
+    <string name="description_whisper_ram_reduction">將 Whisper 模型的記憶體占用從 900MB 降至 500MB，但執行速度會降低 24%。</string>
+    <string name="description_tatoeba">用於改善部分句子翻譯效果的 Tatoeba 資料集</string>
+    <string name="description_dictionaries">用於改善單字翻譯效果的翻譯詞典。</string>
+
+    <string name="preference_header_language">語言</string>
+    <string name="preference_header_output">輸出</string>
+    <string name="preference_header_input">輸入</string>
+    <string name="preference_header_advanced">進階</string>
+
+    <string name="preference_title_mic_sensitivity">麥克風靈敏度</string>
+    <string name="preference_title_languages_quality">支援低品質語言</string>
+    <string name="preference_title_support_tts_quality">支援低品質 TTS 語言</string>
+    <string name="preference_title_language">個人語言</string>
+    <string name="preference_title_tts">文字轉語音</string>
+    <string name="preference_title_speech_timeout">語音超時結束</string>
+    <string name="preference_title_prev_voice_duration">語音預期持續時間</string>
+    <string name="preference_title_beam_size">定向搜尋（測試版）</string>
+    <string name="preference_title_models_manager">模型管理</string>
+
+    <string name="preference_description_mic_sensitivity">選擇您需要的音量級別以啟動和維持語音辨識</string>
+    <string name="preference_description_languages_quality">它還允許支援翻譯或語音識別品質較低的語言</string>
+    <string name="preference_title_show_original_transcription">顯示翻譯之外的原始轉錄內容</string>
+    <string name="preference_description_show_original_transcription_msg_preference">它允許顯示消息翻譯之外的原始轉錄內容。</string>
+    <string name="preference_description_support_tts_quality">此選項允許支持語音合成器品質較低的語言</string>
+    <string name="preference_description_tts">TTS 的系統設定，優先引擎的變更將僅在重新啟動應用程式後生效</string>
+    <string name="preference_description_speech_timeout">選擇您停止說話後發送轉錄文字的時間</string>
+    <string name="preference_description_prev_voice_duration">選擇開始說話前的錄音長度，將包括在語音辨識中</string>
+    <string name="preference_description_beam_size">設定波束搜尋演算法的波束大小，以犧牲速度為代價來提高翻譯品質（僅適用於文字翻譯）</string>
+    <string name="preference_description_models_manager">選擇要用於翻譯的模型，並管理其他翻譯選項</string>
+
+    <string name="conversation_mode" >對話模式</string>
+    <string name="conversation_mode_running" >對話模式正在運行...</string>
+    <string name="walkietalkie_mode" >對講機模式</string>
+    <string name="walkietalkie_mode_running" >對講機模式正在運行...</string>
+</resources>

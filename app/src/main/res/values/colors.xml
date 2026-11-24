@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    * Copyright 2016 Luca Martino.
+    *
+    * Licensed under the Apache License, Version 2.0 (the "License");
+    * you may not use this file except in compliance with the License.
+    * You may obtain a copyFile of the License at
+    *
+    * http://www.apache.org/licenses/LICENSE-2.0
+    *
+    * Unless required by applicable law or agreed to in writing, software
+    * distributed under the License is distributed on an "AS IS" BASIS,
+    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    * See the License for the specific language governing permissions and
+    * limitations under the License.
+    *-->
+
+<resources>
+    <color name="primary">#43a047</color>
+    <color name="primary_dark">#388e3c</color>
+    <color name="primary_very_dark">#296B2C</color>
+    <color name="primary_very_very_dark">#1D2123</color>
+    <color name="primary_very_very_dark_light">#262E27</color>
+    <color name="primary_lite">#5FAD63</color>
+    <color name="primary_very_lite">#E6F8E6</color>   <!-- #DEF8E0 -->  <!-- #E9FFE9-->
+    <color name="accent">#36b024</color>
+    <color name="secondary">#3785C3</color>
+    <color name="secondary_dark">#2F72A8</color>
+    <color name="secondary_very_dark">#1D4C71</color>
+    <color name="secondary_very_very_dark">#184949</color>
+    <color name="secondary_very_lite">#E0F2F1</color>
+    <color name="secondaryTransparent">#320099cc</color>
+    <color name="background_discover">#5a43a047</color>
+    <color name="background_advertize">#5a43a047</color>
+    <color name="pressed_color">#cfd8dc</color>
+    <color name="accent_black">#ff000000</color>
+    <color name="dark_black">#06070A</color>
+    <color name="black">#0B1014</color>
+    <color name="light_black">#1E2123</color>
+    <color name="very_light_black">#3C4040</color>
+    <color name="very_very_dark_gray">#5A5A5A</color>
+    <color name="very_dark_gray">#737578</color>
+    <color name="very_dark_gray_plus">#6B6B6B</color>
+    <color name="dark_gray">#8C8C8C</color>
+    <color name="gray">#9A9EA0</color>
+    <color name="gray_plus">#AEB3B4</color>
+    <color name="light_gray">#bdbdbd</color>
+    <color name="very_light_gray">#e0e0e0</color>
+    <color name="very_light_gray2">#E9E9E9</color>
+    <color name="very_very_light_gray">#F5F5F5</color>
+    <color name="white">#fafafa</color>
+    <color name="accent_white">#ffffff</color>
+    <color name="red">#d50000</color>
+    <color name="yellow">#ffd600</color>
+    <color name="green">#00c853</color>
+    <color name="blue">#6faffc</color>
+    <color name="purple">#BA68C8</color>
+    <color name="orange">#FF7043</color>
+    <!-- colors for the widget-->
+    <color name="widget_background">@color/primary_very_lite</color>
+    <color name="widget_icon">@color/primary_very_dark</color>
+</resources>

@@ -1,0 +1,704 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/container2"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_fragment"
+    android:elevation="0dp"
+    android:fitsSystemWindows="true"
+    android:accessibilityPaneTitle="Text Translation"
+    tools:ignore="UseAppTint">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/toolbarTranslatorContainer"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:translationY="0dp"
+        android:importantForAccessibility="no"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0" >
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbarTranslator"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:backgroundTint="@android:color/transparent"
+            android:elevation="0dp"
+            app:title=" "
+            android:importantForAccessibility="noHideDescendants"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0" />
+
+        <nie.translator.rtranslator.tools.gui.AutoScrollTextView
+            android:id="@+id/title2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="8dp"
+            android:elevation="8dp"
+            android:fontFamily="@font/nunito_sans_semibold"
+            android:text="@string/app_name"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+            android:textColor="?attr/colorPrimaryStrong"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@+id/toolbarTranslatorContainer"
+            app:layout_constraintEnd_toEndOf="@+id/toolbarTranslatorContainer"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toStartOf="@+id/toolbarTranslatorContainer"
+            app:layout_constraintTop_toTopOf="@+id/toolbarTranslatorContainer"
+            app:layout_constraintVertical_bias="0.50" />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="@android:color/transparent"
+            android:tint="?attr/colorPrimaryStrong"
+            android:contentDescription="@string/title_activity_settings"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="@+id/toolbarTranslator"
+            app:layout_constraintHorizontal_bias="1.0"
+            app:layout_constraintStart_toEndOf="@+id/title2"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/settings_icon" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/constraintLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:importantForAccessibility="no"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbarTranslatorContainer"
+        app:layout_constraintVertical_bias="0.0">
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline10"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.13" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline11"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.43" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline12"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.57" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline13"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.87" />
+
+        <nie.translator.rtranslator.tools.gui.AutoScrollMaterialButton
+            android:id="@+id/first_lang_selector"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="21dp"
+            android:layout_marginBottom="21dp"
+            android:backgroundTint="?attr/colorPrimaryStrong"
+            android:outlineProvider="none"
+            android:paddingStart="8dp"
+            android:paddingTop="13dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="13dp"
+            android:text="@string/loading"
+            android:textColor="?attr/colorTextInverted"
+
+            android:visibility="visible"
+            app:cornerRadius="24dp"
+            app:elevation="0dp"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/guideline11"
+            app:layout_constraintHorizontal_bias="0.55"
+            app:layout_constraintStart_toStartOf="@+id/guideline10"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0"
+            tools:text="English"/>
+
+        <nie.translator.rtranslator.tools.gui.AutoScrollMaterialButton
+            android:id="@+id/second_lang_selector"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="21dp"
+            android:layout_marginBottom="21dp"
+            android:backgroundTint="?attr/colorPrimaryStrong"
+            android:outlineProvider="none"
+            android:paddingStart="8dp"
+            android:paddingTop="13dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="13dp"
+            android:text="@string/loading"
+            android:textColor="?attr/colorTextInverted"
+            android:visibility="visible"
+            app:cornerRadius="24dp"
+            app:elevation="0dp"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/guideline13"
+            app:layout_constraintHorizontal_bias="0.45"
+            app:layout_constraintStart_toStartOf="@+id/guideline12"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0"
+            tools:text="Italian"/>
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/invertLanguages"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@android:color/transparent"
+            android:tint="?attr/colorPrimaryStrong"
+            android:elevation="0dp"
+            android:contentDescription="@string/description_switch_languages"
+            app:layout_constraintBottom_toBottomOf="@+id/first_lang_selector"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/first_lang_selector"
+            app:srcCompat="@drawable/invert_arrows" />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/settingsButton2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:alpha="0"
+            android:backgroundTint="@android:color/transparent"
+            android:clickable="false"
+            android:tint="?attr/colorPrimaryStrong"
+            android:contentDescription="@string/title_activity_settings"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.9"
+            app:layout_constraintStart_toStartOf="@+id/guideline13"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/settings_icon" />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/backButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:alpha="0"
+            android:visibility="visible"
+            android:backgroundTint="@android:color/transparent"
+            android:clickable="false"
+            android:tint="?attr/colorPrimaryStrong"
+            android:contentDescription="@string/back"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/guideline10"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/back_arrow_icon" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardView4"
+        style="@style/CustomCardViewStyle"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="4dp"
+        android:importantForAccessibility="no"
+        app:cardBackgroundColor="?attr/colorBackgroundLite"
+        app:cardElevation="0dp"
+        app:cardPreventCornerOverlap="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/constraintLayout">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no">
+
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/nestedScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:fillViewport="true"
+                app:layout_constraintBottom_toTopOf="@+id/cardView8"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                android:importantForAccessibility="no">
+
+                <LinearLayout
+                    android:id="@+id/mainContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:importantForAccessibility="no">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/inputContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:importantForAccessibility="no">
+
+                        <EditText
+                            android:id="@+id/multiAutoCompleteTextView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="18dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginEnd="16dp"
+                            android:layout_marginBottom="20dp"
+                            android:paddingBottom="4dp"
+                            android:backgroundTint="@android:color/transparent"
+                            android:gravity="start|top"
+                            android:focusableInTouchMode="true"
+                            android:hint="@string/hint_text"
+                            android:imeOptions="actionGo"
+                            android:inputType="textCapSentences|textMultiLine|textAutoCorrect"
+                            android:textSize="18sp"
+                            android:textColor="?attr/colorTextLevel1"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintVertical_bias="0.0" />
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/tts_button"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_marginBottom="4dp"
+                            android:backgroundTint="?attr/colorBackgroundLite"
+                            android:src="@drawable/sound_icon"
+                            android:importantForAccessibility="no"
+                            app:borderWidth="0dp"
+                            app:elevation="0dp"
+                            app:fabSize="mini"
+                            android:alpha="0"
+                            android:visibility="invisible"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/multiAutoCompleteTextView"
+                            app:layout_constraintVertical_bias="1.0"
+                            app:rippleColor="#12000000"
+                            app:tint="?attr/colorTextLevel3" />
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/copyButtonInput"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_marginBottom="4dp"
+                            android:backgroundTint="?attr/colorBackgroundLite"
+                            android:src="@drawable/copy_icon"
+                            android:contentDescription="@string/description_copy_input_text"
+                            app:borderWidth="0dp"
+                            app:elevation="0dp"
+                            app:fabSize="mini"
+                            android:alpha="0"
+                            android:visibility="invisible"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="1.0"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/multiAutoCompleteTextView"
+                            app:layout_constraintVertical_bias="1.0"
+                            app:rippleColor="#12000000"
+                            app:tint="?attr/colorTextLevel3" />
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/cancelButtonInput"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_marginBottom="4dp"
+                            android:alpha="0"
+                            android:backgroundTint="?attr/colorBackgroundLite"
+                            android:src="@drawable/cancel_icon"
+                            android:visibility="invisible"
+                            android:contentDescription="@string/description_clear_text"
+                            app:borderWidth="0dp"
+                            app:elevation="0dp"
+                            app:fabSize="mini"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@+id/copyButtonInput"
+                            app:layout_constraintHorizontal_bias="1.0"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/multiAutoCompleteTextView"
+                            app:layout_constraintVertical_bias="1.0"
+                            app:rippleColor="#12000000"
+                            app:tint="?attr/colorTextLevel3" />
+
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <androidx.constraintlayout.widget.Guideline
+                            android:id="@+id/guideline8"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            app:layout_constraintGuide_percent="0.20" />
+
+                        <View
+                            android:id="@+id/lineSeparator"
+                            android:layout_width="0dp"
+                            android:layout_height="2dp"
+                            android:background="?android:attr/listDivider"
+                            android:visibility="invisible"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="@id/guideline9"
+                            app:layout_constraintStart_toStartOf="@+id/guideline8"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                        <androidx.constraintlayout.widget.Guideline
+                            android:id="@+id/guideline9"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            app:layout_constraintGuide_percent="0.80" />
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/outputContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:alpha="0"
+                        android:visibility="invisible"
+                        android:importantForAccessibility="no"
+                        tools:alpha="1"
+                        tools:visibility="invisible">
+
+                        <LinearLayout
+                            android:id="@+id/outputTextContainer"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="18dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginEnd="16dp"
+                            android:layout_marginBottom="0dp"
+                            android:orientation="vertical"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintVertical_bias="0.0">
+
+                            <EditText
+                                android:id="@+id/multiAutoCompleteTextView2"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:backgroundTint="@android:color/transparent"
+                                android:editable="true"
+                                android:focusableInTouchMode="true"
+                                android:gravity="start|top"
+                                android:inputType="none"
+                                android:paddingBottom="4dp"
+                                android:scrollbars="vertical"
+                                android:textColor="?attr/colorTextLevel1"
+                                android:textIsSelectable="true"
+                                android:textSize="18sp"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="parent"
+                                app:layout_constraintVertical_bias="0.0"
+                                tools:text="Output text" />
+                            <TextView
+                                android:id="@+id/synonymsText"
+                                android:layout_width="match_parent"
+                                android:layout_height="0dp"
+                                android:layout_marginStart="4dp"
+                                android:layout_marginEnd="6dp"
+                                android:visibility="invisible"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/ttsButtonOutput"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_marginBottom="4dp"
+                            android:backgroundTint="?attr/colorBackgroundLite"
+                            android:src="@drawable/sound_icon"
+                            android:importantForAccessibility="no"
+                            app:borderWidth="0dp"
+                            app:elevation="0dp"
+                            app:fabSize="mini"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/outputTextContainer"
+                            app:layout_constraintVertical_bias="1.0"
+                            app:rippleColor="#12000000"
+                            app:tint="?attr/colorTextLevel3" />
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/copyButtonOutput"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_marginBottom="4dp"
+                            android:backgroundTint="?attr/colorBackgroundLite"
+                            android:src="@drawable/copy_icon"
+                            android:contentDescription="@string/description_copy_translated_text"
+                            app:borderWidth="0dp"
+                            app:elevation="0dp"
+                            app:fabSize="mini"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="1.0"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/outputTextContainer"
+                            app:layout_constraintVertical_bias="1.0"
+                            app:rippleColor="#12000000"
+                            app:tint="?attr/colorTextLevel3" />
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/fullscreenButtonOutput"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_marginBottom="4dp"
+                            android:backgroundTint="?attr/colorBackgroundLite"
+                            android:src="@drawable/fullscreen_icon"
+                            android:contentDescription="@string/description_text_fullscreen"
+                            app:borderWidth="0dp"
+                            app:elevation="0dp"
+                            app:fabSize="mini"
+                            app:maxImageSize="30dp"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@+id/copyButtonOutput"
+                            app:layout_constraintHorizontal_bias="1.0"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/outputTextContainer"
+                            app:layout_constraintVertical_bias="1.0"
+                            app:rippleColor="#12000000"
+                            app:tint="?attr/colorTextLevel3" />
+
+                        <TextView
+                            android:id="@+id/resultTypeText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginEnd="16dp"
+                            android:layout_marginBottom="4dp"
+                            android:alpha="0"
+                            android:backgroundTint="?attr/colorBackgroundLite"
+                            android:text="@string/Tatoeba"
+                            app:borderWidth="0dp"
+                            app:elevation="0dp"
+                            app:fabSize="mini"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@+id/fullscreenButtonOutput"
+                            app:layout_constraintHorizontal_bias="1.0"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/outputTextContainer"
+                            app:rippleColor="#12000000"
+                            app:tint="?attr/colorTextLevel3" />
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardView8"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="?attr/colorBackgroundLite"
+                app:cardCornerRadius="0dp"
+                app:cardElevation="7dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="1.0">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/constraintLayout2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:backgroundTint="@android:color/transparent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintVertical_bias="1.0">
+
+                    <nie.translator.rtranslator.tools.gui.AutoScrollMaterialButton
+                        android:id="@+id/buttonTranslate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:backgroundTint="?attr/colorPrimary"
+                        android:maxWidth="150dp"
+                        android:text="@string/translate"
+                        android:textColor="?attr/colorTextInverted"
+                        android:visibility="visible"
+                        android:outlineProvider="none"
+                        app:elevation="0dp"
+                        app:cornerRadius="20dp"
+                        app:layout_constraintBottom_toBottomOf="@+id/buttonMicFirst"
+                        app:layout_constraintEnd_toStartOf="@+id/buttonMicSecond"
+                        app:layout_constraintStart_toEndOf="@+id/buttonMicFirst"
+                        app:layout_constraintTop_toTopOf="@+id/buttonMicFirst" />
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/buttonWalkieTalkieSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:alpha="0"
+                        android:clickable="false"
+                        android:src="@drawable/walkie_talkie_icon_reduced"
+                        android:contentDescription="@string/title_fragment_walkie_talkie"
+                        app:elevation="0dp"
+                        app:backgroundTint="?attr/colorBackgroundColored"
+                        app:fabSize="mini"
+                        app:tint="?attr/colorPrimaryStrong"
+                        app:layout_constraintBottom_toBottomOf="@+id/buttonTranslate"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintHorizontal_bias="0.0"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="@+id/buttonTranslate"
+                        app:layout_constraintVertical_bias="0.50" />
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/buttonConversationSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="16dp"
+                        android:alpha="0"
+                        android:clickable="false"
+                        android:src="@drawable/conversation_icon_reduced"
+                        android:contentDescription="@string/title_fragment_conversation"
+                        app:backgroundTint="?attr/colorBackgroundColored"
+                        app:fabSize="mini"
+                        app:elevation="0dp"
+                        app:tint="?attr/colorPrimaryStrong"
+                        app:layout_constraintBottom_toBottomOf="@+id/buttonTranslate"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintHorizontal_bias="1.0"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="@+id/buttonTranslate"
+                        app:layout_constraintVertical_bias="0.50" />
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/buttonMicFirst"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="24dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="8dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:src="@drawable/walkie_talkie_icon"
+                        android:visibility="visible"
+                        android:contentDescription="@string/title_fragment_walkie_talkie"
+                        app:backgroundTint="?attr/colorBackgroundColored"
+                        app:elevation="0dp"
+                        app:layout_constraintBottom_toTopOf="@+id/textButton1"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintHorizontal_bias="0.0"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintVertical_bias="1.0"
+                        app:maxImageSize="40dp"
+                        app:tint="?attr/colorPrimaryStrong" />
+
+                    <nie.translator.rtranslator.tools.gui.AutoScrollTextView
+                        android:id="@+id/textButton1"
+                        android:layout_width="90dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:fontFamily="@font/nunito_sans_light"
+                        android:gravity="center"
+                        android:text="@string/title_fragment_walkie_talkie"
+                        android:textSize="12sp"
+                        android:visibility="visible"
+                        android:importantForAccessibility="no"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="@+id/buttonMicFirst"
+                        app:layout_constraintStart_toStartOf="@+id/buttonMicFirst"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintVertical_bias="0.998" />
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/buttonMicSecond"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="24dp"
+                        android:layout_marginBottom="8dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:src="@drawable/conversation_icon"
+                        android:visibility="visible"
+                        android:contentDescription="@string/title_fragment_conversation"
+                        app:backgroundTint="?attr/colorBackgroundColored"
+                        app:elevation="0dp"
+                        app:layout_constraintBottom_toTopOf="@+id/textButton2"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintHorizontal_bias="1.0"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintVertical_bias="1.0"
+                        app:maxImageSize="40dp"
+                        app:tint="?attr/colorPrimaryStrong" />
+
+                    <nie.translator.rtranslator.tools.gui.AutoScrollTextView
+                        android:id="@+id/textButton2"
+                        android:layout_width="90dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:fontFamily="@font/nunito_sans_light"
+                        android:gravity="center"
+                        android:text="@string/title_fragment_conversation"
+                        android:textSize="12sp"
+                        android:visibility="visible"
+                        android:importantForAccessibility="no"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="@+id/buttonMicSecond"
+                        app:layout_constraintStart_toStartOf="@+id/buttonMicSecond"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintVertical_bias="0.998" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    * Copyright 2016 Luca Martino.
+    *
+    * Licensed under the Apache License, Version 2.0 (the "License");
+    * you may not use this file except in compliance with the License.
+    * You may obtain a copyFile of the License at
+    *
+    * http://www.apache.org/licenses/LICENSE-2.0
+    *
+    * Unless required by applicable law or agreed to in writing, software
+    * distributed under the License is distributed on an "AS IS" BASIS,
+    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    * See the License for the specific language governing permissions and
+    * limitations under the License.
+    *-->
+
+<resources>
+    <string name="mic">mic</string>
+    <string name="btHeadset">bt-headset</string>
+    <string name="exit">esci</string>
+    <string name="retry">riprova</string>
+    <string name="continue_without_tts">continua</string>
+    <string name="delete">elimina</string>
+    <string name="no_devices">no devices</string>
+    <string name="available">disponibile</string>
+    <string name="not_available">non disponibile</string>
+    <string name="loading">caricamento…</string>
+    <string name="forward">avanti</string>
+    <string name="conversation">Conversazione</string>
+    <string name="connection">Connessione</string>
+    <string name="translate">Traduci</string>
+    <string name="fix">correggi</string>
+    <string name="automatic">Automatico</string>
+    <string name="chat">Chat</string>
+    <string name="select_tts">Seleziona TTS</string>
+    <string name="unzipping">Decompressione...</string>
+    <string name="testing_integrity">Verifica...</string>
+    <string name="paused">"In pausa: "</string>
+    <string name="applying_settings">Applicazione nuove impostazioni...</string>
+    <string name="dictionary">Dizionario</string>
+    <string name="apply">Applica</string>
+    <string name="speech_recognition_model">Modello di Riconoscimento Vocale</string>
+    <string name="translation_dictionaries">Dizionari di Traduzione</string>
+    <string name="performance">Prestazioni</string>
+    <string name="quality">Qualità</string>
+    <string name="versatility">Versatilità</string>
+    <string name="translation_model">Modello di Traduzione</string>
+    <string name="system_and_other_apps">Sistema e altre app</string>
+    <string name="ram">RAM</string>
+    <string name="cancel">Annulla</string>
+    <string name="continue_text">Continua</string>
+    <string name="ok">Ok</string>
+    <string name="translation_enhancements">Miglioramenti della Traduzione</string>
+    <string name="no">No</string>
+    <string name="yes">Sì</string>
+    <string name="general">Generale</string>
+    <string name="edit">Modifica</string>
+    <string name="back">Indietro</string>
+    <string name="pause">Pausa</string>
+    <string name="resume">Riprendi</string>
+    <string name="offline">Offline</string>
+    <string name="reset">Reimposta</string>
+    <string name="options">Opzioni</string>
+    <string name="from">da</string>
+    <string name="to">a</string>
+    <string name="theme">Tema</string>
+    <string name="system_default">Predefinito di sistema</string>
+    <string name="light">Chiaro</string>
+    <string name="dark">Scuro</string>
+
+    <string name="description_button_tts_manual">Lettura manuale dei messaggi</string>
+    <string name="description_button_tts_auto">Lettura automatica dei messaggi</string>
+    <string name="description_stop_search">Interrompi ricerca</string>
+    <string name="description_start_search">Avvia ricerca</string>
+    <string name="description_checkbox_privacy">Accetta l\'informativa sulla privacy</string>
+    <string name="description_disconnect_peer">Disconnetti dispositivo</string>
+    <string name="description_chat_tab">Scheda chat</string>
+    <string name="description_connection_tab">Scheda connessione</string>
+    <string name="description_switch_languages">Inverti lingue</string>
+    <string name="description_copy_input_text">Copia testo inserito</string>
+    <string name="description_copy_translated_text">Copia testo tradotto</string>
+    <string name="description_clear_text">Cancella testo</string>
+    <string name="description_text_fullscreen">Testo tradotto a schermo intero</string>
+    <string name="description_start_microphone">Attiva microfono</string>
+    <string name="description_stop_microphone">Disattiva microfono</string>
+    <string name="description_close_text_mode">Chiudi modalità inserimento testo</string>
+    <string name="description_send">Invia messaggio di testo</string>
+    <string name="description_start_automatic_recognition">Avvia riconoscimento automatico</string>
+    <string name="description_stop_automatic_recognition">Interrompi riconoscimento automatico</string>
+    <string name="description_start_manual_recognition">Avvia riconoscimento manuale in %1$s</string>
+    <string name="description_stop_manual_recognition">Interrompi riconoscimento manuale in %1$s</string>
+    <string name="description_double_tap_fullscreen">Doppio click per aprire a schermo intero</string>
+    <string name="description_message_fullscreen">Apri il messaggio a schermo intero</string>
+    <string name="description_exit_fullscreen">Esci dalla modalità a schermo intero</string>
+    <string name="description_mode">Descrizione della modalità</string>
+    <string name="description_read_full">Leggi la descrizione completa</string>
+    <string name="description_start_download">Avvia download</string>
+    <string name="description_delete_resource">Elimina risorsa</string>
+    <string name="description_download_error">Errore di download</string>
+    <string name="description_start_walkietalkie">Avvia WalkieTalkie</string>
+    <string name="description_manage_mozilla_button">Gestisci le lingue della modalità prestazioni</string>
+
+    <string name="notification_channel_name">notifica uso in background</string>
+
+    <string name="privacy_check_box">Dichiaro di aver letto la <a href="https://github.com/niedev/RTranslator/blob/v2.00/privacy/Privacy_Policy_it.md">privacy policy</a></string>
+
+    <string name="toast_working_background">RTranslator funzionerà in background</string>
+    <string name="toast_download_completed">Download completato</string>
+    <string name="toast_download_error">C\'è stato un errore col download, apri RTranslator per riprovare</string>
+    <string name="toast_missing_notification_permission">Per far funzionare bene in background questa modalità, attivare le notifiche</string>
+
+    <string name="dialog_confirm_delete">Conferma cancellazione</string>
+    <string name="dialog_confirm_exit">Conferma uscita</string>
+    <string name="dialog_confirm_disconnection">Sei sicuro di volerti disconnettere da&#160;</string>
+    <string name="dialog_confirm_connection">Sei sicuro di volerti connettere con&#160;</string>
+    <string name="dialog_confirm_connection_request">Accetti la richiesta di connessione da&#160;</string>
+    <string name="dialog_select_personal_language">Seleziona la lingua personale</string>
+    <string name="dialog_select_first_language">Seleziona la lingua primaria</string>
+    <string name="dialog_select_second_language">Seleziona la lingua secondaria</string>
+    <string name="dialog_insert_name">Inserisci il tuo nome</string>
+    <string name="dialog_confirm_apply_quit">Sei sicuro di voler uscire senza applicare le nuove impostazioni?</string>
+    <string name="dialog_confirm_delete_resource">Sei sicuro di voler eliminare questa risorsa?</string>
+    <string name="dialog_search_hint">Cerca lingua...</string>
+    <string name="dialog_no_languages">Nessuna lingua trovata</string>
+
+    <string name="menu_image_select_from_gallery">Seleziona dalla galleria</string>
+    <string name="menu_image_remove">Rimuovi</string>
+
+    <string name="hint_edit_text_message">Scrivi un messaggio</string>
+    <string name="hint_user_name">Nome utente</string>
+    <string name="hint_text">Inserisci il testo</string>
+
+    <string name="error_missing_location_permissions">Non é possibile eseguire la modalità Conversazione senza il permesso per la posizione e del bluetooth, andare nelle impostazioni per concederli, oppure reinstallare l\' app</string>
+    <string name="error_missing_mic_permissions">Senza il permesso per il microfono il riconoscimento vocale non funziona, andare nelle impostazioni per concedere il permesso oppure reinstalla l\' app</string>
+    <string name="error_missing_mic_permissions_walkietalkie">Non è possibile usare la modalità WalkieTalkie senza il permesso del microfono. Vai nelle impostazioni per concederlo, oppure reinstalla l\'app</string>
+    <string name="error_tts_toast">TTS mancante</string>
+    <string name="error_tts">C\'è stato un errore con l\'inizializzazione del tts, vuoi continuare senza tts?</string>
+    <string name="error_missing_tts">In questo device non è presente il motore di sintesi vocale di google, scaricalo per poter usare il tts</string>
+    <string name="error_missing_bluetooth_le">Non é possibile eseguire la modalità Conversazione perché questo dispositivo non ha il Bluetooth Low Energy</string>
+    <string name="error_internet_lack_loading">Per avviare RTranslator è necessaria una connessione a internet, controllare la propria connessione</string>
+    <string name="error_internet_lack_accessing">Per eseguire l\'operazione è necessaria una connessione a internet, controllare la propria connessione</string>
+    <string name="error_internet_lack_services">Impossibile tradurre il messaggio, controllare la connessione a internet</string>
+    <string name="error_internet_lack_loading_languages">Per visualizzare le lingue è necessaria una connessione a internet, controllare la propria connessione e riprovare</string>
+    <string name="error_connection_rejected">ha rifiutato la richiesta di connessione</string>
+    <string name="error_connection">Errore di connessione</string>
+    <string name="error_starting_search">Errore durante l\' avvio della ricerca</string>
+    <string name="error_cannot_interact_connection">Non si può interagire con i dispositivi durante la connessione</string>
+    <string name="error_cannot_interact_disconnection">Non si può interagire con i dispositivi durante la disconnessione</string>
+    <string name="error_wait_initialization">Attendere inizializzazione</string>
+    <string name="error_selecting_image">Errore durante la selezione dell\' immagine, usa un\' altra galleria per selezionarla</string>
+    <string name="error_wait_download_end">Aspetta che il download finisca</string>
+    <string name="error_age_unchecked">Devi avere almeno 14 anni per usare l\'app</string>
+    <string name="error_privacy_unchecked">Devi aver letto la privacy policy per usare l\'app</string>
+    <string name="error_missing_username">Inserire un nome</string>
+    <string name="error_wrong_username">Il testo contiene caratteri non ammessi, sono ammessi solo i seguenti caratteri: </string>
+    <string name="error_models_loading">C\'è stato un errore nel caricamento dei file dei modelli di rete neurale per la traduzione e il riconoscimento vocale, probabilmente qualche file è danneggiato, provare a riavviare l\'app, se il problema persiste allora premere il pulsante "correggi" e solo i file danneggiati verranno riscaricati.</string>
+    <string name="error_models_loading_short">Errore nel caricamento del nuovo modello</string>
+    <string name="error_download">Errore nel download, assicurati di avere una connessione a internet e riprova:</string>
+    <string name="error_transfer">Errore nel trasferimento del file scaricato dalla memoria esterna a quella interna, assicurati di non aver rimosso una scheda SD o altri dispositivi di archiviazione esterni e riprova tenendo aperta l\'app:</string>
+    <string name="error_ram">Il tuo dispositivo ha meno di 6GB di RAM, per funzionare l\'app ha bisogno di almeno 6GB di RAM, puoi provare lo stesso a usarla, ma molto probabilmente crasherà.</string>
+    <string name="error_storage">Spazio di archiviazione basso, il download potrebbe fallire</string>
+    <string name="error_missing_mozilla">Hai selezionato Mozilla come modello di traduzione, ma non hai ancora scaricato nessuna delle sue lingue. Scarica almeno un modello linguistico prima di selezionare Mozilla.</string>
+    <string name="error_missing_hy">Hai selezionato HY-MT come modello di traduzione, ma non è ancora stato scaricato. Scarica il modello prima di selezionarlo.</string>
+    <string name="error_missing_madlad">Hai selezionato Madlad come modello di traduzione, ma non è ancora stato scaricato. Scarica il modello prima di selezionarlo.</string>
+    <string name="error_missing_mozilla_voice">Hai attivato l\'uso dei modelli Mozilla per le modalità WalkieTalkie e Conversazione, ma non ci sono modelli Mozilla scaricati. Scaricali prima di attivare questa opzione.</string>
+    <string name="error_missing_tatoeba">Hai attivato Tatoeba, ma non è ancora stato scaricato. Scarica Tatoeba prima di attivarlo.</string>
+    <string name="error_missing_general">Risorsa non scaricata</string>
+    <string name="error_apply_unknown">Errore sconosciuto, riprova.</string>
+    <string name="error_delete_last_download">Questo è l\'ultimo modello di traduzione scaricato. Non puoi eliminare tutti i modelli di traduzione: scaricane un altro prima di eliminare questo.</string>
+    <string name="error_bluetooth_off">Non è possibile usare la modalità Conversazione perché il Bluetooth è disattivato, attivalo per iniziare a usare questa modalità.</string>
+
+    <string name="title_image_selector">immagine del profilo</string>
+
+    <string name="home_walkietalkie_mode">Modalità WalkieTalkie</string>
+    <string name="home_conversation_mode">Modalità Conversazione</string>
+    <string name="title_fragment_conversation">Conversazione</string>
+    <string name="title_fragment_walkie_talkie">WalkieTalkie</string>
+    <string name="title_fragment_notice">Avviso</string>
+    <string name="title_fragment_user_data">Inserisci i tuoi dati</string>
+    <string name="title_fragment_download">Download dei modelli</string>
+    <string name="title_mozilla_voice">Modello "Prestazioni" per le Modalità di Traduzione Vocale</string>
+    <string name="title_whisper_ram_reduction">Riduzione della RAM del Riconoscimento Vocale</string>
+
+    <string name="title_activity_settings">Impostazioni</string>
+    <string name="title_activity_credit">Gestione APIs</string>
+
+    <string name="header_recents_peers">recenti</string>
+    <string name="header_found_peers">trovati</string>
+    <string name="header_connected_peers">connessi</string>
+
+    <string name="description_discovery">In questa schermata si cercano e ci rendiamo visibili ad altri dispositivi che usano RTranslator
+        per poter stabilire una connessione con loro e iniziare la conversazione</string>
+    <string name="description_fragment_user_data">Il tuo nome verrà visualizzato da tutti i dispositivi nelle vicinanze, mentre la tua immagine del profilo solo dai dispositivi con cui hai già avuto conversazioni</string>
+    <string name="description_fragment_download">Adesso RTranslator scaricherà i modelli di reti neurali necessari per la traduzione e il riconoscimento vocale, una volta finito potrai iniziare a usare l\'app (anche offline).</string>
+    <string name="description_conversation">La modalità Conversazione è la funzionalità principale di RTranslator, permette di tradurre una conversazione tra più persone in tempo reale, per un\' esperienza migliore si consiglia di collegare delle cuffie bluetooth al telefono, inoltre l\' applicazione continuerà a funzionare anche in background e con il telefono in standby (alcuni telefoni però potrebbero avere problemi di prestazioni quando l\'app gira in background)</string>
+    <string name="description_walkie_talkie">La modalità WalkieTalkie è la funzionalità secondaria di RTranslator, non permette una traduzione in tempo reale ma è pensata per funzionare con un solo telefono,
+        rileva e traduce automaticamente un discorso in una lingua nell\' altra, inoltre l\' applicazione continuerà a funzionare anche in background e con il telefono in standby</string>
+    <string name="description_notice">RTranslator usa <a href="https://openai.com/index/whisper/">OpenAi Whisper</a> per il riconoscimento vocale e <a href="https://ai.meta.com/research/no-language-left-behind/">Meta NLLB</a> per la traduzione, questi modelli richiedono abbastanza potenza e almeno 6GB di RAM per essere eseguiti, quindi assicurati di usare uno smartphone moderno per evitare rallentamenti o crash. Per più info su RTranslator visita il progetto GitHub dell\'app <a href="https://github.com/niedev/RTranslator">qui</a></string>
+    <string name="description_download">Download di %1$s in corso</string>
+    <string name="description_transfer">Trasferimento di %1$s nella memoria interna</string>
+    <string name="description_unzip">Decompressione di %1$s</string>
+    <string name="description_integrity_check">Verifica dell\'integrità di %1$s</string>
+    <string name="description_tts">Per parlare, RTranslator usa il TTS di sistema, il TTS consigliato è il <a href="https://play.google.com/store/apps/details?id=com.google.android.tts">TTS di Google</a>, ma puoi usare quello che preferisci, per selezionarlo clicca sul pulsante sotto</string>
+    <string name="description_permission_notification">Le notifiche saranno usate solo per migliorare le operazioni in background, come i download o altre attività in background. Questa app non invierà mai notifiche.</string>
+    <string name="description_permission_pairing">Per usare la modalità Conversazione, consenti a RTranslator di usare il Bluetooth.</string>
+    <string name="description_permission_walkietalkie">Per usare la modalità WalkieTalkie, consenti a RTranslator di accedere al microfono.</string>
+    <string name="description_permission_conversation">Per tradurre la tua voce nella modalità Conversazione, consenti a RTranslator di accedere al microfono. Se non concedi questo permesso, la modalità funzionerà comunque, ma potrai solo inviare messaggi di testo o ricevere e riprodurre le traduzioni.</string>
+    <string name="description_model_mozilla">Modelli leggeri monolingua creati da Mozilla; hanno una qualità simile a quella di Google Translate del 2024. \n\nModello: Mozilla 16-60M fp32</string>
+    <string name="description_model_hy">Modello di medie dimensioni creato da Tencent; ha la qualità migliore, superiore a Google Translate, paragonabile a Deepseek v3 e Gemini 3.0. \n\nModello: HY-MT-1.5 1.8B int8</string>
+    <string name="description_model_madlad">Modello pesante creato da Google; ha una qualità intermedia tra i modelli Mozilla e HY-MT, ma supporta 400 lingue. \n\nModello: Madlad 3B int4</string>
+    <string name="description_mozilla_voice">Usa i modelli prestazioni (Mozilla) per le modalità WalkieTalkie e Conversazione, per ridurre la latenza nelle modalità di traduzione in tempo reale, ma con una qualità inferiore.</string>
+    <string name="description_whisper_ram_reduction">Riduce il consumo di RAM del modello Whisper da 900MB a 500MB, ma ne riduce la velocità di esecuzione del 24%.</string>
+    <string name="description_tatoeba">Dataset Tatoeba che verrà usato per migliorare la traduzione di alcune frasi</string>
+    <string name="description_dictionaries">Dizionari di traduzione che verranno usati per migliorare la traduzione delle singole parole.</string>
+
+    <string name="preference_header_language">Lingua</string>
+    <string name="preference_header_output">Output</string>
+    <string name="preference_header_input">Input</string>
+    <string name="preference_header_advanced">Avanzate</string>
+
+    <string name="preference_title_mic_sensitivity">Sensibilità microfono</string>
+    <string name="preference_title_languages_quality">Supporto lingue a bassa qualità</string>
+    <string name="preference_title_support_tts_quality">Supporto lingue con tts a bassa qualità</string>
+    <string name="preference_title_language">Lingua personale</string>
+    <string name="preference_title_tts">Sintetizzatore vocale</string>
+    <string name="preference_title_speech_timeout">Timeout fine voce</string>
+    <string name="preference_title_prev_voice_duration">Durata anticipo voce</string>
+    <string name="preference_title_beam_size">Beam Search (beta)</string>
+    <string name="preference_title_models_manager">Gestione Modelli</string>
+
+    <string name="preference_description_mic_sensitivity">Seleziona il livello di volume che serve per avviare e mantenere il riconoscimento vocale</string>
+    <string name="preference_description_languages_quality">Permette di supportare anche le lingue che hanno una bassa qualità di traduzione o del riconoscimento vocale</string>
+    <string name="preference_title_show_original_transcription">Mostra le trascrizioni originali oltre la traduzione</string>
+    <string name="preference_description_show_original_transcription_msg_preference">Consente di mostrare la trascrizione originale oltre la traduzione del messaggio.</string>
+    <string name="preference_description_support_tts_quality">Permette di supportare anche le lingue che hanno una bassa qualità del sintetizzatore vocale</string>
+    <string name="preference_description_tts">Impostazioni di sistema del tts, un eventuale cambio del motore predefinito sarà applicato solo dopo il riavvio dell\'app</string>
+    <string name="preference_description_speech_timeout">Seleziona il tempo che deve trascorrere dopo aver smesso di parlare per inviare il testo trascritto</string>
+    <string name="preference_description_prev_voice_duration">Seleziona la durata della registrazione precedente a quando si inizia a parlare che verrà inclusa nel riconoscimento vocale</string>
+    <string name="preference_description_beam_size">Imposta la beam size dell\'algoritmo di beam search, per migliorare la qualità della traduzione a discapito delle performance (solo per la traduzione testuale)</string>
+    <string name="preference_description_models_manager">Scegli il modello che vuoi usare per la traduzione e gestisci le altre opzioni di traduzione</string>
+
+    <string name="conversation_mode" >Modalità Conversazione</string>
+    <string name="conversation_mode_running" >La modalità conversazione è in esecuzione...</string>
+    <string name="walkietalkie_mode" >Modalità WalkieTalkie</string>
+    <string name="walkietalkie_mode_running" >La modalità WalkieTalkie è in esecuzione...</string>
+</resources>

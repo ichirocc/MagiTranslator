@@ -1,0 +1,14 @@
+/shelf/
+/caches
+/caches/*
+/dictionaries
+/libraries
+/usage.statistics.xml
+/workspace.xml
+/gradle.xml
+/dataSources.ids
+/datasources.xml
+/modules.xml
+/assetWizardSettings.xml
+/deploymentTargetSelector.xml
+/inspectionProfiles/*

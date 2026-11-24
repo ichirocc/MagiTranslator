@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="ResourceManagerView">
+        <attr name="modelTitle" format="string" />
+        <attr name="modelDescription" format="string" />
+        <attr name="modelSize" format="integer" />
+        <attr name="state" format="enum">
+            <enum name="empty" value="0" />
+            <enum name="paused" value="1" />
+            <enum name="downloading" value="2" />
+            <enum name="downloaded" value="3" />
+        </attr>
+    </declare-styleable>
+
+    <declare-styleable name="SegmentProgressBar">
+        <attr name="backgroundColor" format="color" />
+        <attr name="cornerRadius" format="dimension" />
+        <attr name="maxProgress" format="float" />
+
+        <!-- Comma-separated hex colors (e.g., "#ffbfbf,#a2fab3,#6faffc") -->
+        <attr name="segmentColors" format="reference" />
+
+        <!-- Comma-separated progress values (e.g., "30,40,20") -->
+        <attr name="segmentProgresses" format="reference" />
+    </declare-styleable>
+
+    <!-- Theme-specific custom attributes -->
+    <declare-styleable name="Theme.RTranslator">
+        <attr name="colorPrimaryAlt" format="color"/>
+        <attr name="colorPrimaryStrong" format="color"/>
+        <attr name="colorPrimaryLite" format="color"/>
+        <attr name="colorDeactivated" format="color"/>
+        <attr name="colorDeactivatedLite" format="color"/>
+
+        <attr name="colorBackground" format="color" />
+        <attr name="colorBackgroundLite" format="color" />
+        <attr name="colorBackgroundStrong" format="color" />
+        <attr name="colorBackgroundColored" format="color" />
+        <attr name="colorBackgroundColoredDialog" format="color" />
+        <attr name="colorBackgroundDialog" format="color" />
+        <attr name="colorBackgroundMessageSend" format="color" />
+        <attr name="colorBackgroundMessageReceived" format="color" />
+
+        <attr name="colorTextLevel0" format="color"/>
+        <attr name="colorTextLevel1" format="color"/>
+        <attr name="colorTextLevel2" format="color"/>
+        <attr name="colorTextLevel3" format="color"/>
+        <attr name="colorTextLevel4" format="color"/>
+        <attr name="colorTextLevel4Plus" format="color"/>
+        <attr name="colorTextLevel5" format="color"/>
+        <attr name="colorTextLevel6" format="color"/>
+        <attr name="colorTextLevel7" format="color"/>
+        <attr name="colorTextInverted" format="color"/>
+    </declare-styleable>
+</resources>
