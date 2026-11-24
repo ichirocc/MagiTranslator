@@ -320,6 +320,13 @@ public class WalkieTalkieService extends VoiceTranslationService {
         firstResultTranslateListener = new Translator.TranslateListener() {
             @Override
             public void onTranslatedText(String textToTranslate, String translatedText, String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
+                if (isFinal && (translatedText == null || translatedText.trim().isEmpty())) {
+                    //nothing to say (e.g. the utterance was only fillers like "えっと"): no empty bubble and no
+                    //empty TTS utterance; listen again exactly like the existing "no TTS" path below
+                    startVoiceRecorder();
+                    notifyMicActivated();
+                    return;
+                }
                 if (isFinal) nie.translator.rtranslator.tools.Haptics.translationReady(WalkieTalkieService.this);  //Android 16 envelope haptics
                 ((Global) getApplication()).getTTSLanguages(true, new Global.GetLocalesListListener() {
                     @Override
@@ -364,6 +371,13 @@ public class WalkieTalkieService extends VoiceTranslationService {
         secondResultTranslateListener = new Translator.TranslateListener() {
             @Override
             public void onTranslatedText(String textToTranslate, String translatedText, String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
+                if (isFinal && (translatedText == null || translatedText.trim().isEmpty())) {
+                    //nothing to say (e.g. the utterance was only fillers like "えっと"): no empty bubble and no
+                    //empty TTS utterance; listen again exactly like the existing "no TTS" path below
+                    startVoiceRecorder();
+                    notifyMicActivated();
+                    return;
+                }
                 if (isFinal) nie.translator.rtranslator.tools.Haptics.translationReady(WalkieTalkieService.this);  //Android 16 envelope haptics
                 ((Global) getApplication()).getTTSLanguages(true, new Global.GetLocalesListListener() {
                     @Override

@@ -173,6 +173,9 @@ public class ConversationService extends VoiceTranslationService {
                 translator.translateMessage(conversationMessage, language, TRANSLATOR_BEAM_SIZE, new Translator.TranslateListener() {
                     @Override
                     public void onTranslatedText(String textToTranslate, String translatedText, @Nullable String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
+                        if (isFinal && (translatedText == null || translatedText.trim().isEmpty())) {
+                            return;   //nothing to show or speak (e.g. the received text was only fillers)
+                        }
                         global.getTTSLanguages(true, new Global.GetLocalesListListener() {
                             @Override
                             public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {

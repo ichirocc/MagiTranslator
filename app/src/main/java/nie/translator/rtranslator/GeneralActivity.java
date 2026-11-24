@@ -33,24 +33,19 @@ import nie.translator.rtranslator.tools.ErrorCodes;
 
 
 public abstract class GeneralActivity extends AppCompatActivity {
+    // Android 16 (targetSdk 36) enforces predictive back: Activity.onBackPressed() overrides are no
+    // longer called by the system. This callback routes the back gesture to the (sub)class override.
+    private final androidx.activity.OnBackPressedCallback backCallback = new androidx.activity.OnBackPressedCallback(true) {
+        @Override
+        public void handleOnBackPressed() {
+            GeneralActivity.this.onBackPressed();
+        }
+    };
 
     @Override
     protected void onCreate(@androidx.annotation.Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Android 16 (targetSdk 36) enforces predictive back: Activity.onBackPressed() overrides are no
-        // longer called. Route the system back gesture to them through the dispatcher. The callback is
-        // disabled while running so that super.onBackPressed() falls through to the default behaviour.
-        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                setEnabled(false);
-                try {
-                    GeneralActivity.this.onBackPressed();
-                } finally {
-                    setEnabled(true);
-                }
-            }
-        });
+        getOnBackPressedDispatcher().addCallback(this, backCallback);
         // if the models are not loaded and an activity different than LoadingActivity or AccessActivity is created,
         // that means that the system has killed the app, and now it is launching the app with the last activity (restoring it).
         // In this case we start the loading activity instead, otherwise the app will crash for the lack of loaded models.
@@ -150,11 +145,33 @@ public abstract class GeneralActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    /**
+     * Reached when a subclass calls super.onBackPressed() (the "default behaviour"), both from the back
+     * gesture and from code such as a toolbar "up" button calling onBackPressed() directly. The callback
+     * is disabled meanwhile so that the dispatcher performs the default action instead of calling the
+     * override a second time (which ran the subclass logic twice).
+     */
+    @Override
+    public void onBackPressed() {
+        backCallback.setEnabled(false);
+        try {
+            super.onBackPressed();
+        } finally {
+            backCallback.setEnabled(true);
+        }
+    }
+
     private AlertDialog missingMadladDialog;
+    // once the user dismissed the dialog, voice modes (which fail on every utterance) only show a toast
+    private boolean missingMadladDismissed = false;
 
     //MagiTranslator (SPEC 19.9): Nepali needs Madlad; guide the user to the Models Manager instead of failing silently
     public void showMissingMadladDialog() {
         if (isFinishing() || (missingMadladDialog != null && missingMadladDialog.isShowing())) {
+            return;
+        }
+        if (missingMadladDismissed) {
+            android.widget.Toast.makeText(this, R.string.missing_madlad_nepali_title, android.widget.Toast.LENGTH_SHORT).show();
             return;
         }
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -169,7 +186,8 @@ public abstract class GeneralActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
-        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.setOnCancelListener(dialog -> missingMadladDismissed = true);
+        builder.setNegativeButton(android.R.string.cancel, (dialog, which) -> missingMadladDismissed = true);
         missingMadladDialog = builder.create();
         missingMadladDialog.show();
     }

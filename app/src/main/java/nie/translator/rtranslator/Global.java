@@ -695,20 +695,25 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if (index != -1) {
             language = languages.get(index);
         } else {
-            language = defaultSecondLanguage(languages);
+            language = defaultSecondLanguage(languages, getFirstLanguage(true));
         }
 
         Global.this.secondLanguage = language;
         return language;
     }
 
-    /** MagiTranslator: default partner language is Nepali, then Vietnamese. */
-    private CustomLocale defaultSecondLanguage(ArrayList<CustomLocale> languages) {
-        for (String code : new String[]{"ne", "vi"}) {
+    /**
+     * MagiTranslator: default partner language is Nepali, then Vietnamese, then Japanese, never the same as
+     * the first language (a Nepali-speaking user with first language ne used to get the pair ne -> ne).
+     */
+    private CustomLocale defaultSecondLanguage(ArrayList<CustomLocale> languages, @Nullable CustomLocale first) {
+        for (String code : new String[]{"ne", "vi", "ja"}) {
+            if (first != null && code.equals(first.getCode())) continue;
             CustomLocale c = CustomLocale.getInstance(code);
             int i = CustomLocale.search(languages, c);
             if (i != -1) return languages.get(i);
         }
+        for (CustomLocale l : languages) if (first == null || !l.getCode().equals(first.getCode())) return l;
         return languages.isEmpty() ? new CustomLocale("en") : languages.get(0);
     }
 
@@ -761,7 +766,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if (index != -1) {
             language = languages.get(index);
         } else {
-            language = defaultSecondLanguage(languages);
+            language = defaultSecondLanguage(languages, getFirstTextLanguage(true));
         }
 
         Global.this.secondTextLanguage = language;
