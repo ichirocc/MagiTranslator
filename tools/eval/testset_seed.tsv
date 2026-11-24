@@ -1,0 +1,43 @@
+# UNVERIFIED seed: references must be checked by a native Nepali speaker before use for claims
+# columns: id	direction	category	source	reference	required_terms(|-separated, optional)
+id	direction	category	source	reference	required_terms
+jn01	ja-ne	greeting	こんにちは。	नमस्ते।	नमस्ते
+jn02	ja-ne	greeting	ありがとうございます。	धन्यवाद।	धन्यवाद
+jn03	ja-ne	greeting	おはようございます。	शुभ प्रभात।
+jn04	ja-ne	question	お名前は何ですか？	तपाईंको नाम के हो?
+jn05	ja-ne	question	トイレはどこですか？	शौचालय कहाँ छ?	शौचालय
+jn06	ja-ne	request	水をください。	पानी दिनुहोस्।	पानी
+jn07	ja-ne	request	ゆっくり話してください。	बिस्तारै बोल्नुहोस्।
+jn08	ja-ne	negation	私は肉を食べません。	म मासु खाँदिनँ।	मासु
+jn09	ja-ne	negation	今日は時間がありません。	आज समय छैन।
+jn10	ja-ne	negation	これは私のではありません。	यो मेरो होइन।
+jn11	ja-ne	numbers	3時に来てください。	३ बजे आउनुहोस्।
+jn12	ja-ne	numbers	これは500円です。	यो ५०० येन हो।	येन
+jn13	ja-ne	numbers	私は25歳です。	म २५ वर्षको हुँ।
+jn14	ja-ne	honorific	先生はもう帰られました。	गुरु पहिले नै घर जानुभयो।
+jn15	ja-ne	honorific	少々お待ちください。	एकछिन पर्खनुहोस्।
+jn16	ja-ne	proper_name	私は東京に住んでいます。	म टोकियोमा बस्छु।	टोकियो
+jn17	ja-ne	proper_name	ラムさんはカトマンズから来ました。	राम काठमाडौंबाट आउनुभयो।	राम|काठमाडौं
+jn18	ja-ne	long	明日は雨が降るので、傘を持って行ってください。	भोलि पानी पर्छ, त्यसैले छाता लिएर जानुहोस्।	छाता
+jn19	ja-ne	asr	あした何時に会社に行きますか	भोलि कति बजे कम्पनी जानुहुन्छ?
+jn20	ja-ne	asr	すみません駅はどこですか	माफ गर्नुहोस्, स्टेसन कहाँ छ?
+nj01	ne-ja	greeting	नमस्ते।	こんにちは。
+nj02	ne-ja	greeting	धन्यवाद।	ありがとうございます。
+nj03	ne-ja	greeting	तपाईंलाई कस्तो छ?	お元気ですか？
+nj04	ne-ja	question	यो कति हो?	これはいくらですか？
+nj05	ne-ja	question	तपाईं कहाँबाट आउनुभएको हो?	どこから来ましたか？
+nj06	ne-ja	request	कृपया मलाई मद्दत गर्नुहोस्।	助けてください。
+nj07	ne-ja	request	फेरि भन्नुहोस्।	もう一度言ってください。
+nj08	ne-ja	negation	म बुझ्दिनँ।	わかりません。
+nj09	ne-ja	negation	मसँग पैसा छैन।	お金がありません。	お金
+nj10	ne-ja	negation	यो मेरो होइन।	これは私のではありません。
+nj11	ne-ja	numbers	म ५ बजे आउँछु।	5時に来ます。
+nj12	ne-ja	numbers	यसको मूल्य १,००० रुपैयाँ हो।	値段は1,000ルピーです。	ルピー
+nj13	ne-ja	numbers	मेरो छोरा १० वर्षको हो।	私の息子は10歳です。	息子
+nj14	ne-ja	honorific	हजुर, म आउँदैछु।	はい、今行きます。
+nj15	ne-ja	honorific	कृपया बस्नुहोस्।	どうぞお座りください。
+nj16	ne-ja	proper_name	म काठमाडौंमा बस्छु।	私はカトマンズに住んでいます。	カトマンズ
+nj17	ne-ja	proper_name	सीता नेपालबाट आएकी हुन्।	シータさんはネパールから来ました。	ネパール
+nj18	ne-ja	long	आज धेरै गर्मी छ, त्यसैले पानी धेरै पिउनुहोस्।	今日はとても暑いので、水をたくさん飲んでください。	水
+nj19	ne-ja	asr	तपाईं भोलि कति बजे आउनुहुन्छ	明日は何時に来ますか？
+nj20	ne-ja	asr	अस्पताल कता छ	病院はどこですか？	病院

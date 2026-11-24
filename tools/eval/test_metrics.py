@@ -1,0 +1,91 @@
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import metrics as M  # noqa: E402
+
+
+class ChrfTest(unittest.TestCase):
+    def test_identical_is_100(self):
+        self.assertAlmostEqual(M.chrf_pp_sentence("म घर जान्छु।", "म घर जान्छु।"), 100.0, places=6)
+
+    def test_disjoint_is_zero(self):
+        self.assertLess(M.chrf_pp_sentence("abc", "xyz"), 1e-6)
+
+    def test_partial_between(self):
+        s = M.chrf_pp_sentence("the cat sat", "the cat sat down")
+        self.assertTrue(0 < s < 100)
+
+    def test_empty(self):
+        self.assertEqual(M.chrf_pp_corpus([], []), 0.0)
+        self.assertEqual(M.chrf_pp_sentence("", "abc"), 0.0)
+
+    def test_word_split_punct(self):
+        self.assertEqual(M._words("hello, world."), ["hello", ",", "world", "."])
+
+    def test_against_sacrebleu(self):
+        try:
+            import sacrebleu
+        except ImportError:
+            self.skipTest("sacrebleu not installed")
+        hyps = ["the cat sat on the mat.", "म भोलि आउँछु", "明日は雨です"]
+        refs = ["the cat is on the mat.", "म भोलि आउनेछु।", "明日は雨が降ります"]
+        ref = sacrebleu.corpus_chrf(hyps, [refs], word_order=2).score
+        self.assertAlmostEqual(M.chrf_pp_corpus(hyps, refs), ref, places=4)
+        for h, r in zip(hyps, refs):
+            self.assertAlmostEqual(M.chrf_pp_sentence(h, r),
+                                   sacrebleu.sentence_chrf(h, [r], word_order=2).score, places=4)
+
+
+class NumberTest(unittest.TestCase):
+    def test_normalize(self):
+        self.assertEqual(M.numbers("１,０００円と2.5"), ["1000", "2.5"])
+        self.assertEqual(M.numbers("१,००० रुपैयाँ ०५"), ["1000", "5"])
+
+    def test_preserved(self):
+        self.assertTrue(M.numbers_preserved("3時に", "३ बजे"))
+        self.assertFalse(M.numbers_preserved("3時に", "४ बजे"))
+        self.assertIsNone(M.numbers_preserved("こんにちは", "नमस्ते"))
+
+
+class NegationTest(unittest.TestCase):
+    def test_ja(self):
+        self.assertTrue(M.ja_has_negation("行きません。"))
+        self.assertTrue(M.ja_has_negation("食べなかった"))
+        self.assertTrue(M.ja_has_negation("知らず、"))
+        self.assertFalse(M.ja_has_negation("危ないです"))
+        self.assertFalse(M.ja_has_negation("少ないです"))
+        self.assertFalse(M.ja_has_negation("仕方がない"))
+
+    def test_ne(self):
+        self.assertTrue(M.ne_has_negation("म जाँदिनँ।"))
+        self.assertTrue(M.ne_has_negation("यो होइन"))
+        self.assertTrue(M.ne_has_negation("नजाऊ"))
+        self.assertFalse(M.ne_has_negation("नमस्ते"))
+        self.assertFalse(M.ne_has_negation("नयाँ घर"))
+        self.assertFalse(M.ne_has_negation("आज राम्रो दिन हो।"))
+
+    def test_danda_excluded(self):
+        # danda must not be part of a word, else the $-anchored suffix would miss
+        self.assertTrue(M.ne_has_negation("पैसा छैन।"))
+
+    def test_consistent(self):
+        self.assertTrue(M.negation_consistent("行きません", "म जाँदिनँ", "ja-ne"))
+        self.assertFalse(M.negation_consistent("行きません", "म जान्छु", "ja-ne"))
+        self.assertTrue(M.negation_consistent("म जाँदिनँ", "行きません", "ne-ja"))
+
+
+class OtherTest(unittest.TestCase):
+    def test_terms(self):
+        self.assertEqual(M.term_hits("काठमाडौं जान्छु", ["काठमाडौं", "बस"]), (1, 2))
+        self.assertEqual(M.term_hits("x", []), (0, 0))
+
+    def test_leftover(self):
+        self.assertTrue(M.leftover_source_script("म 東京 जान्छु", "ja-ne"))
+        self.assertFalse(M.leftover_source_script("म टोकियो जान्छु", "ja-ne"))
+        self.assertTrue(M.leftover_source_script("私は घर", "ne-ja"))
+
+
+if __name__ == "__main__":
+    unittest.main()
