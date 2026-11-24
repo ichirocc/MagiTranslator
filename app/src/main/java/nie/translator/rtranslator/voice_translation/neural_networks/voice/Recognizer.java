@@ -175,6 +175,10 @@ public class Recognizer extends NeuralNetworkApi {
     private OrtSession cacheInitBatchSession;
     private OrtSession decoderSession;
     private OrtSession detokenizerSession;
+    // MagiTranslator: optional Nepali fine-tuned Whisper-small (files/Whisper_ne/*). Same vocabulary and log-mel,
+    // so the initializer and detokenizer sessions are shared with the base model.
+    private OrtSession neEncoderSession, neCacheInitSession, neCacheInitBatchSession, neDecoderSession;
+    private boolean neModelTried = false;
     private OrtEnvironment onnxEnv;
 
 
@@ -306,6 +310,11 @@ public class Recognizer extends NeuralNetworkApi {
     private void recognize() {
         recognizing = true;
         DataContainer data = dataToRecognize.pollFirst();
+        final boolean useNeModel = data != null && data.neDual && ensureNeModel();
+        final OrtSession encSession = useNeModel ? neEncoderSession : encoderSession;
+        final OrtSession cInitSession = useNeModel ? neCacheInitSession : cacheInitSession;
+        final OrtSession cInitBatchSession = useNeModel ? neCacheInitBatchSession : cacheInitBatchSession;
+        final OrtSession decSession = useNeModel ? neDecoderSession : decoderSession;
         if (initSession != null && encoderSession != null && cacheInitSession != null && decoderSession != null && detokenizerSession != null) {
             if (data != null) {
                 //we convert data in an audioTensor and start the transcription
@@ -334,7 +343,7 @@ public class Recognizer extends NeuralNetworkApi {
                     //execution of the encoder
                     Map inputs = (Map) (new LinkedHashMap());
                     inputs.put("input_features", outputInit);
-                    OrtSession.Result outputs = encoderSession.run(inputs);
+                    OrtSession.Result outputs = encSession.run(inputs);
                     OnnxTensor outputEncoder = (OnnxTensor) outputs.get(0);
                     android.util.Log.i("performance", "Encoder done in: " + (SystemClock.elapsedRealtime() - startTimeInMs) + "ms");
 
@@ -366,7 +375,7 @@ public class Recognizer extends NeuralNetworkApi {
                     if(batchSize == 1) {
                         initInput.put("encoder_hidden_states", outputEncoder);
                         time = System.currentTimeMillis();
-                        initResult = cacheInitSession.run(initInput);
+                        initResult = cInitSession.run(initInput);
                         android.util.Log.i("performance", "Cache initialization done in: " + (System.currentTimeMillis() - time) + "ms");
                     }else{
                         long timeInner = System.currentTimeMillis();
@@ -380,7 +389,7 @@ public class Recognizer extends NeuralNetworkApi {
                         android.util.Log.i("performance", "Encoder batch creation done in: " + (System.currentTimeMillis()-timeInner) + "ms");
                         initInput.put("encoder_hidden_states", outputEncoderBatched);
                         time = System.currentTimeMillis();
-                        initResult = cacheInitBatchSession.run(initInput);
+                        initResult = cInitBatchSession.run(initInput);
                         outputEncoderBatched.close();
                         android.util.Log.i("performance", "Cache initialization done in: " + (System.currentTimeMillis() - time) + "ms");
                     }
@@ -446,7 +455,7 @@ public class Recognizer extends NeuralNetworkApi {
                         android.util.Log.i("performance", "pre-execution of " + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
                         time = System.currentTimeMillis();
                         //execution of decoder (with cache)
-                        result = decoderSession.run(decoderInput);
+                        result = decSession.run(decoderInput);
                         android.util.Log.i("performance", "execution of " + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
                         time = System.currentTimeMillis();
 
@@ -585,15 +594,33 @@ public class Recognizer extends NeuralNetworkApi {
                             if (silent) {
                                 android.util.Log.i("result", "ne keep-best: dropped as silence, no_speech=" + noSpeechProb1);
                                 outputs.close();
-                                notifyResult(UNDEFINED_TEXT, data.languageCode, outputProbability1, true);
+                                emitNeResult(data, UNDEFINED_TEXT, outputProbability1);
                             } else {
                             boolean pickFree = hard2 < hard1 || (hard2 == hard1 && outputProbability2 > outputProbability1);
                             android.util.Log.i("result", "ne keep-best: constrained hard=" + hard1 + " free hard=" + hard2 + " -> " + (pickFree ? "free" : "constrained"));
                             outputs.close();
-                            notifyResult(pickFree ? free : constrained, data.languageCode, pickFree ? outputProbability2 : outputProbability1, true);
+                            emitNeResult(data, pickFree ? free : constrained, pickFree ? outputProbability2 : outputProbability1);
                             }
                         } else {
-                            notifyMultiResult(correctText(firstText), data.languageCode, outputProbability1, correctText(secondText), data.languageCode2, outputProbability2);
+                            String t1 = correctText(firstText), t2 = correctText(secondText);
+                            boolean neFirst = "ne".equals(data.languageCode), neSecond = "ne".equals(data.languageCode2);
+                            boolean neWins = (neFirst && outputProbability1 >= outputProbability2) || (neSecond && outputProbability2 > outputProbability1);
+                            if (neWins && ensureNeModel()) {
+                                // the base model decided "this is Nepali": transcribe again with the Nepali model and
+                                // report the result in place of the base-model Nepali text (scores kept, so ne still wins)
+                                DataContainer again = new DataContainer(data.data, data.beamSize, "ne", "ne");
+                                again.neDual = true;
+                                again.reportAsMulti = true;
+                                again.neFirst = neFirst;
+                                again.neScore = neFirst ? outputProbability1 : outputProbability2;
+                                again.otherCode = neFirst ? data.languageCode2 : data.languageCode;
+                                again.otherText = neFirst ? t2 : t1;
+                                again.otherScore = neFirst ? outputProbability2 : outputProbability1;
+                                dataToRecognize.addFirst(again);
+                                android.util.Log.i("result", "language detection chose ne: re-transcribing with the Nepali model");
+                            } else {
+                                notifyMultiResult(t1, data.languageCode, outputProbability1, t2, data.languageCode2, outputProbability2);
+                            }
                         }
                     }
                     //closing all results
@@ -703,6 +730,50 @@ public class Recognizer extends NeuralNetworkApi {
             }
         }
         return logits;
+    }
+
+    private void emitNeResult(DataContainer data, String text, double score) {
+        if (data.reportAsMulti) {
+            if (data.neFirst) notifyMultiResult(text, "ne", data.neScore, data.otherText, data.otherCode, data.otherScore);
+            else notifyMultiResult(data.otherText, data.otherCode, data.otherScore, text, "ne", data.neScore);
+        } else {
+            notifyResult(text, data.languageCode, score, true);
+        }
+    }
+
+    /** Lazily loads the Nepali Whisper (files/Whisper_ne/). Returns false (base model is used) when absent or broken. */
+    private boolean ensureNeModel() {
+        if (neDecoderSession != null) return true;
+        if (neModelTried) return false;
+        neModelTried = true;
+        String dir = global.getFilesDir().getPath() + "/Whisper_ne/";
+        String[] names = {"Whisper_encoder.onnx", "Whisper_cache_initializer.onnx", "Whisper_cache_initializer_batch.onnx", "Whisper_decoder.onnx"};
+        for (String n : names) {
+            if (!new java.io.File(dir + n).exists()) return false;
+        }
+        try {
+            OrtSession.SessionOptions enc = new OrtSession.SessionOptions();
+            enc.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
+            enc.setCPUArenaAllocator(true);
+            enc.setMemoryPatternOptimization(true);
+            enc.setSymbolicDimensionValue("batch_size", 1);
+            enc.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+            OrtSession.SessionOptions other = new OrtSession.SessionOptions();
+            other.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
+            other.setCPUArenaAllocator(false);
+            other.setMemoryPatternOptimization(false);
+            other.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+            OrtSession e = onnxEnv.createSession(dir + names[0], enc);
+            OrtSession c = onnxEnv.createSession(dir + names[1], other);
+            OrtSession cb = onnxEnv.createSession(dir + names[2], other);
+            OrtSession d = onnxEnv.createSession(dir + names[3], other);
+            neEncoderSession = e; neCacheInitSession = c; neCacheInitBatchSession = cb; neDecoderSession = d;
+            android.util.Log.i("recognizer", "Nepali Whisper loaded");
+            return true;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return false;
+        }
     }
 
     /** Hard violations of a Nepali hypothesis: looping, empty output, or letters outside Devanagari. */
@@ -828,6 +899,13 @@ public class Recognizer extends NeuralNetworkApi {
         private String languageCode;
         private String languageCode2;
         private boolean neDual = false;
+        // set when a 2-language detection chose Nepali and the audio is re-transcribed by the Nepali model
+        private boolean reportAsMulti = false;
+        private boolean neFirst = true;
+        private double neScore = 0;
+        private String otherCode;
+        private String otherText;
+        private double otherScore = 0;
         private int beamSize;
 
         private DataContainer(float[] data, int beamSize, String languageCode){

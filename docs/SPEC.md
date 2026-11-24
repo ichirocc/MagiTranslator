@@ -463,6 +463,7 @@ Gradle 設定、SDK、AndroidX、依存、推論環境、モデル保存場所�
 | 19.10 UI 日本語化 | **対応** | `res/values-ja/strings.xml`（209 件） | 要実機 |
 | 19.9 Madlad 導線 | 未対応 | — | — |
 | §7.2 beam N-best 候補（3.0.0-magi.5） | **新設** | `executeCacheDecoder` が要求時（`ThreadLocal NBEST`）に完了文を確率順で返す。`Backend.translateNBest` → jane が単一区間入力で上位3仮説を候補化し、辞書式選択（HARD→スコア＋MBR） | JaNeLibraryTest（否定を保つ第2仮説が選ばれる） |
+| §11.3 ネパール語 Whisper 併用（3.0.0-magi.6） | **新設（休眠）** | `Recognizer.ensureNeModel`：`files/Whisper_ne/` に encoder/decoder/cache_initializer(_batch) の4ファイルがあれば遅延ロード。ne 単独は ne モデルで2仮説 keep-best、ja/ne 自動判定は基本モデルで言語を決め、ne 勝ちなら同じ音声を ne モデルで再認識して置換（スコアは維持）。initializer/detokenizer は共用。ファイルが無ければ従来と同一動作 | 要実機。モデルは `tools/whisper_ne` で生成（重い処理は机上検証後）。配布・DL 導線は未実装 |
 
 ---
 
