@@ -174,6 +174,63 @@ public class Translator extends NeuralNetworkApi {
         t.start();
     }
 
+    // ===== MagiTranslator: Japanese <-> Nepali direct translation =====
+    private static final int JA_NE_BEAM_SIZE = 4;
+    // Japanese spoken fillers that ASR keeps and that MT turns into noise (disfluency removal for speech translation)
+    private static final java.util.regex.Pattern JA_FILLERS = java.util.regex.Pattern.compile(
+            "(?:^|(?<=[、。\\s]))(?:えーっと|えっと|えーと|えー|あのー|あの|そのー|まあ|うーん|んー)[、,\\s]+");
+
+    private static boolean isJaNePair(CustomLocale in, CustomLocale out) {
+        String a = in.getCode(), b = out.getCode();
+        return ("ja".equals(a) && "ne".equals(b)) || ("ne".equals(a) && "ja".equals(b));
+    }
+
+    private static String preprocessJaNe(String text, CustomLocale in) {
+        if ("ja".equals(in.getCode())) {
+            String t = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFKC);  //full/half width
+            t = JA_FILLERS.matcher(t).replaceAll("");
+            t = t.replaceAll("[ー〜~]{2,}", "ー").trim();
+            if (!t.isEmpty() && "。！？!?".indexOf(t.charAt(t.length() - 1)) < 0) t = t + "。";  //clear sentence end helps Madlad
+            return t.isEmpty() ? text : t;
+        }
+        // Nepali: canonical Devanagari (nukta / vowel sign ordering) and Nepali full stop
+        String t = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFC);
+        t = t.replaceAll("\\s*\\|\\s*", "। ").trim();
+        return t.isEmpty() ? text : t;
+    }
+
+    private static String postprocessJaNe(String text, CustomLocale out) {
+        if (text == null) return null;
+        String t = text;
+        if ("ne".equals(out.getCode())) {
+            t = java.text.Normalizer.normalize(t, java.text.Normalizer.Form.NFC);
+            t = t.replaceAll("(?<=[\\u0900-\\u097F])\\s*\\.(?=\\s|$)", "।");  //Latin period after Devanagari -> danda
+            t = collapseRepeats(t.split(" "), " ");
+        } else {
+            t = collapseRepeats(t.split("(?<=[、。])"), "");
+        }
+        return t.trim();
+    }
+
+    /** Low-resource MT tends to loop ("... घर घर घर"); drop immediately repeated 1-3 unit n-grams. */
+    private static String collapseRepeats(String[] units, String sep) {
+        ArrayList<String> out = new ArrayList<>();
+        for (String u : units) {
+            out.add(u);
+            for (int n = 1; n <= 3; n++) {
+                int sz = out.size();
+                if (sz >= 2 * n) {
+                    boolean same = true;
+                    for (int k = 0; k < n; k++) {
+                        if (!out.get(sz - n + k).equals(out.get(sz - 2 * n + k)) || out.get(sz - n + k).trim().isEmpty()) { same = false; break; }
+                    }
+                    if (same) { for (int k = 0; k < n; k++) out.remove(out.size() - 1); break; }
+                }
+            }
+        }
+        return String.join(sep, out);
+    }
+
     private boolean isMadladDownloaded() {
         String base = Global.USE_EXTERNAL_MEMORY_FOR_RESOURCES
                 ? Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad/Int8WO/madlad_decoder_8bit.onnx"
@@ -763,11 +820,15 @@ public class Translator extends NeuralNetworkApi {
                 }
                 //we split the input text in sentences
                 ArrayList<String> textSplit = new ArrayList<>();
+                //MagiTranslator: ja<->ne specialisation (normalised input, wider beam: accuracy over speed)
+                final boolean jaNe = isJaNePair(inputLanguage, outputLanguage);
+                final String nnInput = jaNe ? preprocessJaNe(textToTranslate, inputLanguage) : textToTranslate;
+                if (jaNe && beamSize < JA_NE_BEAM_SIZE) beamSize = JA_NE_BEAM_SIZE;
                 BreakIterator iterator = BreakIterator.getSentenceInstance(inputLanguage.getLocale());
-                iterator.setText(textToTranslate);
+                iterator.setText(nnInput);
                 int start = iterator.first();
                 for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
-                    textSplit.add(textToTranslate.substring(start, end));
+                    textSplit.add(nnInput.substring(start, end));
                 }
                 //we rejoin separated substrings whose union does not exceed the maximum input size
                 boolean joined = true;
@@ -831,6 +892,7 @@ public class Translator extends NeuralNetworkApi {
                 long time = System.currentTimeMillis();
                 //String finalResult = tokenizer.decode(completeOutputArray);
                 finalResult = joinedStringOutput[0];
+                if (jaNe) finalResult = postprocessJaNe(finalResult, outputLanguage);
                 android.util.Log.i("performance", "Detokenization done in: " + (System.currentTimeMillis() - time) + "ms");
             }else{
                 //perform text translation using mozilla models

@@ -400,11 +400,20 @@ public class Recognizer extends NeuralNetworkApi {
                     }
                     int[] decoderInitialInputIDs = {START_TOKEN_ID, languageID, TRANSCRIBE_TOKEN_ID, NO_TIMESTAMPS_TOKEN_ID};
                     int[] decoderInitialInputIDs2 = {START_TOKEN_ID, languageID2, TRANSCRIBE_TOKEN_ID, NO_TIMESTAMPS_TOKEN_ID};
+                    if (data.neDual) {
+                        //Peng et al. 2023: a previous-text prompt steers script/vocabulary (Nepali "-छु" form vs Hindi)
+                        decoderInitialInputIDs = buildPromptedPrefix(decoderInitialInputIDs);
+                        decoderInitialInputIDs2 = buildPromptedPrefix(decoderInitialInputIDs2);
+                    }
+                    final int prefixLen = decoderInitialInputIDs.length;   //4 without prompt
+                    final int firstRecordedStep = prefixLen - 3;   //keeps the original layout: content starts at index 3
+                    double noSpeechProb1 = 0;
+                    double noSpeechProb2 = 0;
                     
                     while (!(max == eos && max2 == eos)) {
                         initialTime = System.currentTimeMillis();
                         time = System.currentTimeMillis();
-                        if (j <= 4) {
+                        if (j <= prefixLen) {
                             if(batchSize == 1) {
                                 inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, new int[]{decoderInitialInputIDs[j-1]});
                             }else{
@@ -451,15 +460,20 @@ public class Recognizer extends NeuralNetworkApi {
                         decoderOutput = (OnnxTensor) result.get("logits").get();
                         value = (float[][][]) decoderOutput.getValue();
                         outputValues = value[0][0];
+                        if (j == firstRecordedStep) {
+                            //Whisper / "Careless Whisper" (2024): no-speech probability at the SOT position
+                            noSpeechProb1 = Utils.softmax(outputValues[NO_SPEECH_TOKEN_ID], outputValues);
+                            if (batchSize == 2) noSpeechProb2 = Utils.softmax(value[1][0][NO_SPEECH_TOKEN_ID], value[1][0]);
+                        }
                         if(!finished1) {
-                                                        max = Utils.getIndexOfLargest(j >= 4 ? constrainedLogits(outputValues, data.languageCode, completeOutput) : outputValues);  // scoring keeps the raw logits
-                            completeOutput.add(max);
+                            max = Utils.getIndexOfLargest(j >= prefixLen ? constrainedLogits(outputValues, data.languageCode, completeOutput) : outputValues);  // scoring keeps the raw logits
+                            if (j >= firstRecordedStep) completeOutput.add(max);
                         }
                         if(batchSize == 2){
                             outputValues2 = value[1][0];
                             if(!finished2) {
-                                                                max2 = Utils.getIndexOfLargest(j >= 4 ? constrainedLogits(outputValues2, data.neDual ? null : data.languageCode2, completeOutput2) : outputValues2);  // scoring keeps the raw logits
-                                completeOutput2.add(max2);
+                                max2 = Utils.getIndexOfLargest(j >= prefixLen ? constrainedLogits(outputValues2, data.neDual ? null : data.languageCode2, completeOutput2) : outputValues2);  // scoring keeps the raw logits
+                                if (j >= firstRecordedStep) completeOutput2.add(max2);
                             }
                         }
                         //We prepare the inputs for the next iteration
@@ -469,7 +483,7 @@ public class Recognizer extends NeuralNetworkApi {
                             inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, new int[]{max, max2}, new long[]{2,1});
                         }
 
-                        if(batchSize == 2){
+                        if(batchSize == 2 && j >= firstRecordedStep){
                             //we calculate and update the probabilities of the two output sentences
                             double softmax = Utils.softmax(outputValues[max], outputValues);
                             if(!finished1) {
@@ -480,7 +494,7 @@ public class Recognizer extends NeuralNetworkApi {
                             }
                         }
 
-                        if(j >= maxTokens) {
+                        if(j >= maxTokens + (prefixLen - 4)) {
                             if (!finished1) {
                                 execution1HitMaxLength = true;
                                 max = eos;
@@ -491,6 +505,11 @@ public class Recognizer extends NeuralNetworkApi {
                             }
                         }
 
+                        if (j < prefixLen) {
+                            //predictions made while feeding the forced prefix/prompt must not end the decoding
+                            if (max == eos) max = -1;
+                            if (batchSize == 2 && max2 == eos) max2 = -1;
+                        }
                         if(max == eos){
                             finished1 = true;
                         }
@@ -560,10 +579,19 @@ public class Recognizer extends NeuralNetworkApi {
                             String free = correctText(secondText);
                             long hard1 = nepaliHardScore(constrained, execution1HitMaxLength);
                             long hard2 = nepaliHardScore(free, execution2HitMaxLength);
+                            //Whisper's silence rule: no_speech > 0.6 and avg logprob < -1 -> hallucination on silence
+                            boolean silent = Math.max(noSpeechProb1, noSpeechProb2) > NO_SPEECH_THRESHOLD
+                                    && Math.max(outputProbability1, outputProbability2) < LOGPROB_THRESHOLD;
+                            if (silent) {
+                                android.util.Log.i("result", "ne keep-best: dropped as silence, no_speech=" + noSpeechProb1);
+                                outputs.close();
+                                notifyResult(UNDEFINED_TEXT, data.languageCode, outputProbability1, true);
+                            } else {
                             boolean pickFree = hard2 < hard1 || (hard2 == hard1 && outputProbability2 > outputProbability1);
                             android.util.Log.i("result", "ne keep-best: constrained hard=" + hard1 + " free hard=" + hard2 + " -> " + (pickFree ? "free" : "constrained"));
                             outputs.close();
                             notifyResult(pickFree ? free : constrained, data.languageCode, pickFree ? outputProbability2 : outputProbability1, true);
+                            }
                         } else {
                             notifyMultiResult(correctText(firstText), data.languageCode, outputProbability1, correctText(secondText), data.languageCode2, outputProbability2);
                         }
@@ -590,6 +618,21 @@ public class Recognizer extends NeuralNetworkApi {
 
     // ===== MagiTranslator: Nepali decoding constraints =====
     private static final int EOS_TOKEN_ID = 50257;
+    private static final int START_OF_PREV_TOKEN_ID = 50361;
+    private static final int NO_SPEECH_TOKEN_ID = 50362;
+    private static final double NO_SPEECH_THRESHOLD = 0.6;
+    private static final double LOGPROB_THRESHOLD = -1.0;
+    // " म नेपाली बोल्छु।" ("I speak Nepali") tokenized with the Whisper multilingual tokenizer.
+    // Avoid phrases like "धन्यवाद" that Whisper hallucinates on silence.
+    private static final int[] NE_PROMPT_IDS = {48449, 8485, 101, 21981, 3941, 103, 17937, 46758, 31881, 8485, 105, 33926, 46758, 27099, 3941, 249, 8703, 223, 8703, 97};
+
+    private static int[] buildPromptedPrefix(int[] basePrefix) {
+        int[] out = new int[1 + NE_PROMPT_IDS.length + basePrefix.length];
+        out[0] = START_OF_PREV_TOKEN_ID;
+        System.arraycopy(NE_PROMPT_IDS, 0, out, 1, NE_PROMPT_IDS.length);
+        System.arraycopy(basePrefix, 0, out, 1 + NE_PROMPT_IDS.length, basePrefix.length);
+        return out;
+    }
     private static final float NE_REPETITION_PENALTY = 1.2f;
     private static final int NE_NO_REPEAT_NGRAM = 3;
     @Nullable
