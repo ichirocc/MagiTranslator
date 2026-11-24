@@ -62,9 +62,11 @@ jobs:
           echo "16KB check done (bad=$bad)"
 
       - name: Rename APK
+        id: ver
         shell: bash
         run: |
           ver=$(grep -oP "versionName '\K[^']+" app/build.gradle)
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
           mkdir -p dist
           cp app/build/outputs/apk/release/*.apk "dist/MagiTranslator-${ver}.apk"
           ls -la dist
@@ -77,10 +79,14 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-      - name: Publish GitHub Release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish GitHub Release (main / tags)
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.ver.outputs.ver }}
+          target_commitish: ${{ github.sha }}
+          name: MagiTranslator ${{ steps.ver.outputs.ver }}
+          make_latest: true
           files: dist/*.apk
           body: |
             MagiTranslator (日本語⇄ネパール語 / 日本語⇄ベトナム語)
