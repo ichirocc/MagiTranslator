@@ -157,6 +157,47 @@ public class JaNeLibraryTest {
         for (JaNeTranslator.Candidate c : r5.candidates)
             if (c.label.equals("whole")) eq(2, c.hard(), "whole candidate missing both terms -> 2 hard");
 
+        // review fixes (medium / minor)
+        // Nepali negation: न्न-ending adjectives and न+consonant nouns are not negations
+        for (String w : new String[]{"प्रसन्न", "भिन्न", "सम्पन्न", "उत्पन्न", "नगद", "नमुना", "नम्र", "नरेन्द्र", "नगरपालिका", "नगरमा"})
+            yes(!TranslationValidator.neHasNegation("म " + w + " छु।"), w + " not negation");
+        yes(TranslationValidator.neHasNegation("यो हुन्न।"), "हुन्न is negation");
+        yes(TranslationValidator.neHasNegation("नगर्नुहोस्।"), "नगर्नुहोस् (do not) is negation despite नगर (city)");
+        yes(TranslationValidator.neHasNegation("उहाँ नआउनुभयो।"), "न + vowel: नआउनु");
+        // Japanese negation: ない-adjectives in hiragana and in other forms
+        yes(!TranslationValidator.jaHasNegation("部屋がきたないです。"), "きたない not negation");
+        yes(!TranslationValidator.jaHasNegation("人が少なかったです。"), "少なかった not negation");
+        yes(!TranslationValidator.jaHasNegation("仕方なく行きました。"), "仕方なく not negation");
+        yes(TranslationValidator.jaHasNegation("人が少なくないです。"), "少なくない (not few) is negation");
+        yes(TranslationValidator.jaHasNegation("きたなくない。"), "きたなくない is negation");
+        // ン before a vowel / ヤ行 has no virama
+        eq("केनइचि", KanaDevanagari.transliterate("ケンイチ"), "ン + vowel (ケンイチ)");
+        eq("शिनया", KanaDevanagari.transliterate("シンヤ"), "ン + ヤ (シンヤ)");
+        eq("केन्ता", KanaDevanagari.transliterate("ケンタ"), "ン + consonant unchanged");
+        // glossary: BOM and compound words
+        Glossary gb = new Glossary();
+        gb.load(new StringReader("\uFEFF会社\tकम्पनी\n"));
+        eq("कम्पनीに行きます。", gb.inject("会社に行きます。").text, "BOM on first TSV line stripped");
+        Glossary gd = Glossary.withDefaults();
+        eq("जापानी भाषाを話します。", gd.inject("日本語を話します。").text, "日本語 -> its own entry, not जापान語");
+        eq("जापानに行きます。", gd.inject("日本に行きます。").text, "日本 alone still injected");
+        Glossary gs = new Glossary();
+        gs.put("会社", "कम्पनी");
+        eq("会社人です。", gs.inject("会社人です。").text, "term followed by derivational suffix 人 left alone");
+        eq(1, Glossary.withDefaults().inject("タナカさんとタナカさん").requiredTargets.size(), "required targets de-duplicated");
+        // fillers after ！／？ (NFKC turns them into ASCII before the filler rule)
+        eq("本当！行きます", JaNormalizer.normalize("本当！えっと、行きます"), "filler after ！ removed");
+        eq("本当？行きます", JaNormalizer.normalize("本当?あの、行きます"), "filler after ascii ? removed");
+        // more numeral idioms
+        eq("一時停止してください", JaNormalizer.normalize("一時停止してください"), "一時停止 kept");
+        eq("1時に会います", JaNormalizer.normalize("一時に会います"), "一時 (o'clock) still converted");
+        // numbers written as Nepali words / kanji in the output
+        eq("[3]", QualityScorer.numbers("तीन जना"), "Nepali number word");
+        eq("[]", QualityScorer.numbers("यो राम्रो छ।"), "छ (is) is not 6");
+        eq("[]", QualityScorer.numbers("एकदम राम्रो"), "एकदम is not 1");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("3人です。", "तीन जना हुनुहुन्छ।", java.util.Collections.emptyList())), "3人 -> तीन जना: no NUMBER_LOST");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateNeToJa("३ जना आउनुभयो।", "三人が来ました。")), "ne->ja: 三人 keeps 3");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

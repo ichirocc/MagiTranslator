@@ -82,7 +82,10 @@ public final class KanaDevanagari {
                 continue;
             }
             if (c == 'ン') {
-                out.append(i + 1 < kana.length() ? "न्" : "न");
+                // a virama only before a consonant; before a vowel, ヤ行, ワ, ー or at the end it would
+                // produce an invalid cluster (न्इ) or the wrong sound (न्या = nya)
+                boolean beforeConsonant = i + 1 < kana.length() && "アイウエオヤユヨワヲーァィゥェォャュョン".indexOf(kana.charAt(i + 1)) < 0;
+                out.append(beforeConsonant ? "न्" : "न");
                 i++;
                 continue;
             }

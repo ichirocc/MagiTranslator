@@ -15,6 +15,15 @@ import java.util.regex.Pattern;
  */
 public final class QualityScorer {
     private static final Pattern NUMBER = Pattern.compile("\\d+(?:\\.\\d+)?");
+    // whole Nepali words 1-10 (एक is also the article "a": at worst a soft NUMBER_ADDED). छ (6) is left out
+    // because it is also the copula "is".
+    private static final Pattern NE_NUMBER_WORD = Pattern.compile("(?<![\\u0900-\\u0963\\u0966-\\u097F])(एक|दुई|तीन|चार|पाँच|सात|आठ|नौ|दश|दस)(?![\\u0900-\\u0963\\u0966-\\u097F])");
+    private static final Map<String, String> NE_NUMBER_VALUE = new HashMap<>();
+    static {
+        String[] w = {"एक", "दुई", "तीन", "चार", "पाँच", "सात", "आठ", "नौ", "दश", "दस"};
+        String[] v = {"1", "2", "3", "4", "5", "7", "8", "9", "10", "10"};
+        for (int i = 0; i < w.length; i++) NE_NUMBER_VALUE.put(w[i], v[i]);
+    }
     private static final int CHRF_N = 4;   // characters; good for both Japanese and Devanagari
     private static final double BETA = 2.0;
 
@@ -52,6 +61,11 @@ public final class QualityScorer {
         StringBuilder ascii = new StringBuilder();
         for (char c : t.toCharArray()) ascii.append(c >= 0x0966 && c <= 0x096F ? (char) ('0' + (c - 0x0966)) : c);
         String a = ascii.toString().replaceAll("(?<=\\d),(?=\\d{3})", "");
+        Matcher w = NE_NUMBER_WORD.matcher(a);
+        StringBuffer wb = new StringBuffer();
+        while (w.find()) w.appendReplacement(wb, NE_NUMBER_VALUE.get(w.group(1)));
+        w.appendTail(wb);
+        a = wb.toString();
         List<String> out = new ArrayList<>();
         Matcher m = NUMBER.matcher(a);
         while (m.find()) {

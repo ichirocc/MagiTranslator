@@ -19,13 +19,18 @@ import java.util.regex.Pattern;
  */
 public final class Glossary {
     private final Map<String, String> terms = new LinkedHashMap<>();
+    private static final String COMPOUND_SUFFIX = "語人製産風式的";
     private static final Pattern KATAKANA_NAME = Pattern.compile("([\\u30A1-\\u30FAー]{2,})(さん|様|さま|くん|君|ちゃん|氏|先生)");
 
     /** Only facts that are certain; users extend it with a TSV file (ja<TAB>ne per line). */
     public static Glossary withDefaults() {
         Glossary g = new Glossary();
         g.put("日本", "जापान");
+        g.put("日本語", "जापानी भाषा");
+        g.put("日本人", "जापानी");
         g.put("ネパール", "नेपाल");
+        g.put("ネパール語", "नेपाली भाषा");
+        g.put("ネパール人", "नेपाली");
         g.put("東京", "टोकियो");
         g.put("大阪", "ओसाका");
         g.put("カトマンズ", "काठमाडौं");
@@ -44,6 +49,7 @@ public final class Glossary {
         BufferedReader br = new BufferedReader(reader);
         String line;
         while ((line = br.readLine()) != null) {
+            if (line.startsWith("\uFEFF")) line = line.substring(1);   // UTF-8 BOM (Windows Notepad)
             if (line.startsWith("#")) continue;
             String[] cols = line.split("\t");
             if (cols.length >= 2) put(cols[0], cols[1]);
@@ -68,7 +74,7 @@ public final class Glossary {
             String name = m.group(1);
             String dev = terms.containsKey(name) ? terms.get(name) : KanaDevanagari.transliterate(name);
             if (dev == null) { m.appendReplacement(sb, Matcher.quoteReplacement(m.group())); continue; }
-            required.add(dev);
+            if (!required.contains(dev)) required.add(dev);
             m.appendReplacement(sb, Matcher.quoteReplacement(dev + m.group(2)));
         }
         m.appendTail(sb);
@@ -77,11 +83,13 @@ public final class Glossary {
         List<String> keys = new ArrayList<>(terms.keySet());
         keys.sort(Comparator.comparingInt(String::length).reversed());
         for (String k : keys) {
-            if (t.contains(k)) {
-                String v = terms.get(k);
-                t = t.replace(k, v);
-                required.add(v);
-            }
+            // a term directly followed by a derivational suffix is only the head of another word
+            // (日本語 = Japanese language, not "Japan" + 語); such occurrences are left to the model
+            Matcher tm = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])").matcher(t);
+            if (!tm.find()) continue;
+            String v = terms.get(k);
+            t = tm.replaceAll(Matcher.quoteReplacement(v));
+            if (!required.contains(v)) required.add(v);
         }
         return new Injection(t, required);
     }

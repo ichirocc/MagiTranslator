@@ -28,12 +28,18 @@ public final class TranslationValidator {
             "(ない|なかった|なくて|ないで|ません|ませんでした|ず(?=[、。に]|$)|ぬ(?=[、。]|$))");
     // adjectives / idioms that end in ない but are not a negated predicate
     private static final Pattern JA_NOT_NEGATION = Pattern.compile(
-            "(少ない|危ない|汚い|幼い|切ない|せつない|だらしない|つまらない|くだらない|もったいない|勿体ない|仕方(が)?ない|しかた(が)?ない|間違いない|違いない|半端ない|すくない|あぶない|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか)");   // apology / obligation / conjecture / invitation are not negation
+            "((?:少|すく|危|あぶ|切|せつ|だらし|つまら|くだら|もったい|勿体|仕方が?|しかたが?|間違い|違い|半端|きた|おさ|はか|儚|ぎこち|情け|なさけ|頼り|たより|物足り|もの足り|ものたり|申し訳|申しわけ|そっけ|素っ気|あどけ|あっけ|呆気|味気|あじけ)な(?:い|く|かっ|さ|け)|汚い|幼い|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか)");   // apology / obligation / conjecture / invitation are not negation
     // --- Nepali negation: suffix forms and the negative prefix न- on verbs.
     private static final Pattern NE_NEG_WORD = Pattern.compile(
-            "(छैन|छैनन्|छैनौं|होइन|होइनन्|हुँदैन|हुन्न|दैन|दैनन्|दैनौं|दैनौ|दिनँ|दिनौं|न्न)$");   // e.g. जाँदिनँ, गर्दैन, सक्दैनन्
-    private static final Pattern NE_NEG_PREFIX = Pattern.compile("^न(?:[क-ह])");
-    private static final String[] NE_NOT_NEGATION = {"नमस्ते", "नमस्कार", "नयाँ", "नजिक", "नदी", "नगर", "नक्सा", "नम्बर", "नरम", "नर्स", "नल", "नसा", "नक्कली", "नतिजा", "नर्सरी"};
+            "(छैन|छैनन्|छैनौं|होइन|होइनन्|हुँदैन|हुन्न|दैन|दैनन्|दैनौं|दैनौ|दिनँ|दिनौं|हुन्नँ|न्नँ)$");   // e.g. जाँदिनँ, गर्दैन, सक्दैनन्
+    // न- before a consonant (नगर्नुहोस्, नजानु) or an independent vowel (नआउनु, नआएको)
+    private static final Pattern NE_NEG_PREFIX = Pattern.compile("^न(?:[क-ह]|[अआइईउऊएऐओऔ])");
+    // nouns / adjectives / names that start with न + consonant. Matched as prefixes, so they must not
+    // swallow verb negations: "नगर" (city) is listed only with its case endings, because
+    // नगर्नुहोस् / नगरेको (do not / not done) are real negations.
+    private static final String[] NE_NOT_NEGATION = {"नमस्ते", "नमस्कार", "नयाँ", "नजिक", "नदी", "नक्सा", "नक्शा", "नम्बर", "नरम", "नर्स", "नल", "नसा", "नक्कली", "नतिजा", "नर्सरी",
+            "नगरपालिका", "नगरमा", "नगरको", "नगरका", "नगरले", "नगरबाट", "नगरवासी", "नगद", "नमुना", "नम्र", "नजर", "नरक", "नमन", "नशा", "नकल", "नरिवल", "नवीन", "नवम्बर",
+            "नब्बे", "नहर", "नवजात", "नक्सली", "नमक", "नवौं", "नरेन्द्र", "नरेश", "नवराज", "नकारात्मक", "नक्षत्र"};
     private static final Pattern NE_WORD = Pattern.compile("[\\u0900-\\u0963\\u0966-\\u097F]+");   // excludes the danda । ॥
     private static final Pattern JA_SCRIPT = Pattern.compile("[\\u3040-\\u30FF\\u4E00-\\u9FFF]");
     private static final Pattern JA_QUESTION = Pattern.compile("(か[。？]?$|？|\\?)");
@@ -80,7 +86,7 @@ public final class TranslationValidator {
     public static List<Issue> validateNeToJa(String sourceNe, String ja) {
         List<Issue> issues = new ArrayList<>();
         if (ja == null || ja.trim().isEmpty()) { issues.add(new Issue(Kind.EMPTY, true, null)); return issues; }
-        checkNumbers(sourceNe, ja, issues);
+        checkNumbers(sourceNe, KanjiNumber.toDigits(ja), issues);   // 三人 in the output = 3 in the source
         boolean srcNeg = neHasNegation(sourceNe), tgtNeg = jaHasNegation(ja);
         if (srcNeg && !tgtNeg) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
         if (!srcNeg && tgtNeg) issues.add(new Issue(Kind.NEGATION_ADDED, false, null));

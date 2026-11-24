@@ -168,7 +168,7 @@ public final class JaNeTranslator {
             String back = backend.translate(c.output, outLang, srcLang);
             double s = "ne".equals(outLang)
                     ? QualityScorer.score(source, c.output, back, req)
-                    : QualityScorer.chrF(back, source) - 0.15 * missingNumbers(source, c.output);
+                    : QualityScorer.chrF(back, source) - 0.15 * missingNumbers(source, KanjiNumber.toDigits(c.output));
             // MBR consensus (Freitag et al. 2022/2023): expected chrF against the other candidates
             if (unique.size() >= 3) {
                 double agree = 0;

@@ -192,14 +192,19 @@ public class Translator extends NeuralNetworkApi {
     private final java.util.concurrent.locks.ReentrantLock translationLock = new java.util.concurrent.locks.ReentrantLock(true);
     @Nullable
     private nie.translator.rtranslator.jane.JaNeTranslator janeTranslator;
+    // identity of files/jane_glossary.tsv when janeTranslator was built: an edited file is picked up
+    // on the next translation instead of only after an app restart
+    @Nullable
+    private String janeGlossaryStamp;
 
     /** Runs the ja<->ne library; the backend is this Translator's Madlad model with UI notifications muted. */
     @Nullable
     private String translateJaNeWithLibrary(String text, CustomLocale in, CustomLocale out, int beamSize) {
         try {
-            if (janeTranslator == null) {
+            File user = new File(global.getFilesDir(), "jane_glossary.tsv");   //optional user terminology: ja<TAB>ne
+            String stamp = user.exists() ? user.lastModified() + ":" + user.length() : "none";
+            if (janeTranslator == null || !stamp.equals(janeGlossaryStamp)) {
                 nie.translator.rtranslator.jane.Glossary glossary = nie.translator.rtranslator.jane.Glossary.withDefaults();
-                File user = new File(global.getFilesDir(), "jane_glossary.tsv");   //optional user terminology: ja<TAB>ne
                 if (user.exists()) {
                     try (java.io.Reader r = new java.io.InputStreamReader(new java.io.FileInputStream(user), java.nio.charset.StandardCharsets.UTF_8)) {
                         glossary.load(r);
@@ -216,6 +221,7 @@ public class Translator extends NeuralNetworkApi {
                         return silentTranslateNBest(t, src, tgt, janeBeamSize, n);
                     }
                 }, glossary);
+                janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried
             }
             janeBeamSize = beamSize;
             nie.translator.rtranslator.jane.JaNeTranslator.Result r = janeTranslator.translate(text, in.getCode(), out.getCode());

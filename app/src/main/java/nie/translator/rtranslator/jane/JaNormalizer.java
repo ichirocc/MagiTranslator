@@ -17,11 +17,12 @@ public final class JaNormalizer {
     public static String normalize(String text) {
         if (text == null) return "";
         String t = Normalizer.normalize(text, Normalizer.Form.NFKC);
+        // NFKC turns "。" into itself but "！？" into ASCII; restore them first so that the filler rule
+        // (which looks behind for 、。！？) and the segmenter both see the Japanese marks
+        t = t.replace("!", "！").replace("?", "？");
         t = FILLERS.matcher(t).replaceAll("");
         t = LONG_MARKS.matcher(t).replaceAll("ー");
         t = SPACES.matcher(t).replaceAll(" ").trim();
-        // NFKC turns "。" into itself but "！？" into ASCII; keep Japanese full stop for the segmenter
-        t = t.replace("!", "！").replace("?", "？");
         t = KanjiNumber.toDigits(t);
         // Only fillers / punctuation: there is nothing to translate. Returning the raw input here would
         // feed the filler itself to the NMT, so an empty string is returned instead.
