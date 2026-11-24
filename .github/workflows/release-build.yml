@@ -48,6 +48,12 @@ jobs:
           grep -n -E "(error:|FAILURE:|What went wrong|Execution failed)" build.log | head -120 || true
           tail -120 build.log || true
 
+      - name: Verify 16KB page alignment (Android 16 devices)
+        shell: bash
+        run: |
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 -v 4 "$apk" | tail -5
+
       - name: Rename APK
         shell: bash
         run: |

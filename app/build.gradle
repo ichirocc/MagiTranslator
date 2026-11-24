@@ -31,9 +31,9 @@ android {
         applicationId "com.magi.translator"
         targetSdkVersion 36   //32
         compileSdk 36
-        versionName '3.0.0-magi.1-jane'
-        versionCode 28
-        minSdkVersion 28
+        versionName '3.0.0-magi.2-a16'
+        versionCode 29
+        minSdkVersion 36   //MagiTranslator: Android 16+ only
         externalNativeBuild {
             cmake {
                 arguments '-DSPM_ENABLE_SHARED=OFF',  //sentencepiece flags
@@ -43,6 +43,7 @@ android {
                         '-DANDROID_ABI=arm64-v8a',
                         '-DANDROID_PLATFORM=android-28',
                         '-DANDROID_STL=c++_shared',
+                        '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON',   //16KB page devices (Android 15+)
                         "-DANDROID_PIE=ON",
                         "-DANDROID_CPP_FEATURES=exceptions",
                         '-DCMAKE_BUILD_TYPE=Release',
