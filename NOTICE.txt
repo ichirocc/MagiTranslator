@@ -3,3 +3,8 @@ Copyright 2018-2020 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
+
+MagiTranslator
+This product is derived from RTranslator (https://github.com/niedev/RTranslator),
+Copyright Luca Martino, licensed under the Apache License, Version 2.0.
+Modifications for MagiTranslator (Japanese <-> Nepali / Japanese <-> Vietnamese) are by the MagiTranslator contributors.

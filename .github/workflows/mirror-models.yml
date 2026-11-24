@@ -1,0 +1,53 @@
+name: Mirror models
+
+# Copies the model files listed in models/models.tsv into this repository's release "models-v1",
+# so that the app no longer depends on the upstream author's releases. Run manually, once.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: models-v1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create the release if it does not exist
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "MagiTranslator models v1" --latest=false \
+              --notes "Model files downloaded by the app. SHA-256 of each file: models/models.tsv. Do not delete or replace files: installed apps check these hashes."
+          fi
+
+      - name: Copy, verify and upload each file
+        shell: bash
+        run: |
+          set -euo pipefail
+          have=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          mkdir -p /tmp/m
+          while IFS=$'\t' read -r name sha size url; do
+            [[ -z "$name" || "$name" == \#* ]] && continue
+            if grep -qx "$name" <<< "$have"; then echo "skip $name (already in the release)"; continue; fi
+            echo "== $name ($size bytes)"
+            curl -fL --retry 5 --retry-delay 10 -o "/tmp/m/$name" "$url"
+            echo "$sha  /tmp/m/$name" | sha256sum -c -
+            gh release upload "$TAG" "/tmp/m/$name"
+            rm -f "/tmp/m/$name"
+          done < models/models.tsv
+
+      - name: Download back from the release and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG"
+          while IFS=$'\t' read -r name sha size url; do
+            [[ -z "$name" || "$name" == \#* ]] && continue
+            got=$(curl -fsSL --retry 5 --retry-delay 10 "$base/$name" | sha256sum | cut -d' ' -f1)
+            if [[ "$got" != "$sha" ]]; then echo "::error::$name: $got != $sha"; exit 1; fi
+            echo "ok $name"
+          done < models/models.tsv

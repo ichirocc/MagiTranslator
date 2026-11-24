@@ -42,9 +42,12 @@ jobs:
           javac -encoding UTF-8 -d /tmp/jt app/src/main/java/nie/translator/rtranslator/jane/*.java \
             app/src/main/java/nie/translator/rtranslator/downloader/ZipSafety.java \
             app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java \
-            app/src/test/java/nie/translator/rtranslator/downloader/ZipSafetyTest.java
+            app/src/test/java/nie/translator/rtranslator/downloader/ZipSafetyTest.java \
+            app/src/main/java/nie/translator/rtranslator/downloader/ModelSources.java \
+            app/src/test/java/nie/translator/rtranslator/downloader/ModelSourcesTest.java
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.jane.JaNeLibraryTest
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
+          java -cp /tmp/jt nie.translator.rtranslator.downloader.ModelSourcesTest   # pinned model hashes, no upstream URL
           python3 -I tools/eval/test_metrics.py   # eval metrics must stay in sync with the Java validator
 
       - name: Restore release keystore from secrets (optional)

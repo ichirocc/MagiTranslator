@@ -354,13 +354,14 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
     public ArrayList<MozillaLanguageDownloadInfo> getMozillaLanguagesDownloadInfo(final boolean recycleResult){
         String downloadFolder = getFilesDir().getAbsolutePath()+"/Translation/Mozilla/";
-        String baseUrl = "https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/";
         ArrayList<MozillaLanguageDownloadInfo> languageDownloadInfos = new ArrayList<>();
         for(Translator.MozillaLanguageInfo langInfo : getMozillaLanguagesInfo(recycleResult)){
+            //MagiTranslator: only the focus languages are mirrored in our own release (ModelSources)
+            if (!java.util.Arrays.asList(Translator.FOCUS_LANGUAGES).contains(langInfo.lang.getLanguage())) continue;
             String fileName = "Mozilla_"+langInfo.lang.getLanguage()+".zip";
             languageDownloadInfos.add(new MozillaLanguageDownloadInfo(
                     langInfo.lang,
-                    new DownloadGroupInfo(new DownloadInfo[]{new DownloadInfo(fileName, baseUrl+fileName, downloadFolder, langInfo.sizeKb, false, true)})
+                    new DownloadGroupInfo(new DownloadInfo[]{new DownloadInfo(fileName, nie.translator.rtranslator.downloader.ModelSources.url(fileName), downloadFolder, langInfo.sizeKb, false, true)})
             ));
         }
         return languageDownloadInfos;
@@ -386,11 +387,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
     public DownloadGroupInfo getHyMtDownloadInfo(){
         String downloadFolder = getFilesDir().getAbsolutePath();
-        String baseUrl = "https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/";
         return new DownloadGroupInfo(new DownloadInfo[]{
                 new DownloadInfo(
                         "HY-MT.zip",
-                        baseUrl + "HY-MT.zip",
+                        nie.translator.rtranslator.downloader.ModelSources.url("HY-MT.zip"),
                         downloadFolder + "/Translation/",
                         1790000,
                         true,
@@ -400,11 +400,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
     public DownloadGroupInfo getMadladDownloadInfo(){
         String downloadFolder = getFilesDir().getAbsolutePath();
-        String baseUrl = "https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/";
         return new DownloadGroupInfo(new DownloadInfo[]{
                 new DownloadInfo(
                         "Madlad.zip",
-                        baseUrl + "Madlad.zip",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Madlad.zip"),
                         downloadFolder + "/Translation/",
                         1380000,
                         true,
@@ -415,11 +414,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
     public DownloadGroupInfo getTatoebaDownloadInfo(){
         String downloadFolder = getFilesDir().getAbsolutePath();
-        String baseUrl = "https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/";
         return new DownloadGroupInfo(new DownloadInfo[]{
                 new DownloadInfo(
                         "Tatoeba.zip",
-                        baseUrl + "Tatoeba.zip",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Tatoeba.zip"),
                         downloadFolder + "/Translation/",
                         596000,
                         false,
@@ -430,11 +428,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
     public DownloadGroupInfo getNllbDownloadInfo(){
         String downloadFolder = getFilesDir().getAbsolutePath();
-        String baseUrl = "https://github.com/niedev/RTranslator/releases/download/2.0.0/";
         return new DownloadGroupInfo(new DownloadInfo[]{
                 new DownloadInfo(
                         "NLLB_cache_initializer.onnx",
-                        baseUrl + "NLLB_cache_initializer.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("NLLB_cache_initializer.onnx"),
                         downloadFolder,
                         24000,
                         true,
@@ -442,7 +439,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "NLLB_decoder.onnx",
-                        baseUrl + "NLLB_decoder.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("NLLB_decoder.onnx"),
                         downloadFolder,
                         171000,
                         true,
@@ -450,7 +447,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "NLLB_embed_and_lm_head.onnx",
-                        baseUrl + "NLLB_embed_and_lm_head.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("NLLB_embed_and_lm_head.onnx"),
                         downloadFolder,
                         500000,
                         true,
@@ -458,7 +455,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "NLLB_encoder.onnx",
-                        baseUrl + "NLLB_encoder.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("NLLB_encoder.onnx"),
                         downloadFolder,
                         254000,
                         true,
@@ -469,12 +466,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
     public DownloadGroupInfo getInitialDownloadInfo(){
         String downloadFolder = getFilesDir().getAbsolutePath();
-        String baseUrl = "https://github.com/niedev/RTranslator/releases/download/2.0.0/";
-        String baseUrlAlt = "https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/";
         return new DownloadGroupInfo(new DownloadInfo[]{
                 /*new DownloadInfo(
                         "NLLB_cache_initializer.onnx",
-                        baseUrl + "NLLB_cache_initializer.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("NLLB_cache_initializer.onnx"),
                         downloadFolder,
                         24000,
                         true,
@@ -482,7 +477,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "NLLB_decoder.onnx",
-                        baseUrl + "NLLB_decoder.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("NLLB_decoder.onnx"),
                         downloadFolder,
                         171000,
                         true,
@@ -490,7 +485,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "NLLB_embed_and_lm_head.onnx",
-                        baseUrl + "NLLB_embed_and_lm_head.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("NLLB_embed_and_lm_head.onnx"),
                         downloadFolder,
                         500000,
                         true,
@@ -498,7 +493,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "NLLB_encoder.onnx",
-                        baseUrl + "NLLB_encoder.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("NLLB_encoder.onnx"),
                         downloadFolder,
                         254000,
                         true,
@@ -506,7 +501,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),*/
                 new DownloadInfo(
                         "Whisper_cache_initializer.onnx",
-                        baseUrl + "Whisper_cache_initializer.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Whisper_cache_initializer.onnx"),
                         downloadFolder,
                         14000,
                         true,
@@ -514,7 +509,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "Whisper_cache_initializer_batch.onnx",
-                        baseUrl + "Whisper_cache_initializer_batch.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Whisper_cache_initializer_batch.onnx"),
                         downloadFolder,
                         14000,
                         true,
@@ -522,7 +517,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "Whisper_decoder.onnx",
-                        baseUrl + "Whisper_decoder.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Whisper_decoder.onnx"),
                         downloadFolder,
                         173000,
                         true,
@@ -530,7 +525,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "Whisper_detokenizer.onnx",
-                        baseUrl + "Whisper_detokenizer.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Whisper_detokenizer.onnx"),
                         downloadFolder,
                         461,
                         true,
@@ -538,7 +533,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "Whisper_encoder.onnx",
-                        baseUrl + "Whisper_encoder.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Whisper_encoder.onnx"),
                         downloadFolder,
                         88000,
                         true,
@@ -546,7 +541,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "Whisper_initializer.onnx",
-                        baseUrl + "Whisper_initializer.onnx",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Whisper_initializer.onnx"),
                         downloadFolder,
                         69,
                         true,
@@ -554,7 +549,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 ),
                 new DownloadInfo(
                         "TranslationDictionaries.zip",
-                        baseUrlAlt + "TranslationDictionaries.zip",
+                        nie.translator.rtranslator.downloader.ModelSources.url("TranslationDictionaries.zip"),
                         downloadFolder + "/Translation/",
                         108000,
                         false,

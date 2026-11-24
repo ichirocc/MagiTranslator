@@ -36,6 +36,7 @@ public class Downloader {
     public static final int GENERAL_ERROR = 1;
     public static final int UNZIP_FAILED = 2;
     public static final int INTEGRITY_CHECK_FAILED = 3;
+    public static final int HASH_MISMATCH = 4;   //MagiTranslator: the downloaded file is not the pinned one (ModelSources)
     private Context context;
     private final DownloadGroupInfo downloadGroupInfo;
     private ClientCallback callback;
@@ -169,7 +170,9 @@ public class Downloader {
             }
         }
         //start the download from scratch or resume it after the app has been restarted
-        downloadId = PRDownloader.download(downloadGroupInfo.downloadsInfo[index].getUrl(), downloadGroupInfo.downloadsInfo[index].getDestinationPath(), downloadGroupInfo.downloadsInfo[index].getName())
+        //MagiTranslator: the URL always comes from ModelSources, also for a download restored from the preferences
+        //of an older version (which still holds the upstream URL)
+        downloadId = PRDownloader.download(ModelSources.url(downloadGroupInfo.downloadsInfo[index].getName()), downloadGroupInfo.downloadsInfo[index].getDestinationPath(), downloadGroupInfo.downloadsInfo[index].getName())
                 .build()
                 .setOnStartOrResumeListener(new OnStartOrResumeListener() {
                     @Override
@@ -210,6 +213,52 @@ public class Downloader {
                     public void onDownloadComplete() {
                         int runningDownloadIndex = downloadGroupInfo.getRunningDownloadIndex();
                         if(runningDownloadIndex != -1 && !downloadGroupInfo.getRunningDownload().isDownloadCompleted()) {
+                            //MagiTranslator: check the SHA-256 before the file is marked as completed (hashing 1.5 GB
+                            //takes seconds, so it runs off the main thread)
+                            verifyHashThenContinue(runningDownloadIndex);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Error error) {
+                        onDownloadError(error);
+                    }
+                });
+        downloadGroupInfo.downloadsInfo[index].setDownloadId(downloadId);
+    }
+
+    private void verifyHashThenContinue(int runningDownloadIndex) {
+        DownloadInfo download = downloadGroupInfo.downloadsInfo[runningDownloadIndex];
+        new Thread(() -> {
+            boolean ok;
+            java.io.File file = new java.io.File(download.getDestinationCompletePath());
+            try {
+                ok = ModelSources.verify(file, download.getName());
+            } catch (java.io.IOException e) {
+                e.printStackTrace();
+                ok = false;
+            }
+            final boolean verified = ok;
+            mainHandler.post(() -> {
+                if (downloadGroupInfo.getRunningDownloadIndex() != runningDownloadIndex) return;   //cancelled meanwhile
+                if (verified) {
+                    onVerifiedDownloadComplete();
+                } else {
+                    Log.e("download error", download.getName() + ": SHA-256 mismatch, file deleted");
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                    download.setCurrentError(HASH_MISMATCH);
+                    downloadGroupInfo.setRunningDownloadIndex(-1);
+                    downloadsStarted = false;
+                    callback.onError(downloadGroupInfo, download, HASH_MISMATCH);
+                }
+            });
+        }, "model-hash-check").start();
+    }
+
+    private void onVerifiedDownloadComplete() {
+                        int runningDownloadIndex = downloadGroupInfo.getRunningDownloadIndex();
+                        if(runningDownloadIndex != -1 && !downloadGroupInfo.getRunningDownload().isDownloadCompleted()) {
                             DownloadInfo finishedDownload = downloadGroupInfo.downloadsInfo[runningDownloadIndex];
                             int percentageTotalProgress = calculateTotalProgress(lastDownloadSuccessIndex + 1, 0);
                             downloadGroupInfo.setCurrentProgress(percentageTotalProgress);
@@ -226,10 +275,9 @@ public class Downloader {
                                 }
                             }
                         }
-                    }
+    }
 
-                    @Override
-                    public void onError(Error error) {
+    private void onDownloadError(Error error) {
                         Log.e("download error", (downloadGroupInfo.getRunningDownload() != null ? downloadGroupInfo.getRunningDownload().getName() : "") + "    " + error.toString());
                         int runningDownloadIndex = downloadGroupInfo.getRunningDownloadIndex();
                         if(runningDownloadIndex != -1 && !downloadGroupInfo.getRunningDownload().isDownloadCompleted()) {
@@ -239,9 +287,6 @@ public class Downloader {
                             downloadsStarted = false;
                             callback.onError(downloadGroupInfo, download, GENERAL_ERROR);
                         }
-                    }
-                });
-        downloadGroupInfo.downloadsInfo[index].setDownloadId(downloadId);
     }
 
     private void unzipRunningDownloadAndTestIntegrity(int percentageTotalProgress){

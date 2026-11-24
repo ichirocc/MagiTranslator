@@ -92,7 +92,7 @@ public class NoticeFragment extends Fragment {
             if(!readmeFile.exists()){
                 try {
                     FileWriter writer = new FileWriter(readmeFile);
-                    writer.append("Insert the models in this folder, for more info read the tutorial for sideloading in the GitHub page of RTranslator");
+                    writer.append("Models are downloaded inside the app (see Sideloading.md on the MagiTranslator GitHub page: https://github.com/ichirocc/MagiTranslator)");
                     writer.flush();
                     writer.close();
                     android.util.Log.i("files", "Readme created");

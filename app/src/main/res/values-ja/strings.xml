@@ -166,7 +166,7 @@
     <string name="description_fragment_download">これから翻訳と音声認識に必要なニューラルネットワークモデルをダウンロードします。完了すればアプリを使えます（オフラインでも動作します）。</string>
     <string name="description_conversation">会話モードは、複数人の会話をリアルタイムに翻訳します。Bluetoothイヤホンの利用を推奨します。バックグラウンドや画面オフでも動作します（端末によってはバックグラウンドで性能が落ちることがあります）</string>
     <string name="description_walkie_talkie">対面会話モードはスマホ1台で使えます。話された言語を自動で判定して相手の言語に翻訳します。バックグラウンドや画面オフでも動作します</string>
-    <string name="description_notice">MagiTranslatorは音声認識に<a href="https://openai.com/index/whisper/">OpenAIのWhisper</a>、翻訳にMadlad・HY-MT・<a href="https://ai.meta.com/research/no-language-left-behind/">MetaのNLLB</a>などのモデルを使います。これらのモデルは処理が重く、6GB以上のRAMが必要です。最新のスマートフォンでお使いください。元になったRTranslatorについては<a href="https://github.com/niedev/RTranslator">こちら</a></string>
+    <string name="description_notice">MagiTranslatorは音声認識に<a href="https://openai.com/index/whisper/">OpenAIのWhisper</a>、翻訳にMadlad・HY-MT・<a href="https://ai.meta.com/research/no-language-left-behind/">MetaのNLLB</a>などのモデルを使います。これらのモデルは処理が重く、6GB以上のRAMが必要です。最新のスマートフォンでお使いください。MagiTranslatorはRTranslatorを元にしています。詳しくはGitHubのプロジェクトページ<a href="https://github.com/ichirocc/MagiTranslator">こちら</a></string>
     <string name="description_download">%1$sをダウンロード中</string>
     <string name="description_transfer">%1$sを内部ストレージへ転送中</string>
     <string name="description_unzip">%1$sを展開中</string>
