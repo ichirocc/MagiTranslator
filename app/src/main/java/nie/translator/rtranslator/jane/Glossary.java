@@ -1,0 +1,88 @@
+package nie.translator.rtranslator.jane;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Terminology for ja -> ne. Terms are injected inline in the source as target-language text
+ * ("code-switched" input), which NMT copies far more reliably than it guesses a rare term
+ * (target lemma annotation: Exel et al. 2020, Bergmanis & Pinnis 2021).
+ * Person names with an honorific (田中さん is kanji, タナカさん katakana) are transliterated.
+ */
+public final class Glossary {
+    private final Map<String, String> terms = new LinkedHashMap<>();
+    private static final Pattern KATAKANA_NAME = Pattern.compile("([\\u30A1-\\u30FAー]{2,})(さん|様|さま|くん|君|ちゃん|氏|先生)");
+
+    /** Only facts that are certain; users extend it with a TSV file (ja<TAB>ne per line). */
+    public static Glossary withDefaults() {
+        Glossary g = new Glossary();
+        g.put("日本", "जापान");
+        g.put("ネパール", "नेपाल");
+        g.put("東京", "टोकियो");
+        g.put("大阪", "ओसाका");
+        g.put("カトマンズ", "काठमाडौं");
+        g.put("ポカラ", "पोखरा");
+        return g;
+    }
+
+    public void put(String ja, String ne) {
+        if (ja != null && ne != null && !ja.trim().isEmpty() && !ne.trim().isEmpty()) terms.put(ja.trim(), ne.trim());
+    }
+
+    public int size() { return terms.size(); }
+
+    /** Reads "ja<TAB>ne" lines; lines starting with # are comments. */
+    public void load(Reader reader) throws IOException {
+        BufferedReader br = new BufferedReader(reader);
+        String line;
+        while ((line = br.readLine()) != null) {
+            if (line.startsWith("#")) continue;
+            String[] cols = line.split("\t");
+            if (cols.length >= 2) put(cols[0], cols[1]);
+        }
+    }
+
+    /** Result of injecting terminology: the rewritten source and the target terms that must appear. */
+    public static final class Injection {
+        public final String text;
+        public final List<String> requiredTargets;
+        Injection(String text, List<String> requiredTargets) { this.text = text; this.requiredTargets = requiredTargets; }
+        public boolean changed(String original) { return !text.equals(original); }
+    }
+
+    public Injection inject(String ja) {
+        List<String> required = new ArrayList<>();
+        String t = ja;
+        // names first: タナカさん -> तानाका さん (honorific left for the model to render as "जी"/"ज्यू")
+        Matcher m = KATAKANA_NAME.matcher(t);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            String name = m.group(1);
+            String dev = terms.containsKey(name) ? terms.get(name) : KanaDevanagari.transliterate(name);
+            if (dev == null) { m.appendReplacement(sb, Matcher.quoteReplacement(m.group())); continue; }
+            required.add(dev);
+            m.appendReplacement(sb, Matcher.quoteReplacement(dev + m.group(2)));
+        }
+        m.appendTail(sb);
+        t = sb.toString();
+        // longest terms first so that "東京都" wins over "東京"
+        List<String> keys = new ArrayList<>(terms.keySet());
+        keys.sort(Comparator.comparingInt(String::length).reversed());
+        for (String k : keys) {
+            if (t.contains(k)) {
+                String v = terms.get(k);
+                t = t.replace(k, v);
+                required.add(v);
+            }
+        }
+        return new Injection(t, required);
+    }
+}
