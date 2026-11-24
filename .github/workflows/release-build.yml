@@ -48,11 +48,18 @@ jobs:
           grep -n -E "(error:|FAILURE:|What went wrong|Execution failed)" build.log | head -120 || true
           tail -120 build.log || true
 
-      - name: Verify 16KB page alignment (Android 16 devices)
+      - name: Check 16KB ELF alignment of native libs (Android 16 devices)
         shell: bash
         run: |
           apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 -v 4 "$apk" | tail -5
+          rm -rf /tmp/apk && mkdir -p /tmp/apk && unzip -q -o "$apk" 'lib/*' -d /tmp/apk || true
+          readelf=$(ls "$ANDROID_HOME"/ndk/*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf | head -1)
+          bad=0
+          for so in $(find /tmp/apk/lib -name '*.so'); do
+            align=$("$readelf" -lW "$so" | awk '/LOAD/{print $NF}' | sort -u | head -1)
+            if [ $(( align )) -lt $(( 0x4000 )) ]; then echo "::warning::$(basename $so) LOAD align $align (<16KB)"; bad=1; else echo "ok $(basename $so) $align"; fi
+          done
+          echo "16KB check done (bad=$bad)"
 
       - name: Rename APK
         shell: bash

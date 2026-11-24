@@ -71,6 +71,12 @@ android {
         buildConfig true
     }
 
+    packagingOptions {
+        jniLibs {
+            // store .so compressed and extract at install: only ELF segment alignment matters for 16KB pages
+            useLegacyPackaging true
+        }
+    }
     signingConfigs {
         // Fixed sideload key so every CI build can be installed over the previous one.
         // Not a store-release key (the repository is public).
