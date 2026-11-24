@@ -6,8 +6,8 @@ import java.util.regex.Pattern;
 /**
  * Converts kanji numerals followed by a counter into Arabic digits (三時半 -> 3時30分) so that
  * the NMT copies numbers instead of guessing them, and QualityScorer can verify they survived.
- * Only numerals directly before a counter are converted, so words like 一緒 or 三日月 stay intact
- * unless they are real quantities (三日 = 3日).
+ * Only numerals directly before a counter are converted, so words like 一緒 stay intact; idioms
+ * whose numeral is followed by a counter-like kanji (三日月, 万年筆, 十分 = enough) are protected.
  */
 public final class KanjiNumber {
     private static final String DIGITS = "〇一二三四五六七八九";
@@ -18,7 +18,11 @@ public final class KanjiNumber {
     private KanjiNumber() {}
 
     // idioms whose numerals are not quantities (一度 = once, 一番 = most, 一人前 = full-fledged ...)
-    private static final String[] IDIOMS = {"一人前", "一人っ子", "一人ひとり", "一日中", "一時的", "一回り", "二人三脚", "一枚岩", "十人十色", "一年中"};
+    private static final String[] IDIOMS = {"一人前", "一人っ子", "一人ひとり", "一日中", "一時的", "一回り", "二人三脚", "一枚岩", "十人十色", "一年中",
+            "三日月", "三日坊主", "万年筆", "万年床"};
+    // 十分 (じゅうぶん) means "enough"; it is 10 minutes only after an hour (三時十分) or before a
+    // duration/relative marker (十分間, 十分後, 十分ほど ...)
+    private static final Pattern JUPPUN_AFTER = Pattern.compile("^分(?:間|後|前|以内|ほど|くらい|ぐらい|程度|おき|ごと)");
 
     public static String toDigits(String text) {
         java.util.List<String> saved = new java.util.ArrayList<>();
@@ -37,11 +41,23 @@ public final class KanjiNumber {
         Matcher m = NUM_COUNTER.matcher(text);
         StringBuffer sb = new StringBuffer();
         while (m.find()) {
-            long v = parse(m.group(1));
-            m.appendReplacement(sb, v < 0 ? m.group(1) : Long.toString(v));
+            String k = m.group(1);
+            long v = isQuantity(text, m) ? parse(k) : -1;
+            m.appendReplacement(sb, v < 0 ? k : Long.toString(v));
         }
         m.appendTail(sb);
         return HALF_HOUR.matcher(sb.toString()).replaceAll("$1時30分");
+    }
+
+    private static boolean isQuantity(String text, Matcher m) {
+        String k = m.group(1);
+        // a bare 万 is not "10000" (万年筆, 万一): real amounts are written 一万
+        if (k.equals("万")) return false;
+        if (k.equals("十") && text.startsWith("分", m.end())) {
+            boolean afterHour = m.start() > 0 && text.charAt(m.start() - 1) == '時';
+            return afterHour || JUPPUN_AFTER.matcher(text.substring(m.end())).lookingAt();
+        }
+        return true;
     }
 
     /** Parses 二千三百十五 -> 2315, 二〇二六 -> 2026; -1 when malformed. */

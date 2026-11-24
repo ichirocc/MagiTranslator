@@ -127,6 +127,36 @@ public class JaNeLibraryTest {
         eq("म भोलि जाँदिनँ।", rn.text, "n-best hypothesis with negation selected");
         eq(2, rn.candidates.size(), "two beam candidates");
 
+        // review fixes (critical): idioms / meaningful words must not be rewritten
+        eq("十分です。", JaNormalizer.normalize("十分です。"), "十分 = enough, not 10分");
+        eq("3時10分です。", JaNormalizer.normalize("三時十分です。"), "三時十分 -> 3時10分");
+        eq("10分後に出ます", JaNormalizer.normalize("十分後に出ます"), "十分後 -> 10分後");
+        eq("20分待ちました", JaNormalizer.normalize("二十分待ちました"), "二十分 -> 20分");
+        eq("万年筆を買いました", JaNormalizer.normalize("万年筆を買いました"), "万年筆 kept");
+        eq("10000円です", JaNormalizer.normalize("一万円です"), "一万円 -> 10000円");
+        eq("三日月がきれいです", JaNormalizer.normalize("三日月がきれいです"), "三日月 kept");
+        eq("3日休みます", JaNormalizer.normalize("三日休みます"), "三日 -> 3日");
+        eq("うん、行く", JaNormalizer.normalize("うん、行く"), "うん (yes) is not a filler");
+        eq("うん、", JaNormalizer.normalize("うん、"), "lone うん not emptied");
+        eq("なんか 食べたい", JaNormalizer.normalize("なんか 食べたい"), "なんか (something) is not a filler");
+        eq("行く", JaNormalizer.normalize("うーん、行く"), "うーん still a filler");
+        // required terms apply to every candidate: a term-injected candidate that drops one of two terms
+        // must beat a plain candidate that has none, even when the plain one round-trips perfectly
+        Glossary g5 = Glossary.withDefaults();
+        g5.put("夜勤", "रात्रि ड्युटी");
+        Map<String, String> f5 = new HashMap<>();
+        f5.put("टोकियोでरात्रि ड्युटीです。", "टोकियोमा ड्युटी छ।");   // terms: keeps टोकियो, drops रात्रि ड्युटी
+        f5.put("東京で夜勤です。", "म काम गर्छु।");                      // whole: neither term
+        Map<String, String> b5 = new HashMap<>();
+        b5.put("टोकियोमा ड्युटी छ।", "東京で勤務です。");
+        b5.put("म काम गर्छु।", "東京で夜勤です。");                      // misleading perfect round trip
+        Backend fake5 = (text, s, t) -> ("ja".equals(s) ? f5 : b5).getOrDefault(text, text);
+        JaNeTranslator.Result r5 = new JaNeTranslator(fake5, g5).translate("東京で夜勤です", "ja", "ne");
+        for (JaNeTranslator.Candidate c : r5.candidates) System.out.println("     " + c);
+        eq("टोकियोमा ड्युटी छ।", r5.text, "required terms enforced on whole candidate too");
+        for (JaNeTranslator.Candidate c : r5.candidates)
+            if (c.label.equals("whole")) eq(2, c.hard(), "whole candidate missing both terms -> 2 hard");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

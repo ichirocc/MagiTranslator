@@ -6,8 +6,9 @@ import java.util.regex.Pattern;
 /** Cleans Japanese input (often ASR output) before MT. Pure Java, no Android dependency. */
 public final class JaNormalizer {
     // Spoken fillers. Only removed when followed by a pause mark, so "あの人" is kept.
+    // うん (= yes) and なんか (= something / somehow) carry meaning and are never removed.
     private static final Pattern FILLERS = Pattern.compile(
-            "(?:^|(?<=[、。！？\\s]))(?:えーっと|ええっと|えっと|えーと|ええと|えー|あのー|あのう|あの|そのー|まあ|うーん|うん|んー|なんか)[、,\\s]+");
+            "(?:^|(?<=[、。！？\\s]))(?:えーっと|ええっと|えっと|えーと|ええと|えー|あのー|あのう|あの|そのー|まあ|うーん|んー)[、,\\s]+");
     private static final Pattern LONG_MARKS = Pattern.compile("[ー〜~]{2,}");
     private static final Pattern SPACES = Pattern.compile("[\\s\\u3000]+");
 

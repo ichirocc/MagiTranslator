@@ -76,24 +76,25 @@ public final class JaNeTranslator {
         Map<String, List<String>> inputs = new LinkedHashMap<>();
         Map<String, List<String>> required = new LinkedHashMap<>();
         Glossary.Injection injWhole = glossary.inject(whole);
+        // Required terms come from the source text, so every candidate must satisfy the same ones;
+        // otherwise a candidate without injection (and without the terms) would be exempt and win.
+        List<String> mustHave = injWhole.requiredTargets;
         if (injWhole.changed(whole)) {   // terminology first: it is the most constrained candidate
             inputs.put("terms", Collections.singletonList(injWhole.text));
-            required.put("terms", injWhole.requiredTargets);
+            required.put("terms", mustHave);
         }
         inputs.put("whole", Collections.singletonList(whole));
-        required.put("whole", Collections.emptyList());
+        required.put("whole", mustHave);
         if (sentences.size() > 1) {
             List<String> segs = new ArrayList<>();
-            List<String> req = new ArrayList<>();
             boolean changed = false;
             for (String s : sentences) {
                 Glossary.Injection inj = glossary.inject(s);
                 segs.add(inj.text);
-                req.addAll(inj.requiredTargets);
                 changed |= inj.changed(s);
             }
             inputs.put(changed ? "sentences+terms" : "sentences", segs);
-            required.put(changed ? "sentences+terms" : "sentences", req);
+            required.put(changed ? "sentences+terms" : "sentences", mustHave);
         }
 
         List<Candidate> cands = new ArrayList<>();
