@@ -28,7 +28,7 @@ public final class TranslationValidator {
             "(ない|なかった|なくて|ないで|ません|ませんでした|ず(?=[、。に]|$)|ぬ(?=[、。]|$))");
     // adjectives / idioms that end in ない but are not a negated predicate
     private static final Pattern JA_NOT_NEGATION = Pattern.compile(
-            "(少ない|危ない|汚い|幼い|切ない|せつない|だらしない|つまらない|くだらない|もったいない|勿体ない|仕方(が)?ない|しかた(が)?ない|間違いない|違いない|半端ない|すくない|あぶない)");
+            "(少ない|危ない|汚い|幼い|切ない|せつない|だらしない|つまらない|くだらない|もったいない|勿体ない|仕方(が)?ない|しかた(が)?ない|間違いない|違いない|半端ない|すくない|あぶない|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか)");   // apology / obligation / conjecture / invitation are not negation
     // --- Nepali negation: suffix forms and the negative prefix न- on verbs.
     private static final Pattern NE_NEG_WORD = Pattern.compile(
             "(छैन|छैनन्|छैनौं|होइन|होइनन्|हुँदैन|हुन्न|दैन|दैनन्|दैनौं|दैनौ|दिनँ|दिनौं|न्न)$");   // e.g. जाँदिनँ, गर्दैन, सक्दैनन्

@@ -39,6 +39,11 @@ public class JaNeLibraryTest {
         yes(TranslationValidator.jaHasNegation("わからない"), "neg わからない");
         yes(!TranslationValidator.jaHasNegation("つまらない映画"), "つまらない not negation");
         yes(!TranslationValidator.jaHasNegation("人が少ないです"), "少ない not negation");
+        yes(!TranslationValidator.jaHasNegation("すみません、駅はどこですか"), "すみません not negation");
+        yes(!TranslationValidator.jaHasNegation("明日行かなければなりません"), "obligation not negation");
+        yes(!TranslationValidator.jaHasNegation("雨かもしれません"), "conjecture not negation");
+        yes(!TranslationValidator.jaHasNegation("一緒に行きませんか"), "invitation not negation");
+        yes(TranslationValidator.jaHasNegation("すみません、わかりません"), "real negation after apology still detected");
         yes(TranslationValidator.neHasNegation("मलाई थाहा छैन।"), "ne छैन");
         yes(TranslationValidator.neHasNegation("म जाँदिनँ।"), "ne -दिनँ");
         yes(TranslationValidator.neHasNegation("नजानुहोस्।"), "ne prefix न-");
