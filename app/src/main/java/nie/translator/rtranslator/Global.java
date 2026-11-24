@@ -128,6 +128,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         super.onCreate();
         mainHandler = new Handler(Looper.getMainLooper());
         recentPeersDataManager = new RecentPeersDataManager(this);
+        nie.translator.rtranslator.tools.PrivacyLog.init(this);  //no conversation content in release logs
         ThemeManager.restore(this);  //this will apply the night mode chose in the settings
         //initializeBluetoothCommunicator();
         getMicSensitivity();

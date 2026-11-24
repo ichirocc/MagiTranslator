@@ -25,15 +25,45 @@ public class JaNeLibraryTest {
         eq(15000L, KanjiNumber.parse("一万五千"), "man");
         yes(QualityScorer.isPoliteJa("行きます") && QualityScorer.containsInformalNe("तिमी कहाँ जान्छौ?"), "register mismatch");
         yes(!QualityScorer.containsInformalNe("तपाईं कहाँ जानुहुन्छ?"), "polite ne ok");
+        eq("", JaNormalizer.normalize("えーと、あの、"), "only fillers -> empty (#7)");
+        eq("一度行きました", JaNormalizer.normalize("一度行きました"), "一度 not a quantity");
+        eq("一人前です", JaNormalizer.normalize("一人前です"), "idiom 一人前 kept");
+        eq("3人です", JaNormalizer.normalize("三人です"), "3人");
+        eq("[1000]", QualityScorer.numbers("1,000円"), "thousands separator");
+        eq("[1000]", QualityScorer.numbers("१,०००"), "devanagari thousands");
+        eq("[2.5]", QualityScorer.numbers("２．５"), "fullwidth decimal");
+        yes(QualityScorer.foreignLetterRatio("Wi-Fi को पासवर्ड", "Wi-Fiのパスワード") < 0.01, "latin word from source not foreign (#12)");
+        yes(QualityScorer.foreignLetterRatio("password को", "パスワード") > 0.5, "latin not in source is foreign");
+        // validator
+        yes(TranslationValidator.jaHasNegation("わかりません"), "neg ません");
+        yes(TranslationValidator.jaHasNegation("わからない"), "neg わからない");
+        yes(!TranslationValidator.jaHasNegation("つまらない映画"), "つまらない not negation");
+        yes(!TranslationValidator.jaHasNegation("人が少ないです"), "少ない not negation");
+        yes(TranslationValidator.neHasNegation("मलाई थाहा छैन।"), "ne छैन");
+        yes(TranslationValidator.neHasNegation("म जाँदिनँ।"), "ne -दिनँ");
+        yes(TranslationValidator.neHasNegation("नजानुहोस्।"), "ne prefix न-");
+        yes(!TranslationValidator.neHasNegation("नमस्ते, आज राम्रो दिन हो।"), "नमस्ते / दिन not negation");
+        java.util.List<TranslationValidator.Issue> iss = TranslationValidator.validateJaToNe("3時に行きません。", "म ३ बजे जान्छु।", java.util.Collections.emptyList());
+        eq("[HARD NEGATION_LOST]", iss, "negation lost detected, number kept");
+        iss = TranslationValidator.validateJaToNe("5人です。", "तीन जना हुनुहुन्छ। 駅", java.util.Collections.emptyList());
+        eq(2, TranslationValidator.hardCount(iss), "number lost + japanese left");
         // segmenter
         eq("[明日行きます。, 駅で会いましょう。]", JaSegmenter.split("明日行きます 駅で会いましょう"), "soft split on polite endings");
         eq("[元気ですか？, はい。]", JaSegmenter.split("元気ですか？はい"), "hard split");
+        eq("[雨が降っていますが 行きます。]", JaSegmenter.split("雨が降っていますが 行きます"), "no split before conjunctive が");
+        eq("[ますます 暑くなります。]", JaSegmenter.split("ますます 暑くなります"), "ますます not split");
+        eq("[彼は「行きます。来ます。」と言いました。]", JaSegmenter.split("彼は「行きます。来ます。」と言いました。"), "no split inside quotes");
+        eq("[行きます。, 明日ですね。, はい。]", JaSegmenter.split("行きます 明日ですね はい"), "split polite ends incl. ね");
         // transliteration
         eq("तानाका", KanaDevanagari.transliterate("タナカ"), "タナカ");
         eq("सुजुकि", KanaDevanagari.transliterate("スズキ"), "スズキ (short i)");
         eq("कोही", KanaDevanagari.transliterate("コーヒ").replace("कोहि","कोही").equals("कोही") ? "कोही" : KanaDevanagari.transliterate("コーヒ"), "ー after o");
         eq("सात्तो", KanaDevanagari.transliterate("サット"), "geminate ッ");
         eq("केन्ता", KanaDevanagari.transliterate("ケンタ"), "ン before consonant");
+        eq("भाइओरिन", KanaDevanagari.transliterate("ヴァイオリン"), "ヴァ (#14)");
+        eq("त्सा", KanaDevanagari.transliterate("ツァー"), "ツァ + long mark");
+        yes(KanaDevanagari.transliterate("パーティー") != null, "ティ supported");
+        yes(KanaDevanagari.transliterate("デュエット") != null, "デュ supported");
         // glossary
         Glossary g = Glossary.withDefaults();
         g.load(new StringReader("# comment\n夜勤\tरात्रि ड्युटी\n"));
@@ -46,7 +76,11 @@ public class JaNeLibraryTest {
         eq("[3, 15]", QualityScorer.numbers("३ बजे 15"), "devanagari digits");
         yes(QualityScorer.foreignLetterRatio("म hello") > 0.5, "foreign ratio");
         // post editor
-        eq("म घर जान्छु।", NePostEditor.edit("म घर घर घर जान्छु ."), "post-edit loop + danda");
+        eq("म घर घर जान्छु।", NePostEditor.edit("म घर घर घर घर जान्छु ."), "loop of one word -> keep reduplication + danda");
+        eq("धेरै धेरै धन्यवाद।", NePostEditor.edit("धेरै धेरै धन्यवाद।"), "keep meaningful reduplication धेरै धेरै");
+        eq("बिस्तारै बिस्तारै बोल्नुहोस्।", NePostEditor.edit("बिस्तारै बिस्तारै बोल्नुहोस्।"), "keep बिस्तारै बिस्तारै");
+        eq("a b c", NePostEditor.collapseRepeats("a b c a b c a b c".split(" ")), "phrase x3 -> 1");
+        eq("a b a b", NePostEditor.collapseRepeats("a b a b".split(" ")), "phrase x2 kept");
         // pipeline with a fake backend: the 'terms' candidate keeps the name, the plain one loses it
         Map<String, String> fwd = new HashMap<>();
         fwd.put("तानाकाさんは3時に来ます。", "तानाका जी ३ बजे आउनुहुन्छ।");
@@ -60,6 +94,17 @@ public class JaNeLibraryTest {
         for (JaNeTranslator.Candidate c : r.candidates) System.out.println("     " + c);
         eq("तानाका जी ३ बजे आउनुहुन्छ।", r.text, "rerank picks faithful candidate");
         eq("ありがとう。", JaNeTranslator.collapseJa("ありがとう。ありがとう。"), "collapse ja loop");
+        // lexicographic: a candidate that keeps the negation wins even if its round-trip score is lower
+        Map<String, String> f2 = new HashMap<>();
+        f2.put("明日は行きません。", "म भोलि जान्छु।");                     // whole: negation lost (wrong)
+        f2.put("明日は行きません。 わかりません。", "x");
+        Map<String, String> b2 = new HashMap<>();
+        b2.put("म भोलि जान्छु।", "明日は行きません。");                   // misleading perfect round trip
+        JaNeTranslator.Candidate good = new JaNeTranslator.Candidate("a", "", "म भोलि जाँदिनँ।", null, 0.2,
+                TranslationValidator.validateJaToNe("明日は行きません。", "म भोलि जाँदिनँ।", java.util.Collections.emptyList()));
+        JaNeTranslator.Candidate bad = new JaNeTranslator.Candidate("b", "", "म भोलि जान्छु।", null, 0.9,
+                TranslationValidator.validateJaToNe("明日は行きません。", "म भोलि जान्छु।", java.util.Collections.emptyList()));
+        yes(JaNeTranslator.better(good, bad), "hard issues beat score");
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);

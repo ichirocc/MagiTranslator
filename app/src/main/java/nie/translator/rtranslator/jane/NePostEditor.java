@@ -19,24 +19,40 @@ public final class NePostEditor {
         return t.trim();
     }
 
-    /** Low-resource NMT loops ("घर घर घर"); remove immediately repeated 1-3 word n-grams. */
+    /**
+     * Low-resource NMT loops ("घर घर घर घर"). Nepali also has meaningful reduplication
+     * (धेरै धेरै, बिस्तारै बिस्तारै, घर घर), so two repeats are always kept:
+     *  - a single word repeated 3+ times is reduced to 2 (keeps the reduplicated form);
+     *  - a 2-3 word phrase repeated 3+ times is reduced to 1;
+     *  - a 2-3 word phrase repeated exactly twice is kept (could be intentional).
+     */
     static String collapseRepeats(String[] words) {
-        List<String> out = new ArrayList<>();
-        for (String w : words) {
-            out.add(w);
-            for (int n = 1; n <= 3; n++) {
-                int sz = out.size();
-                if (sz < 2 * n) continue;
-                boolean same = true;
-                for (int k = 0; k < n; k++) {
-                    if (!out.get(sz - n + k).equals(out.get(sz - 2 * n + k))) { same = false; break; }
-                }
-                if (same) {
-                    for (int k = 0; k < n; k++) out.remove(out.size() - 1);
-                    break;
+        List<String> in = new ArrayList<>();
+        for (String w : words) if (!w.isEmpty()) in.add(w);
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            outer:
+            for (int n = 3; n >= 1; n--) {
+                for (int i = 0; i + 3 * n <= in.size(); i++) {
+                    int reps = 1;
+                    while (i + (reps + 1) * n <= in.size() && same(in, i, i + reps * n, n)) reps++;
+                    if (reps >= 3) {
+                        int keep = (n == 1) ? 2 : 1;
+                        for (int r = reps; r > keep; r--) {
+                            for (int k = 0; k < n; k++) in.remove(i + keep * n);
+                        }
+                        changed = true;
+                        break outer;
+                    }
                 }
             }
         }
-        return String.join(" ", out);
+        return String.join(" ", in);
+    }
+
+    private static boolean same(List<String> l, int a, int b, int n) {
+        for (int k = 0; k < n; k++) if (!l.get(a + k).equals(l.get(b + k))) return false;
+        return true;
     }
 }

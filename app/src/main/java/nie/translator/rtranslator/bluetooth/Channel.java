@@ -108,7 +108,7 @@ abstract class Channel {
             // division from the message and sending of the various parts
             pendingSubMessages = message.splitInBluetoothMessages(messageID, getBluetoothMessagesLength());
             messageID.increment();
-            Log.e("messageSend", message.getText());
+            Log.e("messageSend", nie.translator.rtranslator.tools.PrivacyLog.text(message.getText()));
             sendSubMessage();
         }
     }
@@ -119,7 +119,7 @@ abstract class Channel {
             // division from the message and sending of the various parts
             pendingSubData = data.splitInBluetoothMessages(dataID, getBluetoothMessagesLength());
             dataID.increment();
-            Log.e("dataSend", data.getText());
+            Log.e("dataSend", nie.translator.rtranslator.tools.PrivacyLog.text(data.getText()));
             sendSubData();
         }
     }

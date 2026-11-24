@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 public final class JaNormalizer {
     // Spoken fillers. Only removed when followed by a pause mark, so "あの人" is kept.
     private static final Pattern FILLERS = Pattern.compile(
-            "(?:^|(?<=[、。！？\\s]))(?:えーっと|えっと|えーと|えー|あのー|あの|そのー|まあ|うーん|んー|なんか)[、,\\s]+");
+            "(?:^|(?<=[、。！？\\s]))(?:えーっと|ええっと|えっと|えーと|ええと|えー|あのー|あのう|あの|そのー|まあ|うーん|うん|んー|なんか)[、,\\s]+");
     private static final Pattern LONG_MARKS = Pattern.compile("[ー〜~]{2,}");
     private static final Pattern SPACES = Pattern.compile("[\\s\\u3000]+");
 
@@ -22,7 +22,9 @@ public final class JaNormalizer {
         // NFKC turns "。" into itself but "！？" into ASCII; keep Japanese full stop for the segmenter
         t = t.replace("!", "！").replace("?", "？");
         t = KanjiNumber.toDigits(t);
-        return t.isEmpty() ? text.trim() : t;
+        // Only fillers / punctuation: there is nothing to translate. Returning the raw input here would
+        // feed the filler itself to the NMT, so an empty string is returned instead.
+        return t.replaceAll("[、。！？,.\\s]", "").isEmpty() ? "" : t;
     }
 
     /** Adds an explicit sentence end; Madlad translates complete sentences more faithfully. */

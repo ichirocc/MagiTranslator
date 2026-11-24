@@ -181,7 +181,12 @@ public class Translator extends NeuralNetworkApi {
         return ("ja".equals(a) && "ne".equals(b)) || ("ne".equals(a) && "ja".equals(b));
     }
 
-    private volatile boolean silentNN = false;
+    // per-thread: internal jane candidate / back-translation calls must not notify the UI (was a shared flag)
+    private static final ThreadLocal<Boolean> SILENT = new ThreadLocal<>();
+    // beam used by the jane backend, refreshed on every call (the backend lambda is cached)
+    private volatile int janeBeamSize = JA_NE_BEAM_SIZE;
+    // serialises translations: model switching and jane calls share the ONNX sessions
+    private final java.util.concurrent.locks.ReentrantLock translationLock = new java.util.concurrent.locks.ReentrantLock(true);
     @Nullable
     private nie.translator.rtranslator.jane.JaNeTranslator janeTranslator;
 
@@ -197,16 +202,16 @@ public class Translator extends NeuralNetworkApi {
                         glossary.load(r);
                     }
                 }
-                janeTranslator = new nie.translator.rtranslator.jane.JaNeTranslator((t, src, tgt) -> silentTranslate(t, src, tgt, beamSize), glossary);
+                janeTranslator = new nie.translator.rtranslator.jane.JaNeTranslator((t, src, tgt) -> silentTranslate(t, src, tgt, janeBeamSize), glossary);
             }
+            janeBeamSize = beamSize;
             nie.translator.rtranslator.jane.JaNeTranslator.Result r = janeTranslator.translate(text, in.getCode(), out.getCode());
-            for (nie.translator.rtranslator.jane.JaNeTranslator.Candidate c : r.candidates) Log.i("jane", c.toString());
-            return r.text == null || r.text.isEmpty() ? null : r.text;
+            if (nie.translator.rtranslator.tools.PrivacyLog.isDebuggable()) for (nie.translator.rtranslator.jane.JaNeTranslator.Candidate c : r.candidates) Log.i("jane", c.toString());
+            if ("ja".equals(in.getCode()) && nie.translator.rtranslator.jane.JaNormalizer.normalize(text).isEmpty()) return "";   //only fillers: nothing to translate
+            return r.text == null || r.text.isEmpty() ? null : r.text;   //empty for other reasons -> fall back to the normal pipeline
         } catch (Exception e) {
             e.printStackTrace();
             return null;   //fall back to the normal pipeline
-        } finally {
-            silentNN = false;
         }
     }
 
@@ -223,7 +228,8 @@ public class Translator extends NeuralNetworkApi {
             for (int en = it.next(); en != BreakIterator.DONE; st = en, en = it.next()) parts.add(text.substring(st, en));
         }
         StringBuilder sb = new StringBuilder();
-        silentNN = true;
+        Boolean previous = SILENT.get();
+        SILENT.set(Boolean.TRUE);
         try {
             for (String p : parts) {
                 if (p.trim().isEmpty()) continue;
@@ -233,7 +239,7 @@ public class Translator extends NeuralNetworkApi {
                 sb.append(o.trim());
             }
         } finally {
-            silentNN = false;
+            if (previous == null) SILENT.remove(); else SILENT.set(previous);
         }
         return sb.toString();
     }
@@ -746,10 +752,19 @@ public class Translator extends NeuralNetworkApi {
     }
 
     private void performTextTranslation(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode, @Nullable final TranslateListener responseListener) {
+        translationLock.lock();
+        try {
+            performTextTranslationLocked(textToTranslate, inputLanguage, outputLanguage, beamSize, saveResults, rtranslatorMode, responseListener);
+        } finally {
+            translationLock.unlock();
+        }
+    }
+
+    private void performTextTranslationLocked(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode, @Nullable final TranslateListener responseListener) {
         try {
             long initTime = System.currentTimeMillis();
             String finalResult = null;
-            android.util.Log.i("result", "Translation input: " + textToTranslate);
+            android.util.Log.i("result", "Translation input: " + nie.translator.rtranslator.tools.PrivacyLog.text(textToTranslate));
             if(saveResults) {
                 lastInputText = new GuiMessage(new Message(global, textToTranslate), inputLanguage, outputLanguage, false, true);
             }
@@ -849,7 +864,7 @@ public class Translator extends NeuralNetworkApi {
                 }
                 android.util.Log.i("result", "Input text splitted in " + textSplit.size() + " subtexts:");
                 for (String subtext : textSplit) {
-                    android.util.Log.i("result", subtext);
+                    android.util.Log.i("result", nie.translator.rtranslator.tools.PrivacyLog.text(subtext));
                 }
                 android.util.Log.i("performance", "Text split done in: " + (System.currentTimeMillis() - initTime) + "ms");
 
@@ -1032,7 +1047,7 @@ public class Translator extends NeuralNetworkApi {
         TranslateListener translateListener = new TranslateListener() {
             @Override
             public void onTranslatedText(String textToTranslate, String translatedText, String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
-                if (silentNN) return;   //internal candidate / back-translation of the ja<->ne library
+                if (Boolean.TRUE.equals(SILENT.get())) return;   //internal candidate / back-translation of the ja<->ne library
                 //we return the partial results
                 String outputText;
                 if (joinedStringOutput[0].equals("")) {
@@ -1054,7 +1069,7 @@ public class Translator extends NeuralNetworkApi {
             @Override
             public void onFailure(int[] reasons, long value) {
                 //we do not return the partial results and notify an error
-                if (silentNN) return;
+                if (Boolean.TRUE.equals(SILENT.get())) return;
                 if (responseListener != null) {
                     mainHandler.post(() -> responseListener.onFailure(reasons, value));
                 } else {

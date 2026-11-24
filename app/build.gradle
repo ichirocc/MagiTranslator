@@ -31,8 +31,8 @@ android {
         applicationId "com.magi.translator"
         targetSdkVersion 36   //32
         compileSdk 36
-        versionName '3.0.0-magi.3-a16'
-        versionCode 30
+        versionName '3.0.0-magi.4'
+        versionCode 31
         minSdkVersion 36   //MagiTranslator: Android 16+ only
         externalNativeBuild {
             cmake {
@@ -81,10 +81,14 @@ android {
         // Fixed sideload key so every CI build can be installed over the previous one.
         // Not a store-release key (the repository is public).
         sideload {
-            storeFile file('magi-sideload.jks')
-            storePassword 'magitranslator'
-            keyAlias 'magi'
-            keyPassword 'magitranslator'
+            // Secrets come from the environment (CI secrets) or ~/.gradle/gradle.properties.
+            // Fallback = the temporary public sideload key (see docs/SPEC.md §19.8); replace it before
+            // distributing to anyone else.
+            def envStore = System.getenv('MAGI_KEYSTORE_FILE') ?: project.findProperty('MAGI_KEYSTORE_FILE')
+            storeFile envStore ? file(envStore) : file('magi-sideload.jks')
+            storePassword System.getenv('MAGI_KEYSTORE_PASSWORD') ?: project.findProperty('MAGI_KEYSTORE_PASSWORD') ?: 'magitranslator'
+            keyAlias System.getenv('MAGI_KEY_ALIAS') ?: project.findProperty('MAGI_KEY_ALIAS') ?: 'magi'
+            keyPassword System.getenv('MAGI_KEY_PASSWORD') ?: project.findProperty('MAGI_KEY_PASSWORD') ?: 'magitranslator'
         }
     }
     buildTypes {
@@ -112,9 +116,8 @@ android {
         }
     }
     lintOptions {
-        checkReleaseBuilds false
-        // Or, if you prefer, you can continue to check for errors in release builds,
-        // but continue the build even when errors are found:
+        // run lint on release builds and report, but do not fail the build (fixes are tracked separately)
+        checkReleaseBuilds true
         abortOnError false
     }
     configurations.all {

@@ -12,12 +12,28 @@ import java.util.regex.Pattern;
 public final class KanjiNumber {
     private static final String DIGITS = "〇一二三四五六七八九";
     private static final Pattern NUM_COUNTER = Pattern.compile(
-            "([〇一二三四五六七八九十百千万]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|番|週間|時間|ヶ月|か月|キロ|メートル|度)");
+            "([〇一二三四五六七八九十百千万]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|週間|時間|ヶ月|か月|キロ|メートル)");
     private static final Pattern HALF_HOUR = Pattern.compile("(\\d+)時半");
 
     private KanjiNumber() {}
 
+    // idioms whose numerals are not quantities (一度 = once, 一番 = most, 一人前 = full-fledged ...)
+    private static final String[] IDIOMS = {"一人前", "一人っ子", "一人ひとり", "一日中", "一時的", "一回り", "二人三脚", "一枚岩", "十人十色", "一年中"};
+
     public static String toDigits(String text) {
+        java.util.List<String> saved = new java.util.ArrayList<>();
+        for (String idiom : IDIOMS) {
+            if (text.contains(idiom)) {
+                saved.add(idiom);
+                text = text.replace(idiom, "\uE000" + (saved.size() - 1) + "\uE001");
+            }
+        }
+        String converted = toDigitsRaw(text);
+        for (int i = 0; i < saved.size(); i++) converted = converted.replace("\uE000" + i + "\uE001", saved.get(i));
+        return converted;
+    }
+
+    private static String toDigitsRaw(String text) {
         Matcher m = NUM_COUNTER.matcher(text);
         StringBuffer sb = new StringBuffer();
         while (m.find()) {

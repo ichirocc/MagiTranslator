@@ -63,9 +63,10 @@ public class Downloader {
             // eventual resume of the download based on the previous ones that have been completed
             // (or start from 0 if none of the previous ones are completed)
             int startIndex = downloadGroupInfo.getRunningDownloadIndex() != -1 ? downloadGroupInfo.getRunningDownloadIndex() : findFirstIncompletedDownload();
-            DownloadInfo startDownload = downloadGroupInfo.downloadsInfo[startIndex];
+            if(startIndex < 0) startIndex = 0;   //defensive: never index the array before the bounds check
             if(startIndex > 0) lastDownloadSuccessIndex = startIndex-1;
             if(startIndex < downloadGroupInfo.downloadsInfo.length) {
+                DownloadInfo startDownload = downloadGroupInfo.downloadsInfo[startIndex];
                 downloadGroupInfo.setRunningDownloadIndex(startIndex);
                 int percentageTotalProgress = calculateTotalProgress(lastDownloadSuccessIndex + 1, 0);
                 if (!startDownload.isDownloadCompleted()) {
@@ -408,7 +409,14 @@ public class Downloader {
                                     topFolder = filename.substring(0, filename.indexOf("/"));
                                 }
 
-                                File destFile = new File(path + filename);
+                                File destFile;
+                                try {
+                                    destFile = ZipSafety.resolve(path, filename);   //Zip Slip protection
+                                } catch (IOException unsafe) {
+                                    unsafe.printStackTrace();
+                                    success = false;
+                                    break;
+                                }
 
                                 // --- RESUME LOGIC ---
                                 // If the final destination file/folder already exists, it was successfully
@@ -432,7 +440,7 @@ public class Downloader {
 
                                 // --- ATOMIC WRITE LOGIC ---
                                 // Write to a temporary file first
-                                File tmpFile = new File(path + filename + ".tmp");
+                                File tmpFile = new File(destFile.getPath() + ".tmp");
                                 boolean fileComplete = true;
 
                                 try (FileOutputStream fout = new FileOutputStream(tmpFile)) {

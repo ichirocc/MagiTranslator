@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  * Used to rerank candidates (quality-aware selection, Fernandes et al. 2022).
  */
 public final class QualityScorer {
-    private static final Pattern NUMBER = Pattern.compile("\\d+");
+    private static final Pattern NUMBER = Pattern.compile("\\d+(?:\\.\\d+)?");
     private static final int CHRF_N = 4;   // characters; good for both Japanese and Devanagari
     private static final double BETA = 2.0;
 
@@ -42,27 +42,57 @@ public final class QualityScorer {
         return (1 + b2) * p * rcl / (b2 * p + rcl);
     }
 
-    /** Arabic and Devanagari digits normalised to ASCII. */
+    /**
+     * Numbers as canonical ASCII strings: full-width (NFKC) and Devanagari digits are mapped to ASCII,
+     * thousands separators are removed ("1,000" / "१,०००" -> "1000") and decimals are kept ("2.5").
+     */
     public static List<String> numbers(String s) {
+        if (s == null) return new ArrayList<>();
+        String t = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKC);
         StringBuilder ascii = new StringBuilder();
-        for (char c : s.toCharArray()) ascii.append(c >= '०' && c <= '९' ? (char) ('0' + (c - '०')) : c);
+        for (char c : t.toCharArray()) ascii.append(c >= 0x0966 && c <= 0x096F ? (char) ('0' + (c - 0x0966)) : c);
+        String a = ascii.toString().replaceAll("(?<=\\d),(?=\\d{3})", "");
         List<String> out = new ArrayList<>();
-        Matcher m = NUMBER.matcher(ascii);
-        while (m.find()) out.add(m.group());
+        Matcher m = NUMBER.matcher(a);
+        while (m.find()) {
+            String n = m.group().replaceFirst("^0+(?=\\d)", "");
+            out.add(n);
+        }
         return out;
     }
 
-    /** Share of letters that are not Devanagari (Latin/Hindi-romanised drift, untranslated Japanese). */
     public static double foreignLetterRatio(String ne) {
+        return foreignLetterRatio(ne, "");
+    }
+
+    /**
+     * Share of non-Devanagari letters. Latin words that also appear in the source (names, "Wi-Fi", "ID",
+     * "LINE") are legitimate and are not counted as foreign.
+     */
+    public static double foreignLetterRatio(String ne, String source) {
+        java.util.Set<String> allowed = new java.util.HashSet<>();
+        Matcher lm = LATIN_WORD.matcher(source == null ? "" : java.text.Normalizer.normalize(source, java.text.Normalizer.Form.NFKC));
+        while (lm.find()) allowed.add(lm.group().toLowerCase(java.util.Locale.ROOT));
+        String t = ne;
+        if (!allowed.isEmpty()) {
+            Matcher m = LATIN_WORD.matcher(ne);
+            StringBuffer sb = new StringBuffer();
+            while (m.find()) m.appendReplacement(sb, allowed.contains(m.group().toLowerCase(java.util.Locale.ROOT)) ? "" : Matcher.quoteReplacement(m.group()));
+            m.appendTail(sb);
+            t = sb.toString();
+        }
         int letters = 0, foreign = 0;
-        for (char c : ne.toCharArray()) {
+        for (char c : t.toCharArray()) {
             if (Character.isLetter(c)) {
                 letters++;
-                if (c < 'ऀ' || c > 'ॿ') foreign++;
+                if (c < 0x0900 || c > 0x097F) foreign++;
             }
         }
-        return letters == 0 ? 1.0 : (double) foreign / letters;
+        if (letters == 0) return allowed.isEmpty() ? 1.0 : 0.0;
+        return (double) foreign / letters;
     }
+
+    private static final Pattern LATIN_WORD = Pattern.compile("[A-Za-z][A-Za-z0-9\\-]*");
 
     public static double score(String sourceJa, String candidateNe, String backTranslationJa, List<String> requiredTargets) {
         double s = chrF(backTranslationJa, sourceJa);
@@ -72,7 +102,7 @@ public final class QualityScorer {
         // required terminology
         for (String t : requiredTargets) if (!candidateNe.contains(t)) s -= 0.10;
         // script purity
-        s -= 0.5 * foreignLetterRatio(candidateNe);
+        s -= 0.5 * foreignLetterRatio(candidateNe, sourceJa);
         // register: a polite Japanese source (です/ます) must not become informal Nepali (तिमी / तँ forms)
         if (isPoliteJa(sourceJa) && containsInformalNe(candidateNe)) s -= 0.10;
         // length sanity: Nepali in Devanagari is typically 0.8x-3x the Japanese character count
@@ -89,7 +119,9 @@ public final class QualityScorer {
     public static boolean containsInformalNe(String ne) { return INFORMAL_NE.matcher(ne).find(); }
 
     private static String strip(String s) {
-        return s == null ? "" : s.replaceAll("[\\s。、！？!?,.।]", "");
+        if (s == null) return "";
+        s = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFC);
+        return s.replaceAll("[\\s。、！？!?,.।]", "");
     }
 
     private static Map<String, Integer> ngrams(String s, int n) {

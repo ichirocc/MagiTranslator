@@ -283,7 +283,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                                         Message message = bluetoothMessage.convertInMessage();
                                         channels.get(index).addReceivedMessage(bluetoothMessage);
                                         if (message != null) {
-                                            Log.e("clientMessageReceive", message.getText() + "-" + message.getSender().getDevice().getAddress());
+                                            Log.e("clientMessageReceive", nie.translator.rtranslator.tools.PrivacyLog.text(message.getText()) + "-" + message.getSender().getDevice().getAddress());
                                             notifyMessageReceived(message);
                                         }
                                     }
@@ -337,7 +337,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                                             Message message = bluetoothMessage.convertInMessage();
                                             channels.get(index).addReceivedData(bluetoothMessage);
                                             if (message != null) {
-                                                Log.e("clientDataReceive", message.getText() + "-" + message.getSender().getDevice().getAddress());
+                                                Log.e("clientDataReceive", nie.translator.rtranslator.tools.PrivacyLog.text(message.getText()) + "-" + message.getSender().getDevice().getAddress());
                                                 notifyDataReceived(message);
                                             }
                                         }

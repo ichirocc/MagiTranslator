@@ -492,7 +492,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
         if(!isMetaText(textToTranslate)) {
             translator.translate(textToTranslate, languageInput, languageOutput, beamSize, saveResults, Global.RTranslatorMode.WALKIE_TALKIE_MODE, responseListener);
         }else{
-            Log.i("walkieTalkie", "skipped translation of: "+textToTranslate+" because it is meta text");
+            Log.i("walkieTalkie", "skipped translation of: "+nie.translator.rtranslator.tools.PrivacyLog.text(textToTranslate)+" because it is meta text");
             //we restart the mic here
             startVoiceRecorder();
             notifyMicActivated();

@@ -35,8 +35,36 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;28.0.12674087" "cmake;3.22.1"
 
+      - name: Pure-Java tests (jane library, zip safety)
+        shell: bash
+        run: |
+          mkdir -p /tmp/jt
+          javac -encoding UTF-8 -d /tmp/jt app/src/main/java/nie/translator/rtranslator/jane/*.java \
+            app/src/main/java/nie/translator/rtranslator/downloader/ZipSafety.java \
+            app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java \
+            app/src/test/java/nie/translator/rtranslator/downloader/ZipSafetyTest.java
+          java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.jane.JaNeLibraryTest
+          java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
+
+      - name: Restore release keystore from secrets (optional)
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.MAGI_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "MAGI_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "using keystore from secrets"
+          else
+            echo "::warning::MAGI_KEYSTORE_BASE64 not set - using the temporary public sideload key"
+          fi
+
       - name: Build release APK
         shell: bash
+        env:
+          MAGI_KEYSTORE_PASSWORD: ${{ secrets.MAGI_KEYSTORE_PASSWORD }}
+          MAGI_KEY_ALIAS: ${{ secrets.MAGI_KEY_ALIAS }}
+          MAGI_KEY_PASSWORD: ${{ secrets.MAGI_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           set -o pipefail

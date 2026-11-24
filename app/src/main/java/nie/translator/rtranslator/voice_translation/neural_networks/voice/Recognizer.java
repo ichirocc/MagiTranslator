@@ -540,7 +540,7 @@ public class Recognizer extends NeuralNetworkApi {
                             finalText = ((String[][]) finalTextResult)[0][0];
                             detokenizerOutputs.close();
                         }
-                        android.util.Log.i("result", "result: " + correctText(finalText));
+                        android.util.Log.i("result", "result: " + nie.translator.rtranslator.tools.PrivacyLog.text(correctText(finalText)));
                         android.util.Log.i("score", "score: " + outputProbability1);
 
                         outputs.close();
@@ -568,8 +568,8 @@ public class Recognizer extends NeuralNetworkApi {
                             detokenizerOutputs2.close();
                         }
 
-                        android.util.Log.i("result", "result 1: " + correctText(firstText));
-                        android.util.Log.i("result", "result 2: " + correctText(secondText));
+                        android.util.Log.i("result", "result 1: " + nie.translator.rtranslator.tools.PrivacyLog.text(correctText(firstText)));
+                        android.util.Log.i("result", "result 2: " + nie.translator.rtranslator.tools.PrivacyLog.text(correctText(secondText)));
                         android.util.Log.i("result", "score 1: " + outputProbability1);
                         android.util.Log.i("result", "score 2: " + outputProbability2);
 

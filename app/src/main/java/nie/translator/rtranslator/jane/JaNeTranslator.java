@@ -22,16 +22,24 @@ public final class JaNeTranslator {
     public static final class Candidate {
         public final String label, input, output, backTranslation;
         public final double score;
+        public final List<TranslationValidator.Issue> issues;
         Candidate(String label, String input, String output, String backTranslation, double score) {
-            this.label = label; this.input = input; this.output = output; this.backTranslation = backTranslation; this.score = score;
+            this(label, input, output, backTranslation, score, Collections.emptyList());
         }
-        @Override public String toString() { return label + " score=" + String.format("%.3f", score) + " -> " + output; }
+        Candidate(String label, String input, String output, String backTranslation, double score, List<TranslationValidator.Issue> issues) {
+            this.label = label; this.input = input; this.output = output; this.backTranslation = backTranslation; this.score = score; this.issues = issues;
+        }
+        public int hard() { return TranslationValidator.hardCount(issues); }
+        @Override public String toString() { return label + " hard=" + hard() + " score=" + String.format("%.3f", score) + " issues=" + issues + " -> " + output; }
     }
 
     public static final class Result {
         public final String text;
         public final List<Candidate> candidates;
-        Result(String text, List<Candidate> candidates) { this.text = text; this.candidates = candidates; }
+        /** problems detected in the chosen translation (empty when none) */
+        public final List<TranslationValidator.Issue> issues;
+        Result(String text, List<Candidate> candidates) { this(text, candidates, Collections.emptyList()); }
+        Result(String text, List<Candidate> candidates, List<TranslationValidator.Issue> issues) { this.text = text; this.candidates = candidates; this.issues = issues; }
     }
 
     private final Backend backend;
@@ -117,21 +125,30 @@ public final class JaNeTranslator {
         return rerank(cands, t, required, "ja", "ne");
     }
 
+    /**
+     * Lexicographic selection: (1) fewest hard validator issues (number lost, negation lost, required
+     * term missing, untranslated source script), (2) highest quality score. Back-translation is only a
+     * signal inside the score, never a proof of correctness.
+     */
     private Result rerank(List<Candidate> cands, String source, Map<String, List<String>> required, String outLang, String srcLang) throws Exception {
         if (cands.isEmpty()) return new Result("", cands);
-        // remove duplicates (same output from different inputs)
         List<Candidate> unique = new ArrayList<>();
         for (Candidate c : cands) {
             boolean dup = false;
             for (Candidate u : unique) if (u.output.equals(c.output)) { dup = true; break; }
             if (!dup) unique.add(c);
         }
-        if (unique.size() == 1) return new Result(unique.get(0).output, unique);   // nothing to choose: skip round trip
+        if (unique.size() == 1) {   // nothing to choose: skip the round trip but still report problems
+            Candidate c = unique.get(0);
+            List<TranslationValidator.Issue> iss = validate(source, c.output, required.getOrDefault(c.label, Collections.emptyList()), outLang);
+            Candidate v = new Candidate(c.label, c.input, c.output, null, Double.NaN, iss);
+            return new Result(v.output, Collections.singletonList(v), iss);
+        }
         List<Candidate> scored = new ArrayList<>();
         Candidate best = null;
         for (Candidate c : unique) {
-            String back = backend.translate(c.output, outLang, srcLang);
             List<String> req = required.getOrDefault(c.label, Collections.emptyList());
+            String back = backend.translate(c.output, outLang, srcLang);
             double s = "ne".equals(outLang)
                     ? QualityScorer.score(source, c.output, back, req)
                     : QualityScorer.chrF(back, source) - 0.15 * missingNumbers(source, c.output);
@@ -141,11 +158,22 @@ public final class JaNeTranslator {
                 for (Candidate o : unique) if (o != c) agree += QualityScorer.chrF(c.output, o.output);
                 s += MBR_WEIGHT * agree / (unique.size() - 1);
             }
-            Candidate sc = new Candidate(c.label, c.input, c.output, back, s);
+            Candidate sc = new Candidate(c.label, c.input, c.output, back, s, validate(source, c.output, req, outLang));
             scored.add(sc);
-            if (best == null || sc.score > best.score) best = sc;
+            if (best == null || better(sc, best)) best = sc;
         }
-        return new Result(best.output, scored);
+        return new Result(best.output, scored, best.issues);
+    }
+
+    static boolean better(Candidate a, Candidate b) {
+        if (a.hard() != b.hard()) return a.hard() < b.hard();
+        return a.score > b.score;
+    }
+
+    private static List<TranslationValidator.Issue> validate(String source, String output, List<String> req, String outLang) {
+        return "ne".equals(outLang)
+                ? TranslationValidator.validateJaToNe(source, output, req)
+                : TranslationValidator.validateNeToJa(source, output);
     }
 
     private String translateSegments(List<String> segments, String src, String tgt) throws Exception {

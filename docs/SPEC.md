@@ -9,7 +9,7 @@
 | 主対象言語 | 日本語 ⇔ ネパール語（副対象：日本語 ⇔ ベトナム語。§2.3） |
 | 最優先目標 | 翻訳精度・音声認識精度・翻訳結果の信頼性 |
 | 処理方式 | ローカル処理を基本とし、オンライン処理を任意で併用するハイブリッド |
-| 基準コミット | `fdfe9d3`（版 `3.0.0-magi.3-a16`、versionCode 30） |
+| 基準コミット | 版 `3.0.0-magi.4`（versionCode 31）。§19 の状況列を参照 |
 | 最終更新 | 2026-11-24 |
 
 ---
@@ -438,6 +438,30 @@ Gradle 設定、SDK、AndroidX、依存、推論環境、モデル保存場所�
 | 19.8 | 中 | `app/build.gradle` の `signingConfigs.sideload`、`app/magi-sideload.jks` | 公開リポジトリに鍵とパスワードがある（個人サイドロード専用と割り切った暫定措置） | ストア配布や第三者配布を行う前に、鍵を GitHub Secrets／環境変数へ移し、鍵を再発行。既存インストールは署名変更で上書き不可になる点を利用者へ告知 |
 | 19.9 | 低 | `LoadingActivity`／初回 DL | ne に必要な Madlad が初回 DL 対象でない | §13 の導線追加 |
 | 19.10 | 低 | `res/values-ja` なし | UI が英語 | 日本語リソース追加 |
+
+
+### 19.A 対応状況（3.0.0-magi.4）
+| 項目 | 状況 | 実装 | テスト |
+|---|---|---|---|
+| 19.1 Zip Slip | **修正済** | `downloader/ZipSafety.resolve`（canonical path 検証、絶対パス拒否）を展開ループで使用。.tmp も同じ解決先 | `ZipSafetyTest`（受理3／拒否5）CI 実行 |
+| Downloader 配列範囲（startIndex） | **修正済** | 範囲チェック後に配列アクセス、負値は 0 | — |
+| 19.2 beam の固定 | **修正済** | `janeBeamSize` を呼び出しごとに更新、backend lambda はフィールドを参照 | 要実機 |
+| 19.2b silentNN 競合 | **修正済** | `ThreadLocal<Boolean> SILENT`（呼び出しスレッド単位、入れ子も復元） | 要実機 |
+| 19.2c モデル切替と並行翻訳 | **修正済** | `performTextTranslation` を公平 `ReentrantLock` で直列化（翻訳とモデル切替が同一ロック下） | 要実機。並行2翻訳が直列になるため待ち時間は増える（精度・安全優先） |
+| 19.3 英字固有名詞の減点 | **修正済** | 原文にあるラテン語は外字に数えない。chrF 前に NFC | JaNeLibraryTest |
+| 数字の正規化 | **修正済** | NFKC・デーヴァナーガリー数字・桁区切り・小数・先頭0 | JaNeLibraryTest |
+| 19.4 会話内容のログ | **修正済** | `tools/PrivacyLog`（debuggable 以外は長さのみ）。Translator/Recognizer/Bluetooth/WalkieTalkie | 要実機 |
+| 19.5 漢数字の誤変換 | **修正済** | 「度」「番」を対象外、慣用句（一人前・一日中 等）を保護 | JaNeLibraryTest |
+| 正規化後の空文字 | **修正済** | フィラーのみ→空。Translator は空訳を返す（フィラーを訳さない） | JaNeLibraryTest |
+| JaSegmenter の誤分割 | **修正済** | 走査型に再実装：括弧内・「ますます」・接続助詞（が/けど/から/ので…）では分割しない | JaNeLibraryTest |
+| 19.6 反復の誤削除 | **修正済** | 2回の反復は保持。1語の3回以上→2回、2〜3語句の3回以上→1回 | JaNeLibraryTest（धेरै धेरै 等） |
+| 19.7 カタカナ外来音 | **修正済** | ヴァ行・ツァ行・クァ行・ティ/ディ/デュ/テュ・イェ・小書き仮名 | JaNeLibraryTest |
+| 意味検証（§7.3 の一部） | **新設** | `jane/TranslationValidator`：数字の消失/追加、否定の消失/追加（日・ネ双方）、必須用語欠落、原文文字の残存、疑問の消失。候補選択を「HARD 数→スコア」の辞書式に変更 | JaNeLibraryTest |
+| 19.8 署名情報 | **一部対応** | 環境変数／Gradle プロパティ／CI Secrets（`MAGI_KEYSTORE_BASE64`, `MAGI_KEYSTORE_PASSWORD`, `MAGI_KEY_ALIAS`, `MAGI_KEY_PASSWORD`）を優先。未設定時のみ暫定公開鍵 | 鍵の再発行と Secrets 登録は所有者作業 |
+| Release Lint | **対応** | `checkReleaseBuilds true`（報告のみ、`abortOnError false`） | CI |
+| minify / shrinkResources | **見送り** | ONNX Runtime・JNI・Gson の反射利用があり、keep ルール検証なしの有効化はクラッシュの危険 | — |
+| 19.10 UI 日本語化 | **対応** | `res/values-ja/strings.xml`（209 件） | 要実機 |
+| 19.9 Madlad 導線 | 未対応 | — | — |
 
 ---
 
