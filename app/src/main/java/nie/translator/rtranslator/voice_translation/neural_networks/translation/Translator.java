@@ -78,6 +78,8 @@ public class Translator extends NeuralNetworkApi {
     public static final int MADLAD_CACHE = 5;
     public static final int MOZILLA = 7;
     public static final int HY_MT = 8;
+    /** MagiTranslator focus languages: ja <-> ne, ja <-> vi. */
+    public static final String[] FOCUS_LANGUAGES = {"ja", "ne", "vi"};
     private int mode = -1;
     private Tokenizer tokenizer;
     private OrtEnvironment onnxEnv;
@@ -170,6 +172,44 @@ public class Translator extends NeuralNetworkApi {
             }
         };
         t.start();
+    }
+
+    private boolean isMadladDownloaded() {
+        String base = Global.USE_EXTERNAL_MEMORY_FOR_RESOURCES
+                ? Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad/Int8WO/madlad_decoder_8bit.onnx"
+                : global.getFilesDir().getPath() + "/Translation/Madlad/Int4Acc4/madlad_decoder_4bit.onnx";
+        return new File(base).exists();
+    }
+
+    private boolean isHyMtDownloaded() {
+        String base = Global.USE_EXTERNAL_MEMORY_FOR_RESOURCES
+                ? Environment.getExternalStorageDirectory().getPath() + "/models/Translation/HY-MT/model_int8_final.onnx"
+                : global.getFilesDir().getPath() + "/Translation/HY-MT/model_int8_final.onnx";
+        return new File(base).exists();
+    }
+
+    /** Nepali is only supported by Madlad; Japanese <-> Vietnamese prefers HY-MT (higher quality). */
+    private int resolveModeForPair(int currentMode, CustomLocale input, CustomLocale output) {
+        boolean nepali = "ne".equals(input.getCode()) || "ne".equals(output.getCode());
+        if (nepali) {
+            return isMadladDownloaded() ? MADLAD : currentMode;
+        }
+        if (isHyMtDownloaded()) return HY_MT;
+        return currentMode;
+    }
+
+    /** Reloads the onnx translation model synchronously (only one big model stays in RAM). */
+    private void switchModelSync(int newMode) throws OrtException, IOException {
+        synchronized (langResourcesLock) {
+            if (newMode == mode) return;
+            int oldMode = mode;
+            if (oldMode != -1 && oldMode != MOZILLA) {
+                onnxTranslationModelCleanup(oldMode);
+            }
+            mode = newMode;
+            onnxTranslationModelInitialization();
+            Log.i("translation", "model switched " + oldMode + " -> " + newMode);
+        }
     }
 
     private void onnxTranslationModelCleanup(int mode) throws OrtException {
@@ -686,6 +726,14 @@ public class Translator extends NeuralNetworkApi {
                         mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0));
                     }
                     return;
+                }
+            }
+
+            //MagiTranslator: pick the model from the language pair (ne -> Madlad, otherwise HY-MT when available)
+            if(performMode != MOZILLA){
+                performMode = resolveModeForPair(performMode, inputLanguage, outputLanguage);
+                if(performMode != mode){
+                    switchModelSync(performMode);
                 }
             }
 
@@ -1822,7 +1870,20 @@ public class Translator extends NeuralNetworkApi {
         } catch (IOException | SAXException | ParserConfigurationException e) {
             e.printStackTrace();
         }
-        return languages;
+        // MagiTranslator: Japanese <-> Nepali / Japanese <-> Vietnamese only.
+        // For the big models the pair decides the model (see resolveModeForPair), so the list is the same for both.
+        if (mode == MADLAD || mode == MADLAD_CACHE || mode == HY_MT) {
+            ArrayList<CustomLocale> focus = new ArrayList<>();
+            for (String code : FOCUS_LANGUAGES) focus.add(CustomLocale.getInstance(code));
+            return focus;
+        }
+        ArrayList<CustomLocale> filtered = new ArrayList<>();
+        for (CustomLocale l : languages) {
+            for (String code : FOCUS_LANGUAGES) {
+                if (code.equals(l.getCode())) { filtered.add(l); break; }
+            }
+        }
+        return filtered;
     }
 
     public static ArrayList<MozillaLanguageInfo> getMozillaLanguagesInfo(Context context){

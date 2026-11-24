@@ -611,7 +611,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
     public CustomLocale getLanguage(final boolean recycleResult) {
         ArrayList<CustomLocale> languages = getLanguages(RTranslatorMode.CONVERSATION_MODE, true);
-        CustomLocale predefinedLanguage = CustomLocale.getDefault();
+        CustomLocale predefinedLanguage = CustomLocale.getInstance("ja");  //MagiTranslator: Japanese first
         CustomLocale language = null;
         if (recycleResult && Global.this.language != null) {
             language = Global.this.language;
@@ -689,11 +689,21 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if (index != -1) {
             language = languages.get(index);
         } else {
-            language = new CustomLocale("en");
+            language = defaultSecondLanguage(languages);
         }
 
         Global.this.secondLanguage = language;
         return language;
+    }
+
+    /** MagiTranslator: default partner language is Nepali, then Vietnamese. */
+    private CustomLocale defaultSecondLanguage(ArrayList<CustomLocale> languages) {
+        for (String code : new String[]{"ne", "vi"}) {
+            CustomLocale c = CustomLocale.getInstance(code);
+            int i = CustomLocale.search(languages, c);
+            if (i != -1) return languages.get(i);
+        }
+        return languages.isEmpty() ? new CustomLocale("en") : languages.get(0);
     }
 
     public CustomLocale getFirstTextLanguage(final boolean recycleResult) {
@@ -745,7 +755,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if (index != -1) {
             language = languages.get(index);
         } else {
-            language = new CustomLocale("en");
+            language = defaultSecondLanguage(languages);
         }
 
         Global.this.secondTextLanguage = language;
