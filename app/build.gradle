@@ -70,6 +70,16 @@ android {
         buildConfig true
     }
 
+    signingConfigs {
+        // Fixed sideload key so every CI build can be installed over the previous one.
+        // Not a store-release key (the repository is public).
+        sideload {
+            storeFile file('magi-sideload.jks')
+            storePassword 'magitranslator'
+            keyAlias 'magi'
+            keyPassword 'magitranslator'
+        }
+    }
     buildTypes {
         debug {
             minifyEnabled false
@@ -91,7 +101,7 @@ android {
             proguardFiles getDefaultProguardFile(
                     'proguard-android-optimize.txt'),
                     'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.sideload
         }
     }
     lintOptions {

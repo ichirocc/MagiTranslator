@@ -6,6 +6,9 @@ on:
     branches: [ main, 'claude/**' ]
     tags: [ 'v*' ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,10 +48,29 @@ jobs:
           grep -n -E "(error:|FAILURE:|What went wrong|Execution failed)" build.log | head -120 || true
           tail -120 build.log || true
 
+      - name: Rename APK
+        shell: bash
+        run: |
+          ver=$(grep -oP "versionName '\K[^']+" app/build.gradle)
+          mkdir -p dist
+          cp app/build/outputs/apk/release/*.apk "dist/MagiTranslator-${ver}.apk"
+          ls -la dist
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: magitranslator-release-apk
-          path: app/build/outputs/apk/release/*.apk
-          retention-days: 7
+          name: MagiTranslator-apk
+          path: dist/*.apk
+          retention-days: 14
           if-no-files-found: error
+
+      - name: Publish GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          body: |
+            MagiTranslator (日本語⇄ネパール語 / 日本語⇄ベトナム語)
+            1. 「提供元不明のアプリ」を許可して APK をインストール
+            2. 初回起動でモデルをダウンロード（Wi-Fi 推奨）
+            3. 設定 → Models Manager で Madlad（ネパール語）と HY-MT（ベトナム語）をダウンロード
