@@ -28,11 +28,11 @@ android {
     //compileSdkVersion 33  //33
     ndkVersion "28.0.12674087"
     defaultConfig {
-        applicationId "nie.translator.rtranslator"
+        applicationId "com.magi.translator"
         targetSdkVersion 36   //32
         compileSdk 36
-        versionName '3.0.0-beta2'
-        versionCode 27
+        versionName '3.0.0-magi.1-jane'
+        versionCode 28
         minSdkVersion 28
         externalNativeBuild {
             cmake {
