@@ -43,6 +43,7 @@ import ai.onnxruntime.OrtSession;
 import ai.onnxruntime.extensions.OrtxPackage;
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.R;
+import androidx.annotation.Nullable;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.tools.nn.TensorUtils;
@@ -444,12 +445,14 @@ public class Recognizer extends NeuralNetworkApi {
                         value = (float[][][]) decoderOutput.getValue();
                         outputValues = value[0][0];
                         if(!finished1) {
+                            if (j >= 4) applyLanguageConstraints(outputValues, data.languageCode, completeOutput);
                             max = Utils.getIndexOfLargest(outputValues);
                             completeOutput.add(max);
                         }
                         if(batchSize == 2){
                             outputValues2 = value[1][0];
                             if(!finished2) {
+                                if (j >= 4) applyLanguageConstraints(outputValues2, data.languageCode2, completeOutput2);
                                 max2 = Utils.getIndexOfLargest(outputValues2);
                                 completeOutput2.add(max2);
                             }
@@ -565,6 +568,73 @@ public class Recognizer extends NeuralNetworkApi {
             recognize();
         }else {
             recognizing = false;
+        }
+    }
+
+    // ===== MagiTranslator: Nepali decoding constraints =====
+    private static final int EOS_TOKEN_ID = 50257;
+    private static final float NE_REPETITION_PENALTY = 1.2f;
+    private static final int NE_NO_REPEAT_NGRAM = 3;
+    @Nullable
+    private boolean[] neAllowedTokens;
+
+    private boolean[] getNeAllowedTokens() {
+        if (neAllowedTokens == null) {
+            try (java.io.InputStream in = global.getResources().openRawResource(R.raw.whisper_ne_allowed_tokens)) {
+                byte[] bits = new byte[in.available()];
+                int read = 0;
+                while (read < bits.length) {
+                    int r = in.read(bits, read, bits.length - read);
+                    if (r < 0) break;
+                    read += r;
+                }
+                boolean[] allowed = new boolean[bits.length * 8];
+                for (int i = 0; i < allowed.length; i++) {
+                    allowed[i] = (bits[i >> 3] & (1 << (i & 7))) != 0;
+                }
+                neAllowedTokens = allowed;
+            } catch (Exception e) {
+                e.printStackTrace();
+                neAllowedTokens = new boolean[0];
+            }
+        }
+        return neAllowedTokens;
+    }
+
+    /**
+     * Whisper-small often drifts into Latin/Hindi-romanized text or loops on Nepali audio.
+     * For Nepali we (1) allow only Devanagari / punctuation byte tokens, (2) suppress special tokens,
+     * (3) apply a repetition penalty and (4) block repeated 3-grams.
+     */
+    private void applyLanguageConstraints(float[] logits, @Nullable String languageCode, ArrayList<Integer> generated) {
+        if (!"ne".equals(languageCode)) return;
+        boolean[] allowed = getNeAllowedTokens();
+        if (allowed.length == 0) return;
+        for (int t = 0; t < logits.length; t++) {
+            boolean ok = (t < allowed.length && allowed[t]) || t == EOS_TOKEN_ID;
+            if (!ok) logits[t] = Float.NEGATIVE_INFINITY;
+        }
+        int start = Math.min(3, generated.size());  // outputs of the 3 forced prefix steps are not content
+        java.util.HashSet<Integer> seen = new java.util.HashSet<>();
+        for (int k = start; k < generated.size(); k++) {
+            int t = generated.get(k);
+            if (t >= 0 && t < logits.length && t != EOS_TOKEN_ID && seen.add(t)) {
+                logits[t] = logits[t] > 0 ? logits[t] / NE_REPETITION_PENALTY : logits[t] * NE_REPETITION_PENALTY;
+            }
+        }
+        int n = NE_NO_REPEAT_NGRAM;
+        int len = generated.size();
+        if (len - start >= n - 1) {
+            for (int k = start; k + n - 1 < len; k++) {
+                boolean match = true;
+                for (int m = 0; m < n - 1; m++) {
+                    if (!generated.get(k + m).equals(generated.get(len - (n - 1) + m))) { match = false; break; }
+                }
+                if (match) {
+                    int banned = generated.get(k + n - 1);
+                    if (banned >= 0 && banned < logits.length && banned != EOS_TOKEN_ID) logits[banned] = Float.NEGATIVE_INFINITY;
+                }
+            }
         }
     }
 
