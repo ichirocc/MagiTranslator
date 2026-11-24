@@ -87,21 +87,91 @@ def chrf_pp_corpus(hyps, refs):
 _NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?")  # Java \d is ASCII-only by default
 
 
+_NE_LETTER = "\u0900-\u0963\u0966-\u097F"
+# whole Nepali number words 1-10 (छ = 6 is left out: it is also the copula "is")
+_NE_NUMBER_VALUE = {"एक": "1", "दुई": "2", "तीन": "3", "चार": "4", "पाँच": "5", "सात": "7", "आठ": "8",
+                    "नौ": "9", "दश": "10", "दस": "10"}
+_NE_NUMBER_WORD = re.compile("(?<![" + _NE_LETTER + "])(" + "|".join(_NE_NUMBER_VALUE) + ")(?![" + _NE_LETTER + "])")
+
+
 def numbers(s):
     if s is None:
         return []
     t = unicodedata.normalize("NFKC", s)
     t = "".join(chr(ord("0") + ord(c) - 0x0966) if 0x0966 <= ord(c) <= 0x096F else c for c in t)
     t = re.sub(r"(?<=[0-9]),(?=[0-9]{3})", "", t)
+    t = _NE_NUMBER_WORD.sub(lambda m: _NE_NUMBER_VALUE[m.group(1)], t)
     return [re.sub(r"^0+(?=[0-9])", "", m.group()) for m in _NUMBER.finditer(t)]
 
 
-def numbers_preserved(src, hyp):
-    """True if every source number appears in hyp (multiset). None if source has no numbers."""
+# ---------------------------------------------------------------- kanji numerals (KanjiNumber.toDigits)
+_DIGITS = "〇一二三四五六七八九"
+_NUM_COUNTER = re.compile("([〇一二三四五六七八九十百千万]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|週間|時間|ヶ月|か月|キロ|メートル)")
+_HALF_HOUR = re.compile(r"([0-9]+)時半")
+_IDIOMS = ("一人前", "一人っ子", "一人ひとり", "一日中", "一時的", "一回り", "二人三脚", "一枚岩", "十人十色", "一年中",
+           "三日月", "三日坊主", "万年筆", "万年床", "一時停止", "一時期", "一時帰国", "一時保存", "二日酔い", "百人一首", "五月雨", "五月蝿")
+_JUPPUN_AFTER = re.compile("分(?:間|後|前|以内|ほど|くらい|ぐらい|程度|おき|ごと)")
+
+
+def _parse_kanji(k):
+    if not any(c in k for c in "十百千万"):
+        v = 0
+        for c in k:
+            d = _DIGITS.find(c)
+            if d < 0:
+                return -1
+            v = v * 10 + d
+        return v
+    total = section = num = 0
+    for c in k:
+        d = _DIGITS.find(c)
+        if d >= 0:
+            num = d
+            continue
+        unit = {"十": 10, "百": 100, "千": 1000}.get(c)
+        if unit:
+            section += (num or 1) * unit
+            num = 0
+        elif c == "万":
+            total += (section + num or 1) * 10000
+            section = num = 0
+        else:
+            return -1
+    return total + section + num
+
+
+def kanji_to_digits(text):
+    """Port of KanjiNumber.toDigits: 三人 -> 3人, 三時半 -> 3時30分; idioms and 十分 (= enough) kept."""
+    saved = []
+    for idiom in _IDIOMS:
+        if idiom in text:
+            saved.append(idiom)
+            text = text.replace(idiom, "\ue000%d\ue001" % (len(saved) - 1))
+
+    def repl(m):
+        k = m.group(1)
+        if k == "万":
+            return k
+        if k == "十" and text.startswith("分", m.end()):
+            after_hour = m.start() > 0 and text[m.start() - 1] == "時"
+            if not (after_hour or _JUPPUN_AFTER.match(text, m.end())):
+                return k
+        v = _parse_kanji(k)
+        return k if v < 0 else str(v)
+
+    out = _HALF_HOUR.sub(r"\1時30分", _NUM_COUNTER.sub(repl, text))
+    for i, idiom in enumerate(saved):
+        out = out.replace("\ue000%d\ue001" % i, idiom)
+    return out
+
+
+def numbers_preserved(src, hyp, hyp_lang=None):
+    """True if every source number appears in hyp (multiset). None if source has no numbers.
+    With hyp_lang == "ja", kanji numerals in hyp are converted first (as validateNeToJa does)."""
     a = numbers(src)
     if not a:
         return None
-    rest = list(numbers(hyp))
+    rest = list(numbers(kanji_to_digits(hyp) if hyp_lang == "ja" else hyp))
     for n in a:
         if n in rest:
             rest.remove(n)
@@ -113,12 +183,15 @@ def numbers_preserved(src, hyp):
 # ---------------------------------------------------------------- negation (TranslationValidator)
 JA_NEG = re.compile(r"(ない|なかった|なくて|ないで|ません|ませんでした|ず(?=[、。に]|$)|ぬ(?=[、。]|$))")
 JA_NOT_NEGATION = re.compile(
-    r"(少ない|危ない|汚い|幼い|切ない|せつない|だらしない|つまらない|くだらない|もったいない|勿体ない|"
-    r"仕方(が)?ない|しかた(が)?ない|間違いない|違いない|半端ない|すくない|あぶない|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか)")
-NE_NEG_WORD = re.compile(r"(छैन|छैनन्|छैनौं|होइन|होइनन्|हुँदैन|हुन्न|दैन|दैनन्|दैनौं|दैनौ|दिनँ|दिनौं|न्न)$")
-NE_NEG_PREFIX = re.compile(r"^न(?:[क-ह])")
-NE_NOT_NEGATION = ("नमस्ते", "नमस्कार", "नयाँ", "नजिक", "नदी", "नगर", "नक्सा", "नम्बर", "नरम", "नर्स",
-                   "नल", "नसा", "नक्कली", "नतिजा", "नर्सरी")
+    r"((?:少|すく|危|あぶ|切|せつ|だらし|つまら|くだら|もったい|勿体|仕方が?|しかたが?|間違い|違い|半端|きた|おさ|はか|儚|ぎこち|"
+    r"情け|なさけ|頼り|たより|物足り|もの足り|ものたり|申し訳|申しわけ|そっけ|素っ気|あどけ|あっけ|呆気|味気|あじけ)な(?:い|く|かっ|さ|け)|"
+    r"汚い|幼い|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか)")
+NE_NEG_WORD = re.compile(r"(छैन|छैनन्|छैनौं|होइन|होइनन्|हुँदैन|हुन्न|दैन|दैनन्|दैनौं|दैनौ|दिनँ|दिनौं|हुन्नँ|न्नँ)$")
+NE_NEG_PREFIX = re.compile(r"^न(?:[क-ह]|[अआइईउऊएऐओऔ])")
+NE_NOT_NEGATION = ("नमस्ते", "नमस्कार", "नयाँ", "नजिक", "नदी", "नक्सा", "नक्शा", "नम्बर", "नरम", "नर्स", "नल", "नसा",
+                   "नक्कली", "नतिजा", "नर्सरी", "नगरपालिका", "नगरमा", "नगरको", "नगरका", "नगरले", "नगरबाट", "नगरवासी",
+                   "नगद", "नमुना", "नम्र", "नजर", "नरक", "नमन", "नशा", "नकल", "नरिवल", "नवीन", "नवम्बर", "नब्बे", "नहर",
+                   "नवजात", "नक्सली", "नमक", "नवौं", "नरेन्द्र", "नरेश", "नवराज", "नकारात्मक", "नक्षत्र")
 NE_WORD = re.compile("[ऀ-ॣ०-ॿ]+")  # excludes danda । ॥
 JA_SCRIPT = re.compile("[぀-ヿ一-鿿]")
 DEVANAGARI = re.compile("[ऀ-ॿ]")

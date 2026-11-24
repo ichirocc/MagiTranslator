@@ -73,7 +73,7 @@ def score_group(rows, outputs):
         h = outputs[r["id"]]
         hyps.append(h)
         refs.append(r["reference"])
-        p = M.numbers_preserved(r["source"], h)
+        p = M.numbers_preserved(r["source"], h, r["direction"].split("-")[1])
         if p is not None:
             num_n += 1
             num_ok += int(p)

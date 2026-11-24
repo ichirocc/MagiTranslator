@@ -20,7 +20,8 @@ import java.util.regex.Pattern;
 public final class Glossary {
     private final Map<String, String> terms = new LinkedHashMap<>();
     private static final String COMPOUND_SUFFIX = "語人製産風式的";
-    private static final Pattern KATAKANA_NAME = Pattern.compile("([\\u30A1-\\u30FAー]{2,})(さん|様|さま|くん|君|ちゃん|氏|先生)");
+    // a katakana name, possibly with middle dots (ラム・バハドゥル), followed by an honorific
+    private static final Pattern KATAKANA_NAME = Pattern.compile("([\\u30A1-\\u30FAー][\\u30A1-\\u30FBー]*[\\u30A1-\\u30FAー])(さん|様|さま|くん|君|ちゃん|氏|先生)");
 
     /** Only facts that are certain; users extend it with a TSV file (ja<TAB>ne per line). */
     public static Glossary withDefaults() {
@@ -56,25 +57,38 @@ public final class Glossary {
         }
     }
 
-    /** Result of injecting terminology: the rewritten source and the target terms that must appear. */
+    /**
+     * Result of injecting terminology: the rewritten source, the target terms that must appear (glossary
+     * entries: a missing one is a hard error) and the preferred ones (names transliterated by rule).
+     * Rule-based kana -> Devanagari is lossy for Nepali names written in katakana (バハドゥル -> बाहाडुरु,
+     * the real spelling is बहादुर), so a candidate where the model restored the correct spelling must not
+     * be rejected: rule-transliterated names only lower the score. Put the right spelling in the
+     * glossary (バハドゥル<TAB>बहादुर) to make it required.
+     */
     public static final class Injection {
         public final String text;
         public final List<String> requiredTargets;
-        Injection(String text, List<String> requiredTargets) { this.text = text; this.requiredTargets = requiredTargets; }
+        public final List<String> preferredTargets;
+        Injection(String text, List<String> requiredTargets, List<String> preferredTargets) {
+            this.text = text; this.requiredTargets = requiredTargets; this.preferredTargets = preferredTargets;
+        }
         public boolean changed(String original) { return !text.equals(original); }
     }
 
     public Injection inject(String ja) {
         List<String> required = new ArrayList<>();
+        List<String> preferred = new ArrayList<>();
         String t = ja;
         // names first: タナカさん -> तानाका さん (honorific left for the model to render as "जी"/"ज्यू")
         Matcher m = KATAKANA_NAME.matcher(t);
         StringBuffer sb = new StringBuffer();
         while (m.find()) {
             String name = m.group(1);
-            String dev = terms.containsKey(name) ? terms.get(name) : KanaDevanagari.transliterate(name);
+            boolean fromGlossary = terms.containsKey(name);
+            String dev = fromGlossary ? terms.get(name) : KanaDevanagari.transliterate(name);
             if (dev == null) { m.appendReplacement(sb, Matcher.quoteReplacement(m.group())); continue; }
-            if (!required.contains(dev)) required.add(dev);
+            List<String> into = fromGlossary ? required : preferred;
+            if (!into.contains(dev)) into.add(dev);
             m.appendReplacement(sb, Matcher.quoteReplacement(dev + m.group(2)));
         }
         m.appendTail(sb);
@@ -91,6 +105,7 @@ public final class Glossary {
             t = tm.replaceAll(Matcher.quoteReplacement(v));
             if (!required.contains(v)) required.add(v);
         }
-        return new Injection(t, required);
+        preferred.removeAll(required);
+        return new Injection(t, required, preferred);
     }
 }

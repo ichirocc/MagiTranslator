@@ -79,6 +79,7 @@ public final class JaNeTranslator {
         // Required terms come from the source text, so every candidate must satisfy the same ones;
         // otherwise a candidate without injection (and without the terms) would be exempt and win.
         List<String> mustHave = injWhole.requiredTargets;
+        List<String> preferred = injWhole.preferredTargets;
         if (injWhole.changed(whole)) {   // terminology first: it is the most constrained candidate
             inputs.put("terms", Collections.singletonList(injWhole.text));
             required.put("terms", mustHave);
@@ -118,7 +119,7 @@ public final class JaNeTranslator {
                 cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
             }
         }
-        return rerank(cands, whole, required, "ne", "ja");
+        return rerank(cands, whole, required, preferred, "ne", "ja");
     }
 
     // ---------------- ne -> ja ----------------
@@ -139,7 +140,7 @@ public final class JaNeTranslator {
             cands.add(new Candidate(e.getKey(), String.join(" ", e.getValue()), out, null, Double.NaN));
             required.put(e.getKey(), Collections.emptyList());
         }
-        return rerank(cands, t, required, "ja", "ne");
+        return rerank(cands, t, required, Collections.emptyList(), "ja", "ne");
     }
 
     /**
@@ -147,7 +148,7 @@ public final class JaNeTranslator {
      * term missing, untranslated source script), (2) highest quality score. Back-translation is only a
      * signal inside the score, never a proof of correctness.
      */
-    private Result rerank(List<Candidate> cands, String source, Map<String, List<String>> required, String outLang, String srcLang) throws Exception {
+    private Result rerank(List<Candidate> cands, String source, Map<String, List<String>> required, List<String> preferred, String outLang, String srcLang) throws Exception {
         if (cands.isEmpty()) return new Result("", cands);
         List<Candidate> unique = new ArrayList<>();
         for (Candidate c : cands) {
@@ -166,8 +167,10 @@ public final class JaNeTranslator {
         for (Candidate c : unique) {
             List<String> req = required.getOrDefault(c.label, Collections.emptyList());
             String back = backend.translate(c.output, outLang, srcLang);
+            List<String> scoredTerms = new ArrayList<>(req);
+            for (String p : preferred) if (!scoredTerms.contains(p)) scoredTerms.add(p);
             double s = "ne".equals(outLang)
-                    ? QualityScorer.score(source, c.output, back, req)
+                    ? QualityScorer.score(source, c.output, back, scoredTerms)
                     : QualityScorer.chrF(back, source) - 0.15 * missingNumbers(source, KanjiNumber.toDigits(c.output));
             // MBR consensus (Freitag et al. 2022/2023): expected chrF against the other candidates
             if (unique.size() >= 3) {

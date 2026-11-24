@@ -12,11 +12,30 @@ public final class NePostEditor {
         if (ne == null) return "";
         String t = Normalizer.normalize(ne, Normalizer.Form.NFC);
         t = t.replace('|', '।');
-        t = t.replaceAll("(?<=[\\u0900-\\u097F])\\s*\\.(?=\\s|$)", "।");   // Latin period -> danda
+        t = periodToDanda(t);
         t = t.replaceAll("\\s+([।?!,])", "$1");                         // no space before punctuation
         t = t.replaceAll("।{2,}", "।");
         t = collapseRepeats(t.trim().split("\\s+"));
         return t.trim();
+    }
+
+    // Nepali abbreviations written with a Latin period: रु. 100 (Rs.), डा. (Dr.), प्रा. (Prof.), नं. (No.),
+    // वि.सं. / ई.सं. (calendar eras), कि.मि. (km) ... Turning their period into a danda split the sentence.
+    private static final java.util.Set<String> ABBREVIATIONS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "रु", "डा", "प्रा", "नं", "सं", "वि", "ई", "कि", "मि", "से", "पृ", "जि", "गा", "पा", "न", "स", "प्र", "उ", "अ", "क्र", "इ", "श्री"));
+    // a Devanagari word (letters and signs, no digits, no danda) directly before a Latin period
+    private static final java.util.regex.Pattern WORD_PERIOD = java.util.regex.Pattern.compile("([\\u0900-\\u0963\\u0970-\\u097F]+)\\s*\\.(?=\\s|$)");
+
+    /** Latin period -> danda after a Devanagari word, except after an abbreviation or a digit (१. list item). */
+    static String periodToDanda(String t) {
+        java.util.regex.Matcher m = WORD_PERIOD.matcher(t);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            String w = m.group(1);
+            m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(ABBREVIATIONS.contains(w) ? w + "." : w + "।"));
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 
     /**

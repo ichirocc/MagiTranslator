@@ -74,7 +74,8 @@ public class JaNeLibraryTest {
         g.load(new StringReader("# comment\n夜勤\tरात्रि ड्युटी\n"));
         Glossary.Injection inj = g.inject("タナカさんは明日東京で夜勤です。");
         eq("तानाकाさんは明日टोकियोでरात्रि ड्युटीです。", inj.text, "inject names + terms");
-        eq(3, inj.requiredTargets.size(), "required targets");
+        eq(2, inj.requiredTargets.size(), "required targets (glossary terms)");
+        eq("[तानाका]", inj.preferredTargets, "rule-transliterated name is preferred, not required");
         // scorer
         yes(QualityScorer.chrF("明日東京に行きます", "明日東京に行きます") > 0.99, "chrF identical");
         yes(QualityScorer.chrF("明日東京に行きます", "昨日大阪にいました") < 0.4, "chrF different");
@@ -184,7 +185,7 @@ public class JaNeLibraryTest {
         Glossary gs = new Glossary();
         gs.put("会社", "कम्पनी");
         eq("会社人です。", gs.inject("会社人です。").text, "term followed by derivational suffix 人 left alone");
-        eq(1, Glossary.withDefaults().inject("タナカさんとタナカさん").requiredTargets.size(), "required targets de-duplicated");
+        eq(1, Glossary.withDefaults().inject("タナカさんとタナカさん").preferredTargets.size(), "preferred targets de-duplicated");
         // fillers after ！／？ (NFKC turns them into ASCII before the filler rule)
         eq("本当！行きます", JaNormalizer.normalize("本当！えっと、行きます"), "filler after ！ removed");
         eq("本当？行きます", JaNormalizer.normalize("本当?あの、行きます"), "filler after ascii ? removed");
@@ -197,6 +198,34 @@ public class JaNeLibraryTest {
         eq("[]", QualityScorer.numbers("एकदम राम्रो"), "एकदम is not 1");
         eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("3人です。", "तीन जना हुनुहुन्छ।", java.util.Collections.emptyList())), "3人 -> तीन जना: no NUMBER_LOST");
         eq(0, TranslationValidator.hardCount(TranslationValidator.validateNeToJa("३ जना आउनुभयो।", "三人が来ました。")), "ne->ja: 三人 keeps 3");
+
+        // Nepali fixes
+        // names: middle dot, glossary spelling is required, rule spelling is only preferred
+        // rule output is Japanese-oriented (ム -> मु, as in ススム / イサム); the real Nepali spelling राम बहादुर
+        // can only come from the glossary, which is why rule names are preferred, not required
+        eq("रामु बाहाडुरु", KanaDevanagari.transliterate("ラム・バハドゥル"), "・ between name parts");
+        Glossary gn = Glossary.withDefaults();
+        Glossary.Injection in1 = gn.inject("ラム・バハドゥルさんが来ます。");
+        eq("रामु बाहाडुरुさんが来ます。", in1.text, "dotted katakana name injected as a whole");
+        eq("[]", in1.requiredTargets, "rule-transliterated Nepali name is not a hard requirement");
+        gn.put("ラム・バハドゥル", "राम बहादुर");
+        Glossary.Injection in2 = gn.inject("ラム・バハドゥルさんが来ます。");
+        eq("[राम बहादुर]", in2.requiredTargets, "glossary spelling of a name is required");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("ラム・バハドゥルさんが来ます。", "राम बहादुर जी आउनुहुन्छ।", in1.requiredTargets)),
+                "correct Nepali spelling of a name is not TERM_MISSING");
+        // period -> danda, but not after abbreviations or digits
+        eq("यसको मूल्य रु. १०० हो।", NePostEditor.edit("यसको मूल्य रु. १०० हो."), "रु. kept");
+        eq("डा. शर्मा आउनुभयो।", NePostEditor.edit("डा. शर्मा आउनुभयो."), "डा. kept");
+        eq("वि.सं. २०८१ मा।", NePostEditor.edit("वि.सं. २०८१ मा."), "वि.सं. kept");
+        eq("म घर जान्छु। तिमी?", NePostEditor.edit("म घर जान्छु. तिमी?"), "sentence period still becomes danda");
+        eq("१. पहिलो", NePostEditor.edit("१. पहिलो"), "list number १. kept");
+        // question detection: whole words only
+        java.util.List<String> none = java.util.Collections.emptyList();
+        yes(TranslationValidator.validateJaToNe("何を買いますか。", "म तरकारी किन्छु।", none).toString().contains("QUESTION_LOST"), "किन्छु (buy) is not a question word");
+        yes(TranslationValidator.validateJaToNe("どれですか。", "कुनै पनि हुन्छ।", none).toString().contains("QUESTION_LOST"), "कुनै (any) is not a question word");
+        yes(!TranslationValidator.validateJaToNe("いくらですか。", "यो कतिको हो", none).toString().contains("QUESTION_LOST"), "कतिको (how much) is a question");
+        yes(!TranslationValidator.validateJaToNe("なぜですか。", "किन", none).toString().contains("QUESTION_LOST"), "किन (why) is a question");
+        yes(TranslationValidator.validateJaToNe("行きますか。", "म कहिलेकाहीं जान्छु।", none).toString().contains("QUESTION_LOST"), "कहिलेकाहीं (sometimes) is not a question");
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);

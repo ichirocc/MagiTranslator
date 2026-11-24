@@ -87,5 +87,38 @@ class OtherTest(unittest.TestCase):
         self.assertTrue(M.leftover_source_script("私は घर", "ne-ja"))
 
 
+class ReviewFixesTest(unittest.TestCase):
+    """Kept in sync with the Java fixes (JaNeLibraryTest 'review fixes')."""
+
+    def test_ne_negation_false_positives(self):
+        for w in ("प्रसन्न", "भिन्न", "सम्पन्न", "नगद", "नमुना", "नम्र", "नगरपालिका"):
+            self.assertFalse(M.ne_has_negation("म " + w + " छु।"), w)
+
+    def test_ne_negation_true(self):
+        for s in ("नगर्नुहोस्।", "उहाँ नआउनुभयो।", "यो हुन्न।", "मलाई थाहा छैन।"):
+            self.assertTrue(M.ne_has_negation(s), s)
+
+    def test_ja_negation(self):
+        self.assertFalse(M.ja_has_negation("部屋がきたないです。"))
+        self.assertFalse(M.ja_has_negation("人が少なかったです。"))
+        self.assertTrue(M.ja_has_negation("人が少なくないです。"))
+
+    def test_numbers_ne_words(self):
+        self.assertEqual(M.numbers("तीन जना"), ["3"])
+        self.assertEqual(M.numbers("यो राम्रो छ।"), [])
+        self.assertEqual(M.numbers("एकदम राम्रो"), [])
+
+    def test_kanji_to_digits(self):
+        self.assertEqual(M.kanji_to_digits("三人が来ました。"), "3人が来ました。")
+        self.assertEqual(M.kanji_to_digits("十分です。"), "十分です。")
+        self.assertEqual(M.kanji_to_digits("三時十分です。"), "3時10分です。")
+        self.assertEqual(M.kanji_to_digits("万年筆"), "万年筆")
+        self.assertEqual(M.kanji_to_digits("三時半"), "3時30分")
+        self.assertEqual(M.kanji_to_digits("一万五千円"), "15000円")
+
+    def test_numbers_preserved_ne_ja_kanji(self):
+        self.assertTrue(M.numbers_preserved("३ जना आउनुभयो।", "三人が来ました。", "ja"))
+
+
 if __name__ == "__main__":
     unittest.main()

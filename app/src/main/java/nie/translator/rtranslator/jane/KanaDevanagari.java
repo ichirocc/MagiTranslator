@@ -70,6 +70,12 @@ public final class KanaDevanagari {
         while (i < kana.length()) {
             char c = kana.charAt(i);
             if (c == 'ッ') { geminate = true; i++; continue; }
+            if (c == '・') {   // name separator: ラム・バハドゥル -> two words
+                if (out.length() > 0 && out.charAt(out.length() - 1) != ' ') out.append(' ');
+                geminate = false;
+                i++;
+                continue;
+            }
             if (c == 'ー') {
                 if (out.length() == 0) return null;
                 char last = out.charAt(out.length() - 1);

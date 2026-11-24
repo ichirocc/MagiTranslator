@@ -43,7 +43,10 @@ public final class TranslationValidator {
     private static final Pattern NE_WORD = Pattern.compile("[\\u0900-\\u0963\\u0966-\\u097F]+");   // excludes the danda । ॥
     private static final Pattern JA_SCRIPT = Pattern.compile("[\\u3040-\\u30FF\\u4E00-\\u9FFF]");
     private static final Pattern JA_QUESTION = Pattern.compile("(か[。？]?$|？|\\?)");
-    private static final Pattern NE_QUESTION = Pattern.compile("(\\?|？|के |कहाँ|कति|कसरी|किन|कुन|को हो|कहिले|कस्तो)");
+    // whole-word question words: plain substrings matched किन्छु (I buy), किनभने (because), कुनै (any),
+    // कतिपय (some) and कहिलेकाहीं (sometimes)
+    private static final Pattern NE_QUESTION = Pattern.compile(
+            "(\\?|？|को हो|(?<![\\u0900-\\u0963\\u0966-\\u097F])(?:के|किन|कसरी|कस्तो|कस्ती|कस्ता|कुन|कुनचाहिँ|कुनचाहिं|कहाँ\\S*|कति(?!पय)\\S*|कहिले(?!काहीं|काहीँ|काहिँ|काहिं))(?![\\u0900-\\u0963\\u0966-\\u097F]))");
 
     private TranslationValidator() {}
 

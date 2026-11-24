@@ -171,7 +171,6 @@ dependencies {
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.30.0'  //latest.release
     implementation 'com.microsoft.onnxruntime:onnxruntime-extensions-android:0.13.0'   //latest.release
     //JWS parser
-    implementation group: 'com.nimbusds', name: 'nimbus-jose-jwt', version: '5.1'
     implementation files('libs/sqlite4java-android-release.aar')
     //Room library (database)
     def room_version = '2.1.0'

@@ -45,6 +45,7 @@ jobs:
             app/src/test/java/nie/translator/rtranslator/downloader/ZipSafetyTest.java
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.jane.JaNeLibraryTest
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
+          python3 -I tools/eval/test_metrics.py   # eval metrics must stay in sync with the Java validator
 
       - name: Restore release keystore from secrets (optional)
         shell: bash
