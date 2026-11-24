@@ -210,4 +210,7 @@
     <string name="conversation_mode_running">会話モードで動作中…</string>
     <string name="walkietalkie_mode">対面会話</string>
     <string name="walkietalkie_mode_running">対面会話モードで動作中…</string>
+    <string name="missing_madlad_nepali_title">ネパール語にはMadladモデルが必要です</string>
+    <string name="missing_madlad_nepali_message">ネパール語の翻訳にはMadladモデルが必要ですが、まだダウンロードされていません。設定 → モデル管理 からMadladをダウンロードしてください。</string>
+    <string name="open_models_manager">モデル管理を開く</string>
 </resources>

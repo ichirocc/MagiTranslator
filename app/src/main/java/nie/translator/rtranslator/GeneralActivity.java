@@ -28,6 +28,8 @@ import androidx.fragment.app.FragmentActivity;
 import javax.annotation.Nullable;
 
 import nie.translator.rtranslator.access.AccessActivity;
+import nie.translator.rtranslator.settings.SettingsActivity;
+import nie.translator.rtranslator.tools.ErrorCodes;
 
 
 public abstract class GeneralActivity extends AppCompatActivity {
@@ -148,7 +150,35 @@ public abstract class GeneralActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    private AlertDialog missingMadladDialog;
+
+    //MagiTranslator (SPEC 19.9): Nepali needs Madlad; guide the user to the Models Manager instead of failing silently
+    public void showMissingMadladDialog() {
+        if (isFinishing() || (missingMadladDialog != null && missingMadladDialog.isShowing())) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setCancelable(true);
+        builder.setTitle(R.string.missing_madlad_nepali_title);
+        builder.setMessage(R.string.missing_madlad_nepali_message);
+        builder.setPositiveButton(R.string.open_models_manager, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Intent intent = new Intent(GeneralActivity.this, SettingsActivity.class);
+                intent.putExtra("startWithModelManager", true);
+                startActivity(intent);
+            }
+        });
+        builder.setNegativeButton(android.R.string.cancel, null);
+        missingMadladDialog = builder.create();
+        missingMadladDialog.show();
+    }
+
     public void onError(int reason, long value) {
+        if (reason == ErrorCodes.ERROR_MISSING_MADLAD) {
+            showMissingMadladDialog();
+            return;
+        }
         /*switch (reason) {
             case ErrorCodes.MISSING_PLAY_SERVICES: {
                 GoogleApiAvailability.getInstance().getErrorDialog(this, (int) value, 34).show();

@@ -829,9 +829,9 @@ public class Translator extends NeuralNetworkApi {
             if(("ne".equals(inputLanguage.getCode()) || "ne".equals(outputLanguage.getCode())) && performMode != MADLAD && performMode != MADLAD_CACHE){
                 Log.e("translation_error", "Nepali requires the Madlad model, download it in Models Manager");
                 if (responseListener != null) {
-                    mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0));
+                    mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_MISSING_MADLAD}, 0));
                 } else {
-                    mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0));
+                    mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_MISSING_MADLAD}, 0));
                 }
                 return;
             }

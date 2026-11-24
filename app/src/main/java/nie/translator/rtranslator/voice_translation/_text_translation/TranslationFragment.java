@@ -46,6 +46,7 @@ import java.util.Locale;
 
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.R;
+import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.bluetooth.Message;
 import nie.translator.rtranslator.settings.SettingsActivity;
 import nie.translator.rtranslator.tools.CustomLocale;
@@ -270,6 +271,14 @@ public class TranslationFragment extends Fragment {
             @Override
             public void onFailure(int[] reasons, long value) {
                 activateTranslationButton();
+                if (reasons != null && activity != null) {
+                    for (int aReason : reasons) {
+                        if (aReason == ErrorCodes.ERROR_MISSING_MADLAD) {
+                            activity.showMissingMadladDialog();
+                            break;
+                        }
+                    }
+                }
             }
         };
         translateButton.setOnClickListener(new View.OnClickListener() {
