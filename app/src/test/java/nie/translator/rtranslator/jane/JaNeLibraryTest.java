@@ -284,6 +284,29 @@ public class JaNeLibraryTest {
         tr6.memory().clear();
         eq(null, tr6.memory().lookup("タナカ"), "conversation memory cleared");
 
+        // baseline findings (docs/eval/2026-11-25_madlad-raw-beam4-seed.md)
+        yes(TranslationValidator.neHasNegation("म मांस खान्न।"), "colloquial negation खान्न");
+        yes(TranslationValidator.neHasNegation("म जान्न।"), "colloquial negation जान्न");
+        yes(!TranslationValidator.neHasNegation("म प्रसन्न छु।"), "प्रसन्न still not negation");
+        yes(!TranslationValidator.neHasNegation("यो भिन्न छ।"), "भिन्न not negation");
+        Glossary gr = Glossary.withDefaults();
+        Glossary.Injection ri = gr.injectReverse("म काठमाडौँमा बस्छु। सीता नेपालबाट आएकी हुन्।");
+        eq("म カトマンズमा बस्छु। सीता ネパールबाट आएकी हुन्।", ri.text, "reverse injection with case markers and ँ/ं variant");
+        eq("[カトマンズ, ネパール]", ri.requiredTargets, "reverse required targets");
+        eq("नेपालीहरू", gr.injectReverse("नेपालीहरू").text, "नेपाल not matched inside नेपाली; demonym not reversed");
+        eq("म नेपाली बोल्छु।", gr.injectReverse("म नेपाली बोल्छु।").text, "ambiguous नेपाली left to the model");
+        eq("ネパール語 सिक्दै छु।", gr.injectReverse("नेपाली भाषा सिक्दै छु।").text, "नेपाली भाषा -> ネパール語 (longest first)");
+        Backend rb = new Backend() {
+            public String translate(String text, String s, String t) {
+                if (text.equals("म カトマンズमा बस्छु।")) return "私はカトマンズに住んでいます。";
+                if (text.equals("म काठमाडौंमा बस्छु।")) return "私はカタルーニャに住んでいます。";
+                return text;
+            }
+        };
+        JaNeTranslator.Result rr = new JaNeTranslator(rb, Glossary.withDefaults()).translate("म काठमाडौंमा बस्छु।", "ne", "ja");
+        for (JaNeTranslator.Candidate c : rr.candidates) System.out.println("     " + c);
+        eq("私はカトマンズに住んでいます。", rr.text, "ne->ja: name annotation candidate wins over カタルーニャ");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

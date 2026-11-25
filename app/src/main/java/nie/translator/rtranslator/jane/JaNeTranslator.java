@@ -179,18 +179,25 @@ public final class JaNeTranslator {
         String t = Normalizer.normalize(raw == null ? "" : raw, Normalizer.Form.NFC).replace('|', '।').trim();
         if (t.isEmpty()) return new Result("", Collections.emptyList());
         Map<String, List<String>> inputs = new LinkedHashMap<>();
+        Map<String, List<String>> required = new LinkedHashMap<>();
+        // known names/terms (नेपाल, काठमाडौं ...) are annotated with their Japanese form: the raw model turned
+        // काठमाडौं into カタルーニャ and नेपाल into ネバダ州 in the baseline (docs/eval/2026-11-25_*)
+        Glossary.Injection rev = glossary.injectReverse(t);
+        if (!rev.text.equals(t)) {
+            inputs.put("terms", Collections.singletonList(rev.text));
+            required.put("terms", rev.requiredTargets);
+        }
         inputs.put("whole", Collections.singletonList(t));
         List<String> sentences = new ArrayList<>();
         for (String s : t.split("(?<=[।?!])")) if (!s.trim().isEmpty()) sentences.add(s.trim());
         if (sentences.size() > 1) inputs.put("sentences", sentences);
         List<Candidate> cands = new ArrayList<>();
-        Map<String, List<String>> required = new LinkedHashMap<>();
         for (Map.Entry<String, List<String>> e : inputs.entrySet()) {
             String out = translateSegments(e.getValue(), "ne", "ja").replaceAll("\\s+", "");
             out = collapseJa(out);
             if (out.isEmpty()) continue;
             cands.add(new Candidate(e.getKey(), String.join(" ", e.getValue()), out, null, Double.NaN));
-            required.put(e.getKey(), Collections.emptyList());
+            required.putIfAbsent(e.getKey(), Collections.emptyList());
         }
         return rerank(cands, t, required, Collections.emptyList(), "ja", "ne");
     }
@@ -237,6 +244,13 @@ public final class JaNeTranslator {
         return new Result(best.output, scored, best.issues);
     }
 
+    private static List<TranslationValidator.Issue> withRequiredTerms(List<TranslationValidator.Issue> issues, String output, List<String> req) {
+        if (req == null || req.isEmpty()) return issues;
+        List<TranslationValidator.Issue> all = new ArrayList<>(issues);
+        for (String t : req) if (!output.contains(t)) all.add(new TranslationValidator.Issue(TranslationValidator.Kind.TERM_MISSING, true, t));
+        return all;
+    }
+
     static boolean better(Candidate a, Candidate b) {
         if (a.hard() != b.hard()) return a.hard() < b.hard();
         return a.score > b.score;
@@ -245,7 +259,7 @@ public final class JaNeTranslator {
     private static List<TranslationValidator.Issue> validate(String source, String output, List<String> req, String outLang) {
         return "ne".equals(outLang)
                 ? TranslationValidator.validateJaToNe(source, output, req)
-                : TranslationValidator.validateNeToJa(source, output);
+                : withRequiredTerms(TranslationValidator.validateNeToJa(source, output), output, req);
     }
 
     private String translateSegments(List<String> segments, String src, String tgt) throws Exception {

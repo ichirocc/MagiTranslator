@@ -80,7 +80,41 @@ public final class Glossary {
         public boolean changed(String original) { return !text.equals(original); }
     }
 
+    private static final String NE_CASE_MARKERS = "(?:मा|बाट|को|का|की|ले|लाई|सँग|तिर|देखि|सम्म|हरू|भन्दा|मै)(?![\\u093E-\\u094D])";
+
     public Injection inject(String ja) { return inject(ja, null, true); }
+
+    /**
+     * ne -> ja: replaces known Nepali renderings in a Nepali source by the Japanese term (target lemma
+     * annotation in the other direction) and returns the Japanese terms that must appear in the output.
+     * Nepali case markers attach to the word (काठमाडौंमा = in Kathmandu), so a term matches at the start of a
+     * word; candrabindu/anusvara spelling variants (ँ / ं) are treated as equal.
+     */
+    public Injection injectReverse(String ne) {
+        List<String> required = new ArrayList<>();
+        String t = ne;
+        List<Map.Entry<String, String>> entries = new ArrayList<>(terms.entrySet());
+        entries.sort((a, b) -> Integer.compare(b.getValue().length(), a.getValue().length()));   // longest Nepali first
+        for (Map.Entry<String, String> e : entries) {
+            String neTerm = e.getValue(), jaTerm = e.getKey();
+            if (neTerm.isEmpty() || !neTerm.chars().anyMatch(c -> c >= 0x0900 && c <= 0x097F)) continue;
+            // demonyms are ambiguous in Nepali (नेपाली = Nepali person / language / adjective): not reversed
+            if (jaTerm.endsWith("人")) continue;
+            StringBuilder rx = new StringBuilder("(?<![\\u0900-\\u0963\\u0966-\\u097F])");
+            for (char c : neTerm.toCharArray()) {
+                if (c == '\u0901' || c == '\u0902') rx.append("[\\u0901\\u0902]");
+                else rx.append(Pattern.quote(String.valueOf(c)));
+            }
+            // the term must end the word or be followed by a case marker / plural (काठमाडौंमा, नेपालबाट);
+            // नेपाल must not match inside नेपाली
+            rx.append("(?=$|[^\\u0900-\\u0963\\u0966-\\u097F]|").append(NE_CASE_MARKERS).append(")");
+            Matcher m = Pattern.compile(rx.toString()).matcher(t);
+            if (!m.find()) continue;
+            t = m.replaceAll(Matcher.quoteReplacement(jaTerm));
+            if (!required.contains(jaTerm)) required.add(jaTerm);
+        }
+        return new Injection(t, required, new ArrayList<>());
+    }
 
     /** Whether {@code ja} is a known glossary entry. */
     public boolean contains(String ja) { return ja != null && terms.containsKey(ja); }
