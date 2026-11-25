@@ -40,6 +40,8 @@ public class ErrorCodes {
     public static final int ERROR_EXECUTING_MODEL = 35;
     public static final int ERROR_LANGUAGE_NOT_SUPPORTED = 36;
     public static final int ERROR_MISSING_MADLAD = 37;   //MagiTranslator: Nepali requested but Madlad is not downloaded
+    public static final int ERROR_OUT_OF_MEMORY = 38;   //MagiTranslator: inference ran out of memory (TranslationEngineErrorCode.OUT_OF_MEMORY)
+    public static final int ERROR_TRANSLATION_CANCELLED = 39;   //MagiTranslator: request cancelled; never shown to the user
 
     //language identification
     public static final int LANGUAGE_UNKNOWN = 15;

@@ -460,6 +460,8 @@ public class WalkieTalkieService extends VoiceTranslationService {
         // Stop recognizer
         speechRecognizer.stop();
         if (translator != null) {
+            //leaving the walkie talkie: queued/running translations of this mode are dropped, not delivered
+            translator.cancelTranslations(Global.RTranslatorMode.WALKIE_TALKIE_MODE);
             translator.resetConversationMemory();
         }
         super.onDestroy();

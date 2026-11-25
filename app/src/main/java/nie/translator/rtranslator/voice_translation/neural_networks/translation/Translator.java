@@ -190,6 +190,32 @@ public class Translator extends NeuralNetworkApi {
     private volatile int janeBeamSize = JA_NE_BEAM_SIZE;
     // serialises translations: model switching and jane calls share the ONNX sessions
     private final java.util.concurrent.locks.ReentrantLock translationLock = new java.util.concurrent.locks.ReentrantLock(true);
+    // per-request cancellation (SPEC v2 part 3 §16.5): one scope per RTranslatorMode
+    private final TranslationCancellation cancellation = new TranslationCancellation(Global.RTranslatorMode.values().length);
+    // ticket of the request holding translationLock; read by the encoder/decoder for RunOptions and step checks
+    @Nullable
+    private volatile TranslationCancellation.Ticket currentTicket;
+
+    /**
+     * Cancels the translations of a mode submitted until now (running and queued). Their results and errors
+     * are never delivered. Safe on the main thread: it never waits for the running inference.
+     * Conversation mode is not meant to be cancelled: its message queue advances on each listener callback.
+     */
+    public void cancelTranslations(Global.RTranslatorMode rtranslatorMode) {
+        cancellation.cancelScope(rtranslatorMode.ordinal());
+    }
+
+    /** ORT RunOptions of the running request (terminate flag = cancellation); null outside a request. */
+    @Nullable
+    private OrtSession.RunOptions runOpts() {
+        TranslationCancellation.Ticket t = currentTicket;
+        return t == null ? null : t.runOptions();
+    }
+
+    private boolean currentRequestCancelled() {
+        TranslationCancellation.Ticket t = currentTicket;
+        return t != null && t.isCancelled();
+    }
     @Nullable
     private volatile nie.translator.rtranslator.jane.JaNeTranslator janeTranslator;
     // identity of files/jane_glossary.tsv when janeTranslator was built: an edited file is picked up
@@ -458,10 +484,11 @@ public class Translator extends NeuralNetworkApi {
     }
 
     public void translate(final String textToTranslate, final CustomLocale languageInput, final CustomLocale languageOutput, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode) {
+        final TranslationCancellation.Ticket ticket = cancellation.newTicket(rtranslatorMode.ordinal());   //taken at submit time
         final Thread t = new Thread("textTranslation") {
             public void run() {
                 translating = true;
-                performTextTranslation(textToTranslate, languageInput, languageOutput, beamSize, saveResults, rtranslatorMode, null);
+                performTextTranslation(textToTranslate, languageInput, languageOutput, beamSize, saveResults, rtranslatorMode, ticket, null);
                 translating = false;
             }
         };
@@ -469,9 +496,10 @@ public class Translator extends NeuralNetworkApi {
     }
 
     public void translate(final String textToTranslate, final CustomLocale languageInput, final CustomLocale languageOutput, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode, final TranslateListener responseListener) {
+        final TranslationCancellation.Ticket ticket = cancellation.newTicket(rtranslatorMode.ordinal());   //taken at submit time
         final Thread t = new Thread("textTranslation") {
             public void run() {
-                performTextTranslation(textToTranslate, languageInput, languageOutput, beamSize, saveResults, rtranslatorMode, responseListener);
+                performTextTranslation(textToTranslate, languageInput, languageOutput, beamSize, saveResults, rtranslatorMode, ticket, responseListener);
             }
         };
         t.start();
@@ -511,7 +539,7 @@ public class Translator extends NeuralNetworkApi {
                 loadSrcLangResourcesForPeer(languageInput, sender, new GeneralListener() {
                     @Override
                     public void onSuccess() {
-                        performTextTranslation(text, languageInput, data.languageOutput, data.beamSize, false, Global.RTranslatorMode.CONVERSATION_MODE, new TranslateListener() {
+                        performTextTranslation(text, languageInput, data.languageOutput, data.beamSize, false, Global.RTranslatorMode.CONVERSATION_MODE, cancellation.newTicket(Global.RTranslatorMode.CONVERSATION_MODE.ordinal()), new TranslateListener() {
                             @Override
                             public void onTranslatedText(String textToTranslate, String translatedText, String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
                                 data.conversationMessageToTranslate.getPayload().setText(translatedText);
@@ -807,16 +835,46 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
-    private void performTextTranslation(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode, @Nullable final TranslateListener responseListener) {
+    private void performTextTranslation(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode, final TranslationCancellation.Ticket ticket, @Nullable final TranslateListener responseListener) {
         translationLock.lock();
         try {
-            performTextTranslationLocked(textToTranslate, inputLanguage, outputLanguage, beamSize, saveResults, rtranslatorMode, responseListener);
+            if (ticket.isCancelled()) {   //cancelled while queued: deliver nothing
+                Log.i("translator", "translation cancelled before start (" + TranslationEngineErrorCode.INFERENCE_CANCELLED + ")");
+                return;
+            }
+            try {
+                cancellation.begin(ticket);
+            } catch (OrtException e) {
+                Log.w("translator", "RunOptions unavailable, cancellation limited to decoder steps");
+            }
+            currentTicket = ticket;
+            try {
+                performTextTranslationLocked(textToTranslate, inputLanguage, outputLanguage, beamSize, saveResults, rtranslatorMode, ticket, responseListener);
+            } finally {
+                currentTicket = null;
+                cancellation.end(ticket);
+            }
         } finally {
             translationLock.unlock();
         }
     }
 
-    private void performTextTranslationLocked(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode, @Nullable final TranslateListener responseListener) {
+    /** Posts a failure unless the request was cancelled (a cancelled request delivers nothing, SPEC v2 part 3 §16.5). */
+    private void postFailure(final TranslationCancellation.Ticket ticket, @Nullable final TranslateListener responseListener, final TranslationEngineErrorCode code) {
+        if (code == TranslationEngineErrorCode.INFERENCE_CANCELLED || ticket.isCancelled()) {
+            Log.i("translator", "translation cancelled (" + TranslationEngineErrorCode.INFERENCE_CANCELLED + ")");
+            return;
+        }
+        Log.e("translation_error", "translation failed: " + code);
+        final int legacy = code.toLegacyCode();
+        if (responseListener != null) {
+            mainHandler.post(() -> { if (!ticket.isCancelled()) responseListener.onFailure(new int[]{legacy}, 0); });
+        } else {
+            mainHandler.post(() -> { if (!ticket.isCancelled()) notifyError(new int[]{legacy}, 0); });
+        }
+    }
+
+    private void performTextTranslationLocked(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode, final TranslationCancellation.Ticket ticket, @Nullable final TranslateListener responseListener) {
         try {
             long initTime = System.currentTimeMillis();
             String finalResult = null;
@@ -897,6 +955,7 @@ public class Translator extends NeuralNetworkApi {
                 final String nnInput = textToTranslate;
                 if (jaNe && beamSize < JA_NE_BEAM_SIZE) beamSize = JA_NE_BEAM_SIZE;
                 String janeResult = jaNe ? translateJaNeWithLibrary(textToTranslate, inputLanguage, outputLanguage, beamSize) : null;
+                ticket.throwIfCancelled();   //the library swallows backend errors: do not fall back to the plain pipeline
                 BreakIterator iterator = BreakIterator.getSentenceInstance(inputLanguage.getLocale());
                 iterator.setText(nnInput);
                 int start = iterator.first();
@@ -927,6 +986,7 @@ public class Translator extends NeuralNetworkApi {
                 final String[] joinedStringOutput = {""};
                 if (janeResult != null) textSplit.clear();   //already translated by the library
                 for (int i = 0; i < textSplit.size(); i++) {
+                    ticket.throwIfCancelled();
                     String finalSplitResult = null;
                     if(global.isUseTranslationDictionaries()) {
                         String[] dictionaryResult = performDictionaryTranslation(textSplit.get(i), inputLanguage, outputLanguage);
@@ -1010,19 +1070,20 @@ public class Translator extends NeuralNetworkApi {
                 resultType = TranslateListener.ResultType.NORMAL;
             }
             String[] finalSynonyms = synonyms;
+            ticket.throwIfCancelled();
             if (responseListener != null) {
-                mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, finalResultConst, finalSynonyms, currentResultIDCopy, true, resultType, inputLanguage, outputLanguage));
+                mainHandler.post(() -> { if (!ticket.isCancelled()) responseListener.onTranslatedText(textToTranslate, finalResultConst, finalSynonyms, currentResultIDCopy, true, resultType, inputLanguage, outputLanguage); });
             } else {
-                mainHandler.post(() -> notifyResult(textToTranslate, finalResultConst, finalSynonyms, currentResultIDCopy, true, resultType, inputLanguage, outputLanguage));
+                mainHandler.post(() -> { if (!ticket.isCancelled()) notifyResult(textToTranslate, finalResultConst, finalSynonyms, currentResultIDCopy, true, resultType, inputLanguage, outputLanguage); });
             }
             currentResultID++;
         } catch (Exception e) {
-            e.printStackTrace();
-            if (responseListener != null) {
-                mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-            } else {
-                mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-            }
+            TranslationEngineErrorCode code = TranslationEngineErrorCode.fromThrowable(e);
+            if (code != TranslationEngineErrorCode.INFERENCE_CANCELLED) e.printStackTrace();
+            postFailure(ticket, responseListener, code);
+        } catch (OutOfMemoryError e) {
+            //Java heap exhausted (large beams / long input): report it instead of killing the translation thread
+            postFailure(ticket, responseListener, TranslationEngineErrorCode.OUT_OF_MEMORY);
         }
     }
 
@@ -1090,8 +1151,11 @@ public class Translator extends NeuralNetworkApi {
         if(mode != HY_MT) {
             encoderResult = executeEncoder(input.getInputIDs(), input.getAttentionMask());
             android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
+            if (encoderResult == null && currentRequestCancelled()) throw new TranslationCancelledException();
             if (encoderResult == null) {
-                if (responseListener != null) {
+                if (Boolean.TRUE.equals(SILENT.get())) {
+                    //internal jane call: no UI error, the library treats it as a failed candidate
+                } else if (responseListener != null) {
                     mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
                 } else {
                     mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
@@ -1115,10 +1179,12 @@ public class Translator extends NeuralNetworkApi {
                     lastOutputText = new GuiMessage(new Message(global, outputText), inputLanguage, outputLanguage, currentResultID, false, false);
                 }
                 final long currentResultIDCopy = currentResultID;  //we do a copy because otherwise the currentResultID is incremented before notifying the message (due to the notification being executed in the mainThread)
+                final TranslationCancellation.Ticket partialTicket = currentTicket;
+                if (partialTicket != null && partialTicket.isCancelled()) return;   //cancelled: no partial results either
                 if (responseListener != null) {
-                    mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, outputText, synonyms, currentResultIDCopy, false, resultType, inputLanguage, outputLanguage));
+                    mainHandler.post(() -> { if (partialTicket == null || !partialTicket.isCancelled()) responseListener.onTranslatedText(textToTranslate, outputText, synonyms, currentResultIDCopy, false, resultType, inputLanguage, outputLanguage); });
                 } else {
-                    mainHandler.post(() -> notifyResult(textToTranslate, outputText, synonyms, currentResultIDCopy, false, resultType, inputLanguage, outputLanguage));
+                    mainHandler.post(() -> { if (partialTicket == null || !partialTicket.isCancelled()) notifyResult(textToTranslate, outputText, synonyms, currentResultIDCopy, false, resultType, inputLanguage, outputLanguage); });
                 }
             }
 
@@ -1126,6 +1192,7 @@ public class Translator extends NeuralNetworkApi {
             public void onFailure(int[] reasons, long value) {
                 //we do not return the partial results and notify an error
                 if (Boolean.TRUE.equals(SILENT.get())) return;
+                if (currentRequestCancelled()) return;   //cancelled requests deliver nothing
                 if (responseListener != null) {
                     mainHandler.post(() -> responseListener.onFailure(reasons, value));
                 } else {
@@ -1140,6 +1207,7 @@ public class Translator extends NeuralNetworkApi {
             completeOutputArray = executeCacheDecoder(textToTranslate, input, encoderResult, inputLanguage, outputLanguage, 1, translateListener);
         }
         if(encoderResult != null) encoderResult.close();
+        if (currentRequestCancelled()) throw new TranslationCancelledException();   //never turn a cancelled run into "" output
         if(completeOutputArray != null) {
             return tokenizer.decode(completeOutputArray);
         }else{
@@ -1162,7 +1230,7 @@ public class Translator extends NeuralNetworkApi {
                 embedInput.put("use_lm_head", TensorUtils.convertBooleanToTensor(onnxEnv, false));
                 ArraySet<String> requestedOutputs = new ArraySet<>();
                 requestedOutputs.add("embed_matrix");
-                embedResult = embedAndLmHeadSession.run(embedInput, requestedOutputs);
+                embedResult = embedAndLmHeadSession.run(embedInput, requestedOutputs, runOpts());
 
                 input.put("input_ids",inputIDsTensor);
                 input.put("attention_mask",attentionMaskTensor);
@@ -1172,7 +1240,7 @@ public class Translator extends NeuralNetworkApi {
                 embedInput.put("input_ids", inputIDsTensor);
                 ArraySet<String> requestedOutputs = new ArraySet<>();
                 requestedOutputs.add("embed_matrix");
-                embedResult = embedSession.run(embedInput, requestedOutputs);
+                embedResult = embedSession.run(embedInput, requestedOutputs, runOpts());
 
                 input.put("input_ids",inputIDsTensor);
                 input.put("attention_mask",attentionMaskTensor);
@@ -1181,7 +1249,7 @@ public class Translator extends NeuralNetworkApi {
                 input.put("input_ids",inputIDsTensor);
                 input.put("attention_mask",attentionMaskTensor);
             }
-            OrtSession.Result result = encoderSession.run(input);
+            OrtSession.Result result = encoderSession.run(input, runOpts());
             if(embedResult != null){
                 embedResult.close();
             }
@@ -1268,7 +1336,7 @@ public class Translator extends NeuralNetworkApi {
                 Map<String, OnnxTensor> initInput = new HashMap<String, OnnxTensor>();
                 initInput.put("encoder_hidden_states", encoderResult);
                 //execution of the cache initializer
-                initResult = cacheInitSession.run(initInput);
+                initResult = cacheInitSession.run(initInput, runOpts());
                 android.util.Log.i("performance", "Cache initialization done in: " + (System.currentTimeMillis() - time) + "ms");
                 if (encoderResult != null)
                     encoderResult.close();  //we close it because from now on we only need initResult
@@ -1293,6 +1361,8 @@ public class Translator extends NeuralNetworkApi {
             boolean earlyStop = false;
 
             while(!stop && !earlyStop){
+                //cancellation point between decoder steps (the RunOptions terminate flag covers a run in progress)
+                if (currentRequestCancelled()) throw new OrtException("translation cancelled (terminate)");
                 initialTime = System.currentTimeMillis();
                 time = System.currentTimeMillis();
 
@@ -1307,7 +1377,7 @@ public class Translator extends NeuralNetworkApi {
                     embedInput.put("use_lm_head", TensorUtils.convertBooleanToTensor(onnxEnv, false));
                     ArraySet<String> requestedOutputs = new ArraySet<>();
                     requestedOutputs.add("embed_matrix");
-                    embedResult = embedAndLmHeadSession.run(embedInput, requestedOutputs);
+                    embedResult = embedAndLmHeadSession.run(embedInput, requestedOutputs, runOpts());
 
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
                 }
@@ -1317,7 +1387,7 @@ public class Translator extends NeuralNetworkApi {
                     embedInput.put("input_ids", inputIDsTensor);
                     ArraySet<String> requestedOutputs = new ArraySet<>();
                     requestedOutputs.add("embed_matrix");
-                    embedResult = embedSession.run(embedInput, requestedOutputs);
+                    embedResult = embedSession.run(embedInput, requestedOutputs, runOpts());
 
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
                 }
@@ -1365,7 +1435,7 @@ public class Translator extends NeuralNetworkApi {
                 time = System.currentTimeMillis();
 
                 //decoder execution (with cache)
-                result = decoderSession.run(decoderInput);
+                result = decoderSession.run(decoderInput, runOpts());
 
                 if(decoderPastTensor != null) decoderPastTensor.close();
                 android.util.Log.i("performance", "execution of"+j+"th word done in: " + (System.currentTimeMillis()-time) + "ms");
@@ -1388,7 +1458,7 @@ public class Translator extends NeuralNetworkApi {
                     lmHeadInput.put("use_lm_head", TensorUtils.convertBooleanToTensor(onnxEnv, true));
                     ArraySet<String> requestedOutputs = new ArraySet<>();
                     requestedOutputs.add("logits");
-                    lmHeadResult = embedAndLmHeadSession.run(lmHeadInput, requestedOutputs);
+                    lmHeadResult = embedAndLmHeadSession.run(lmHeadInput, requestedOutputs, runOpts());
                     decoderOutput = (OnnxTensor) lmHeadResult.get(0);
                 }else {
                     decoderOutput = (OnnxTensor) result.get("logits").get();
@@ -1655,11 +1725,17 @@ public class Translator extends NeuralNetworkApi {
 
         } catch (OrtException | InvocationTargetException | NoSuchMethodException |
                  IllegalAccessException | InstantiationException e) {
+            TranslationEngineErrorCode code = TranslationEngineErrorCode.fromThrowable(e);
+            if (code == TranslationEngineErrorCode.INFERENCE_CANCELLED || currentRequestCancelled()) {
+                android.util.Log.i("translator", "decoder stopped: " + TranslationEngineErrorCode.INFERENCE_CANCELLED);
+                return null;   //the caller sees the cancelled ticket and delivers nothing
+            }
             e.printStackTrace();
+            final int legacy = code.toLegacyCode();
             if(responseListener != null) {
-                mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                mainHandler.post(() -> responseListener.onFailure(new int[]{legacy}, 0));
             }else{
-                mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                mainHandler.post(() -> notifyError(new int[]{legacy}, 0));
             }
         }
         return null;

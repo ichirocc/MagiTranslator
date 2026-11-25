@@ -277,6 +277,10 @@ public class TranslationFragment extends Fragment {
                             activity.showMissingMadladDialog();
                             break;
                         }
+                        if (aReason == ErrorCodes.ERROR_OUT_OF_MEMORY) {
+                            Toast.makeText(activity, R.string.error_translation_out_of_memory, Toast.LENGTH_LONG).show();
+                            break;
+                        }
                     }
                 }
             }
@@ -296,6 +300,8 @@ public class TranslationFragment extends Fragment {
                     CustomLocale secondLanguage = global.getSecondTextLanguage(true);
                     //we deactivate translate button
                     deactivateTranslationButton();  //todo: implement stop button instead of deactivation
+                    //a new request supersedes any text translation still queued or running (its result is never shown)
+                    global.getTranslator().cancelTranslations(Global.RTranslatorMode.TEXT_TRANSLATION_MODE);
                     //we start the translation
                     global.getTranslator().translate(text, firstLanguage, secondLanguage, global.getBeamSize(), true, Global.RTranslatorMode.TEXT_TRANSLATION_MODE);
                 }
@@ -916,6 +922,10 @@ public class TranslationFragment extends Fragment {
         outputText.clearFocus();
         //we detach the translate listener
         global.getTranslator().removeCallback(translateListener);
+        //leaving the app's screen for good: stop the text translation instead of keeping the model busy
+        if (activity != null && activity.isFinishing()) {
+            global.getTranslator().cancelTranslations(Global.RTranslatorMode.TEXT_TRANSLATION_MODE);
+        }
     }
 
     private void setFirstLanguage(CustomLocale language) {
