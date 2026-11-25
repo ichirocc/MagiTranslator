@@ -360,6 +360,34 @@ public class JaNeLibraryTest {
             public java.util.List<String> translateNBest(String text, String s, String t, int n) { return java.util.Arrays.asList("これは何ですか。", "いくらですか？"); }
         };
         eq("いくらですか？", new JaNeTranslator(qb, Glossary.withDefaults()).translate("यो कति हो?", "ne", "ja").text, "nj04: fallback reaches the price question");
+        // ja->ne IR-lite agreement (spec v2 part 2; jn14 / jn17 / jn19)
+        eq(1, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("先生はもう帰られました。", "तपाईँको शिक्षक घरमा हुनुहुन्छ।", null)), "jn14 drift: past lost is hard");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("先生はもう帰られました。", "शिक्षक घर गएका छन् ।", null)), "jn14 raw perfect passes");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("先生はもう帰られました。", "शिक्षक घर जानुभयो।", null)), "honorific past passes");
+        yes(!TranslationValidator.validateJaToNe("昨日は行きませんでした。", "म हिजो गइनँ।", null).toString().contains("PAST_LOST"), "negative past is past");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("あなた。", "तपाईं।", null)), "あなた is not a past predicate");
+        eq(1, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("明日の夕方、何時に会社へ行きますか？", "तपाईँ भोलि साँझ कम्पनीमा कहिले जानुहुन्छ?", null)), "jn19 何時 -> कहिले is WH_LOST");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("明日の夕方、何時に会社へ行きますか？", "तपाईँ भोलि साँझ कति बजे कम्पनी जानुहुन्छ ?", null)), "jn19 raw कति बजे passes");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("何か食べますか？", "केही खानुहुन्छ?", null)), "indefinite 何か not a wh-word");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("駅はどこですか？", "स्टेसन कहाँ छ?", null)), "どこ -> कहाँ");
+        eq(1, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("明日行かなければなりません。", "म भोलि जान्छु।", null)), "obligation lost is hard");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("明日行かなければなりません。", "मलाई भोलि जानुपर्छ।", null)), "obligation पर्छ passes");
+        eq(1, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("少々お待ちください。", "म पर्खन्छु।", null)), "request lost is hard");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("少々お待ちください。", "कृपया पर्खनुहोस्।", null)), "request नुहोस् passes");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("ここで写真を撮らないでください。", "यहाँ फोटो नखिच्नुहोस्।", null)), "negative request passes");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("明日は雨でしょう。", "भोलि पानी पर्छ।", null)), "conjecture lost is only soft");
+        Map<String, String> f7 = new HashMap<>();
+        f7.put("रामुさんがカトマンズから来ました。", "रामु काठमाडौँबाट आएकी थिइन्।");
+        f7.put("रामさんがカトマンズから来ました。", "राम काठमाडौँबाट आए।");
+        Backend fake7 = new Backend() {
+            public String translate(String text, String s, String t) {
+                if ("ja".equals(s)) return text.contains("रामु") || !text.contains("राम") ? f7.get("रामुさんがカトマンズから来ました。") : f7.get("रामさんがカトマンズから来ました。");
+                return text.startsWith("रामु") ? "ラムさんがカトマンズから来ました。" : "ラムさんがカトマンズから来た。";   // full form round-trips better
+            }
+        };
+        JaNeTranslator.Result r7 = new JaNeTranslator(fake7, Glossary.withDefaults()).translate("ラムさんがカトマンズから来ました。", "ja", "ne");
+        for (JaNeTranslator.Candidate c : r7.candidates) System.out.println("     " + c);
+        yes(r7.text.startsWith("राम ") , "jn17 bare राम preferred over रामु");
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);

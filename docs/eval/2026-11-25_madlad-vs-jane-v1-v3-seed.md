@@ -22,3 +22,10 @@ Open problems (not fixed):
   "your teacher is at home"; jn19 何時に → कहिले "when").
 - jn17 ラム → रामु: the bare variant राम is generated but the scorer prefers the full transliteration.
 - nj17 नेपाल → ネバダ州シアトル (annotation ignored by the model); nj12 currency ルピー → 円.
+
+## v4 (ja→ne IR-lite agreement, desk check only — no model run)
+New `TranslationValidator` ja→ne checks: WH_LOST / OBLIGATION_LOST / REQUEST_LOST / PAST_LOST (hard),
+CONJECTURE_LOST / PERMISSION_LOST (soft); `NAME_EXTRA_VOWEL` (hard) when a bare name rendering exists (ラム → राम, not रामु).
+Run over the stored seed outputs (strings only): references 0/20 and raw Madlad 0/20 new hard issues (no false
+positives on this set); jane v3 flags exactly jn14 (PAST_LOST, "is at home") and jn19 (WH_LOST 何時 → कहिले).
+Whether the rerank then picks the raw-like candidate depends on the beam containing one: needs a model run to confirm.

@@ -15,7 +15,9 @@ public final class TranslationValidator {
 
     public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
         // ne->ja meaning checks (checkNeToJaMeaning)
-        QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED }
+        QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
+        /** ja->ne agreement (IR-lite, SPEC v2 part 2): the candidate dropped what the Japanese predicate states */
+        WH_LOST, OBLIGATION_LOST, REQUEST_LOST, PAST_LOST, CONJECTURE_LOST, PERMISSION_LOST, NAME_EXTRA_VOWEL }
 
     public static final class Issue {
         public final Kind kind;
@@ -89,6 +91,7 @@ public final class TranslationValidator {
         if (requiredTargets != null) for (String t : requiredTargets) if (!containsTerm(ne, t)) issues.add(new Issue(Kind.TERM_MISSING, true, t));
         if (JA_SCRIPT.matcher(ne).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
         if (JA_QUESTION.matcher(sourceJa.trim()).find() && !NE_QUESTION.matcher(ne).find()) issues.add(new Issue(Kind.QUESTION_LOST, false, null));
+        checkAgreementJaToNe(sourceJa, ne, issues);
         return issues;
     }
 
@@ -141,6 +144,56 @@ public final class TranslationValidator {
         return false;
     }
 
+    // ---------------- ja -> ne agreement (IR-lite) ----------------
+    // Each rule: a Japanese marker that the predicate carries, and the Nepali forms that express it.
+    // Lenient on the Nepali side (any accepted form passes) so a correct candidate is not made hard.
+    private static final String NE_CH = "\\u0900-\\u0963\\u0966-\\u097F";
+    private static Pattern neWord(String alt) { return Pattern.compile("(?<![" + NE_CH + "])(?:" + alt + ")(?![" + NE_CH + "])"); }
+    /** question word in a question -> its Nepali counterpart. 何か/誰も/いつも (indefinites) excluded. */
+    private static final String[][] WH = {
+            {"何時(?![間代])", "बजे|बेला"},
+            {"何人", "कति|कतिजना"},
+            {"いくら", "कति\\S*|मूल्य|दाम|पैसा"},
+            {"(?:誰|だれ|どなた)(?![かも])", "को|कसले|कसको|कसलाई|कोसँग|कोही"},
+            {"どこ(?![かも])", "कहाँ\\S*|कुन ठाउँ\\S*"},
+            {"いつ(?![かも])", "कहिले\\S*|कुन दिन\\S*|कति बेला|कति बजे"},
+            {"(?:なぜ|どうして|なんで)", "किन"},
+            {"(?:どうやって|どのように|どうすれば)", "कसरी|के गर\\S*"},
+            {"(?:どれ|どの|どちら|どっち)(?![かも])", "कुन\\S*|कुनचाहिँ|कुनचाहिं"},
+    };
+    private static final Pattern JA_OBLIGATION = Pattern.compile("(なければ(なら|なり|いけ)|なくては(なら|なり|いけ)|ないと(いけ|だめ|ダメ)|なきゃ|なくちゃ|べき)");
+    private static final Pattern NE_OBLIGATION = Pattern.compile("(पर्छ|पर्छन्|पर्ने|पर्यो|पर्‍यो|पर्थ्यो|पर्दछ|पर्नेछ|पर्नुहुन्छ|नुपर|चाहिन्छ|अनिवार्य)");
+    private static final Pattern JA_REQUEST = Pattern.compile("(ください|下さい|[てで](くれ(ませんか|ますか)?|ちょうだい|もらえ|いただけ)|お願い)");
+    private static final Pattern NE_REQUEST = Pattern.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|सक्छौ|ऊ(?![" + NE_CH + "])|ओ(?![" + NE_CH + "]))");
+    private static final Pattern JA_CONJECTURE = Pattern.compile("(でしょう(?!か)|だろう|かもしれ|と思い|と思う|みたい|らしい|はず)");
+    private static final Pattern NE_CONJECTURE = Pattern.compile("(होला|ला(?![" + NE_CH + "])|सक्छ|सक्छन्|जस्तो|जस्तै|लाग्छ|लाग्यो|ठान्छु|सायद|शायद|पक्का|हुनुपर्छ|होइन र)");
+    private static final Pattern JA_PERMISSION = Pattern.compile("[てで]も(いい|良い|よい|大丈夫|かまわ|構わ)");
+    private static final Pattern NE_PERMISSION = Pattern.compile("(हुन्छ|सकिन्छ|सक्नुहुन्छ|सक्छ|ठीक|ठिक|अनुमति|पाइन्छ|पर्दैन|मिल्छ)");
+    /** sentence-final past/perfect predicate (ました・でした・かった・〜た). あなた etc. excluded by the kana before た. */
+    private static final Pattern JA_PAST = Pattern.compile("(ました|でした|かった(です)?|[っんいきしちにびみりえけせてねべめれげ]た|[っん]だ)(よ|ね|よね|か)?[。！!？?]?$");
+    /** Nepali past, perfect and negative past (गयो, गए, गएका छन्, थियो, गर्नुभयो, गएन). Vowel-sign ए (गरे) is not
+     *  used: it also ends ergative nouns (रामले). */
+    private static final Pattern NE_PAST = neWord("\\S*(?:थियो|थिए|थिइन्|थिएँ|थियौं|थ्यो|यो|एको|एका|एकी|भयो|भएको|सक्यो|सके|इन्|इनँ|इनौं|ए|एँ|एन|एनन्|ेन|ेनन्|ेको|ेका|ेकी|्यो|‍यो)");
+    private static final String[] NE_PAST_NOT = {"यो", "त्यो", "जो", "उनको"};
+
+    private static String lastSentence(String ja) {
+        String t = ja.trim();
+        String[] parts = t.split("(?<=[。！!？?])");
+        for (int i = parts.length - 1; i >= 0; i--) if (!parts[i].trim().isEmpty()) return parts[i].trim();
+        return t;
+    }
+
+    private static boolean nePast(String ne) {
+        Matcher m = NE_PAST.matcher(Normalizer.normalize(ne, Normalizer.Form.NFC));
+        while (m.find()) {
+            String w = m.group();
+            boolean skip = false;
+            for (String x : NE_PAST_NOT) if (w.equals(x)) { skip = true; break; }
+            if (!skip) return true;
+        }
+        return false;
+    }
+
     /** ne -> ja checks kept separate from the ja->ne code paths. All hard: each one is a meaning change. */
     static void checkNeToJaMeaning(String sourceNe, String ja, List<Issue> issues) {
         String ne = Normalizer.normalize(sourceNe, Normalizer.Form.NFC);
@@ -162,6 +215,25 @@ public final class TranslationValidator {
             // a known place in the output that the source never mentions: hallucinated (ネバダ州シアトル)
             if (!inSrc && inTgt) issues.add(new Issue(Kind.PLACE_ADDED, true, place[0]));
         }
+    }
+
+    static void checkAgreementJaToNe(String sourceJa, String ne, List<Issue> issues) {
+        String ja = Normalizer.normalize(sourceJa, Normalizer.Form.NFKC);
+        String n = Normalizer.normalize(ne, Normalizer.Form.NFC);
+        if (JA_QUESTION.matcher(ja.trim()).find()) {
+            for (String[] w : WH) {
+                Matcher jm = Pattern.compile(w[0]).matcher(ja);
+                if (jm.find() && !neWord(w[1]).matcher(n).find()) issues.add(new Issue(Kind.WH_LOST, true, jm.group()));
+            }
+        }
+        if (JA_OBLIGATION.matcher(ja).find() && !NE_OBLIGATION.matcher(n).find()) issues.add(new Issue(Kind.OBLIGATION_LOST, true, null));
+        if (JA_REQUEST.matcher(ja).find() && !NE_REQUEST.matcher(n).find()) issues.add(new Issue(Kind.REQUEST_LOST, true, null));
+        // softer: these have many renderings, so they only break ties inside the score
+        if (JA_CONJECTURE.matcher(ja).find() && !NE_CONJECTURE.matcher(n).find()) issues.add(new Issue(Kind.CONJECTURE_LOST, false, null));
+        if (JA_PERMISSION.matcher(ja).find() && !NE_PERMISSION.matcher(n).find()) issues.add(new Issue(Kind.PERMISSION_LOST, false, null));
+        // past: hard only for a past question/statement whose candidate has no past/perfect form at all
+        // (jn14 先生はもう帰られました -> "is at home")
+        if (JA_PAST.matcher(lastSentence(ja)).find() && !nePast(n)) issues.add(new Issue(Kind.PAST_LOST, true, null));
     }
 
     private static void checkNumbers(String src, String tgt, List<Issue> issues) {

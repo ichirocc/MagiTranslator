@@ -130,6 +130,19 @@ public final class JaNeTranslator {
             required.put(label, mustHave);
             if (v.mode == ProperNameResolver.Mode.TRANSLITERATE_BARE) labelNames.put(label, v.names);
         }
+        // katakana adds an epenthetic u to consonant-final foreign names (ラム = Ram): when a bare rendering
+        // exists, a candidate spelling the name with that u is ranked below one that does not (jn17 रामु)
+        List<String> extraVowel = new ArrayList<>();
+        Map<String, String> full = labelNames.get("terms");
+        Map<String, String> bareNames = labelNames.get("terms+name:bare");
+        if (full != null && bareNames != null)
+            for (Map.Entry<String, String> e : full.entrySet()) {
+                String b = bareNames.get(e.getKey());
+                if (b != null && !b.equals(e.getValue())) {
+                    extraVowel.add(e.getValue());
+                    if (!preferred.contains(b)) preferred.add(b);
+                }
+            }
 
         List<Candidate> cands = new ArrayList<>();
         int i = 0;
@@ -152,7 +165,7 @@ public final class JaNeTranslator {
                 cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
             }
         }
-        Result res = rerank(cands, whole, required, preferred, "ne", "ja");
+        Result res = rerank(cands, whole, required, preferred, "ne", "ja", extraVowel);
         remember(res, injWhole.applied, labelNames);
         return res;
     }
@@ -223,6 +236,10 @@ public final class JaNeTranslator {
      * signal inside the score, never a proof of correctness.
      */
     private Result rerank(List<Candidate> cands, String source, Map<String, List<String>> required, List<String> preferred, String outLang, String srcLang) throws Exception {
+        return rerank(cands, source, required, preferred, outLang, srcLang, Collections.emptyList());
+    }
+
+    private Result rerank(List<Candidate> cands, String source, Map<String, List<String>> required, List<String> preferred, String outLang, String srcLang, List<String> extraVowel) throws Exception {
         if (cands.isEmpty()) return new Result("", cands);
         List<Candidate> unique = new ArrayList<>();
         for (Candidate c : cands) {
@@ -232,7 +249,7 @@ public final class JaNeTranslator {
         }
         if (unique.size() == 1) {   // nothing to choose: skip the round trip but still report problems
             Candidate c = unique.get(0);
-            List<TranslationValidator.Issue> iss = validate(source, c.output, required.getOrDefault(c.label, Collections.emptyList()), outLang);
+            List<TranslationValidator.Issue> iss = withExtraVowel(validate(source, c.output, required.getOrDefault(c.label, Collections.emptyList()), outLang), c.output, extraVowel);
             Candidate v = new Candidate(c.label, c.input, c.output, null, Double.NaN, iss);
             return new Result(v.output, Collections.singletonList(v), iss);
         }
@@ -252,7 +269,7 @@ public final class JaNeTranslator {
                 for (Candidate o : unique) if (o != c) agree += QualityScorer.chrF(c.output, o.output);
                 s += MBR_WEIGHT * agree / (unique.size() - 1);
             }
-            Candidate sc = new Candidate(c.label, c.input, c.output, back, s, validate(source, c.output, req, outLang));
+            Candidate sc = new Candidate(c.label, c.input, c.output, back, s, withExtraVowel(validate(source, c.output, req, outLang), c.output, extraVowel));
             scored.add(sc);
             if (best == null || better(sc, best)) best = sc;
         }
@@ -271,6 +288,13 @@ public final class JaNeTranslator {
         if (req == null || req.isEmpty()) return issues;
         List<TranslationValidator.Issue> all = new ArrayList<>(issues);
         for (String t : req) if (!TranslationValidator.containsTerm(output, t)) all.add(new TranslationValidator.Issue(TranslationValidator.Kind.TERM_MISSING, true, t));
+        return all;
+    }
+
+    static List<TranslationValidator.Issue> withExtraVowel(List<TranslationValidator.Issue> issues, String output, List<String> extraVowel) {
+        if (extraVowel == null || extraVowel.isEmpty()) return issues;
+        List<TranslationValidator.Issue> all = new ArrayList<>(issues);
+        for (String d : extraVowel) if (TranslationValidator.containsTerm(output, d)) all.add(new TranslationValidator.Issue(TranslationValidator.Kind.NAME_EXTRA_VOWEL, true, d));
         return all;
     }
 
