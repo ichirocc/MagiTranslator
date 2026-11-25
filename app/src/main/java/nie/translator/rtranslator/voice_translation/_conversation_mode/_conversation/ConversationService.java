@@ -186,6 +186,7 @@ public class ConversationService extends VoiceTranslationService {
                                 if(isFinal && CustomLocale.containsLanguage(ttsLanguages, outputLanguage) && !isAudioMute) { // check if the language can be spoken
                                     speak(guiMessage, outputLanguage);
                                 }
+                                if(isFinal) global.notifyTtsUnavailableOnce(outputLanguage, ttsLanguages);  //SPEC 12
                                 notifyMessage(guiMessage);
                                 // we save every new message in the exchanged messages so that the fragment can restore them
                                 addOrUpdateMessage(guiMessage);

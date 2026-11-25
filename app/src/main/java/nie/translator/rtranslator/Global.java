@@ -235,10 +235,33 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
                 @Override
                 public void onError(int reason) {
-                    responseListener.onFailure(new int[]{reason}, 0);
+                    if (ignoreTTSError) {
+                        //SPEC 12: missing/broken TTS must never hide languages; translation and display still work
+                        responseListener.onSuccess(getLanguages(RTranslatorMode.TEXT_TRANSLATION_MODE, recycleResult));
+                    } else {
+                        responseListener.onFailure(new int[]{reason}, 0);
+                    }
                 }
             });
         }
+    }
+
+    /**
+     * SPEC 12: shows once (per install) a non-blocking notice when the output language is Nepali
+     * and this device has no Nepali TTS voice. Translation is still shown; it is simply not spoken.
+     */
+    public void notifyTtsUnavailableOnce(@Nullable CustomLocale outputLanguage, @Nullable ArrayList<CustomLocale> ttsLanguages) {
+        if (outputLanguage == null || !"ne".equals(outputLanguage.getLanguage())) return;
+        if (ttsLanguages != null && CustomLocale.containsLanguage(ttsLanguages, outputLanguage)) return;
+        final SharedPreferences sharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE);
+        if (sharedPreferences.getBoolean("neTtsUnavailableNoticeShown", false)) return;
+        sharedPreferences.edit().putBoolean("neTtsUnavailableNoticeShown", true).apply();
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                android.widget.Toast.makeText(Global.this, R.string.toast_ne_tts_unavailable, android.widget.Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     public ArrayList<CustomLocale> getLanguages(RTranslatorMode rtranslatorMode, final boolean recycleResult) {
@@ -247,7 +270,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         //we return only the languages compatible with the speech recognizer and the translator (without loading TTS languages)
         final ArrayList<CustomLocale> compatibleLanguages = new ArrayList<>();
         for (CustomLocale translatorLanguage : translatorLanguages) {
-            if (CustomLocale.containsLanguage(speechRecognizerLanguages, translatorLanguage)) {
+            //SPEC 12: the focus languages (ja/ne/vi) are always kept, independent of ASR/TTS quality filters
+            if (CustomLocale.containsLanguage(speechRecognizerLanguages, translatorLanguage)
+                    || java.util.Arrays.asList(Translator.FOCUS_LANGUAGES).contains(translatorLanguage.getLanguage())) {
                 compatibleLanguages.add(translatorLanguage);
             }
         }

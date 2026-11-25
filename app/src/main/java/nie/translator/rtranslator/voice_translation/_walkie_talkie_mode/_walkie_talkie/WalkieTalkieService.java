@@ -335,6 +335,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
                         if(isFinal && CustomLocale.containsLanguage(ttsLanguages, outputLanguage) && !isAudioMute) { // check if the text can be spoken
                             speak(message, outputLanguage);
                         }
+                        if(isFinal) ((Global) getApplication()).notifyTtsUnavailableOnce(outputLanguage, ttsLanguages);  //SPEC 12
                         WalkieTalkieService.super.notifyMessage(message);
                         // we save every new message in the exchanged messages so that the fragment can restore them
                         WalkieTalkieService.super.addOrUpdateMessage(message);
@@ -386,6 +387,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
                         if(isFinal && CustomLocale.containsLanguage(ttsLanguages, outputLanguage) && !isAudioMute) { // check if the text can be spoken
                             speak(message, outputLanguage);
                         }
+                        if(isFinal) ((Global) getApplication()).notifyTtsUnavailableOnce(outputLanguage, ttsLanguages);  //SPEC 12
                         WalkieTalkieService.super.notifyMessage(message);
                         // we save every new message in the exchanged messages so that the fragment can restore them
                         WalkieTalkieService.super.addOrUpdateMessage(message);
