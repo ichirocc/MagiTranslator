@@ -36,6 +36,7 @@ public class Downloader {
     public static final int GENERAL_ERROR = 1;
     public static final int UNZIP_FAILED = 2;
     public static final int INTEGRITY_CHECK_FAILED = 3;
+    public static final int SIGNATURE_INVALID = 5;   //MagiTranslator: the compiled-in model manifest fails its Ed25519 signature
     public static final int HASH_MISMATCH = 4;   //MagiTranslator: the downloaded file is not the pinned one (ModelSources)
     private Context context;
     private final DownloadGroupInfo downloadGroupInfo;
@@ -172,7 +173,21 @@ public class Downloader {
         //start the download from scratch or resume it after the app has been restarted
         //MagiTranslator: the URL always comes from ModelSources, also for a download restored from the preferences
         //of an older version (which still holds the upstream URL)
-        downloadId = PRDownloader.download(ModelSources.url(downloadGroupInfo.downloadsInfo[index].getName()), downloadGroupInfo.downloadsInfo[index].getDestinationPath(), downloadGroupInfo.downloadsInfo[index].getName())
+        //MagiTranslator: a signed manifest with a wrong signature blocks every download (unsigned = hash-only, as before)
+        if (!ManifestSignature.allowsDownload(ManifestSignature.check())) {
+            DownloadInfo refused = downloadGroupInfo.downloadsInfo[index];
+            Log.e("download error", "model manifest signature invalid, download refused");
+            refused.setCurrentError(SIGNATURE_INVALID);
+            downloadGroupInfo.setRunningDownloadIndex(-1);
+            downloadsStarted = false;
+            callback.onError(downloadGroupInfo, refused, SIGNATURE_INVALID);
+            return;
+        }
+        //MagiTranslator: download into <dest>/.staging; the file is moved into place only after verification (ModelStore)
+        java.io.File stagingDir = ModelStore.stagingDir(downloadGroupInfo.downloadsInfo[index].getDestinationPath());
+        //noinspection ResultOfMethodCallIgnored
+        stagingDir.mkdirs();
+        downloadId = PRDownloader.download(ModelSources.url(downloadGroupInfo.downloadsInfo[index].getName()), stagingDir.getAbsolutePath(), downloadGroupInfo.downloadsInfo[index].getName())
                 .build()
                 .setOnStartOrResumeListener(new OnStartOrResumeListener() {
                     @Override
@@ -230,23 +245,15 @@ public class Downloader {
     private void verifyHashThenContinue(int runningDownloadIndex) {
         DownloadInfo download = downloadGroupInfo.downloadsInfo[runningDownloadIndex];
         new Thread(() -> {
-            boolean ok;
-            java.io.File file = new java.io.File(download.getDestinationCompletePath());
-            try {
-                ok = ModelSources.verify(file, download.getName());
-            } catch (java.io.IOException e) {
-                e.printStackTrace();
-                ok = false;
-            }
-            final boolean verified = ok;
+            //verify the staged file and move it into place atomically; a wrong file never reaches the active name
+            ModelStore.Result r = ModelStore.install(download.getDestinationPath(), download.getName(), 0);
+            final boolean verified = r == ModelStore.Result.INSTALLED || r == ModelStore.Result.INSTALLED_WITH_PREVIOUS;
             mainHandler.post(() -> {
                 if (downloadGroupInfo.getRunningDownloadIndex() != runningDownloadIndex) return;   //cancelled meanwhile
                 if (verified) {
                     onVerifiedDownloadComplete();
                 } else {
-                    Log.e("download error", download.getName() + ": SHA-256 mismatch, file deleted");
-                    //noinspection ResultOfMethodCallIgnored
-                    file.delete();
+                    Log.e("download error", download.getName() + ": install refused (" + r + "), staged file deleted");
                     download.setCurrentError(HASH_MISMATCH);
                     downloadGroupInfo.setRunningDownloadIndex(-1);
                     downloadsStarted = false;

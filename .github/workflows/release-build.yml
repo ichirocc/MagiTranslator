@@ -43,10 +43,14 @@ jobs:
             app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java \
             app/src/test/java/nie/translator/rtranslator/downloader/ZipSafetyTest.java \
             app/src/main/java/nie/translator/rtranslator/downloader/ModelSources.java \
-            app/src/test/java/nie/translator/rtranslator/downloader/ModelSourcesTest.java
+            app/src/test/java/nie/translator/rtranslator/downloader/ModelSourcesTest.java \
+            app/src/main/java/nie/translator/rtranslator/downloader/ModelStore.java \
+            app/src/main/java/nie/translator/rtranslator/downloader/ManifestSignature.java \
+            app/src/test/java/nie/translator/rtranslator/downloader/ModelStoreTest.java
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.jane.JaNeLibraryTest
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ModelSourcesTest   # pinned model hashes, no upstream URL
+          java -cp /tmp/jt nie.translator.rtranslator.downloader.ModelStoreTest     # atomic install, rollback, manifest signature
           python3 -I tools/eval/test_metrics.py   # eval metrics must stay in sync with the Java validator
 
       - name: Restore release keystore from secrets (optional)
