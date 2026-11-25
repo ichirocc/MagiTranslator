@@ -263,6 +263,11 @@ public class Translator extends NeuralNetworkApi {
                     public List<String> translateNBest(String t, String src, String tgt, int n) throws Exception {
                         return silentTranslateNBest(t, src, tgt, janeBeamSize, n);
                     }
+
+                    @Override
+                    public List<String> translateNBestWide(String t, String src, String tgt, int n, int beam) throws Exception {
+                        return silentTranslateNBest(t, src, tgt, Math.max(janeBeamSize, beam), n);   //only when every candidate is hard
+                    }
                 }, glossary);
                 janeTranslator.setPhraseBook(phraseBook);
                 janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried

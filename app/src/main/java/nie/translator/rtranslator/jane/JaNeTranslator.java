@@ -63,6 +63,12 @@ public final class JaNeTranslator {
     private int maxCandidates = 5;
     private int nBest = 3;
     private static final double MBR_WEIGHT = 0.3;
+    // extra round when every candidate is hard (diversification): wider beam and more hypotheses
+    static final int WIDE_BEAM = 8, WIDE_NBEST = 6;
+    private boolean diversify = true;
+
+    /** Enables the bounded extra round of candidates when every candidate still has a hard problem. */
+    public void setDiversify(boolean on) { diversify = on; }
 
     public JaNeTranslator(Backend backend, Glossary glossary) { this(backend, glossary, new TranslationMemory()); }
 
@@ -191,6 +197,22 @@ public final class JaNeTranslator {
             }
         }
         Result res = rerank(cands, whole, required, preferred, "ne", "ja", extraVowel);
+        if (diversify && TranslationValidator.hardCount(res.issues) > 0) {
+            // every candidate is hard: one bounded extra round (wider beam, clause split, paraphrase)
+            List<Candidate> more = new ArrayList<>(cands);
+            addHyps(more, required, mustHave, "wide", whole, backend.translateNBestWide(whole, "ja", "ne", WIDE_NBEST, WIDE_BEAM), true, whole);
+            if (sentences.size() == 1) {
+                List<String> clauses = JaParaphrase.clauses(whole);
+                if (clauses.size() > 1) {
+                    String out = finishNe(translateSegments(clauses, "ja", "ne"), whole);
+                    if (!out.isEmpty()) { more.add(new Candidate("clauses", whole, out, null, Double.NaN)); required.put("clauses", mustHave); }
+                }
+            }
+            String para = JaParaphrase.paraphrase(termsText);
+            if (!para.equals(termsText))
+                addHyps(more, required, mustHave, "para", para, backend.translateNBest(para, "ja", "ne", nBest), false, whole);
+            if (more.size() > cands.size()) res = rerank(more, whole, required, preferred, "ne", "ja", extraVowel);
+        }
         remember(res, injWhole.applied, labelNames);
         return res;
     }
@@ -266,7 +288,28 @@ public final class JaNeTranslator {
                 if (!neToJaPreferred.contains(out)) neToJaPreferred.add(out);
             }
         }
-        return rerank(cands, t, required, neToJaPreferred, "ja", "ne");
+        Result res = rerank(cands, t, required, neToJaPreferred, "ja", "ne");
+        if (diversify && TranslationValidator.hardCount(res.issues) > 0) {
+            List<Candidate> more = new ArrayList<>(cands);
+            addHyps(more, required, rev.requiredTargets, "wide", t, backend.translateNBestWide(t, "ne", "ja", WIDE_NBEST, WIDE_BEAM), true, null);
+            String para = NeParaphrase.paraphrase(rev.text);
+            if (!para.equals(rev.text))
+                addHyps(more, required, rev.requiredTargets, "para", para, backend.translateNBest(para, "ne", "ja", nBest), false, null);
+            if (more.size() > cands.size()) res = rerank(more, t, required, neToJaPreferred, "ja", "ne");
+        }
+        return res;
+    }
+
+    /** Adds beam hypotheses as candidates; with allHash every label carries "#" (fallback-only alternatives). */
+    private void addHyps(List<Candidate> into, Map<String, List<String>> required, List<String> req, String base, String input,
+                         List<String> hyps, boolean allHash, String jaWhole) {
+        for (int k = 0; k < hyps.size(); k++) {
+            String out = jaWhole != null ? finishNe(hyps.get(k), jaWhole) : finishJa(hyps.get(k));
+            if (out.isEmpty()) continue;
+            String label = allHash || k > 0 ? base + "#" + (k + 1) : base;
+            required.put(label, req);
+            into.add(new Candidate(label, input, out, null, Double.NaN));
+        }
     }
 
     /**
@@ -350,8 +393,35 @@ public final class JaNeTranslator {
     }
 
     static boolean better(Candidate a, Candidate b) {
-        if (a.hard() != b.hard()) return a.hard() < b.hard();
+        if (a.hard() != b.hard() && (a.hard() == 0 || b.hard() == 0)) return a.hard() < b.hard();
+        if (a.hard() > 0 && b.hard() > 0) {
+            // both still have hard problems: the less severe set wins (a wrong number or a flipped negation is
+            // worse than a missing preferred term); ties fall back to the count, then the score
+            int sa = severity(a.issues), sb = severity(b.issues);
+            if (sa != sb) return sa < sb;
+            if (a.hard() != b.hard()) return a.hard() < b.hard();
+        }
         return a.score > b.score;
+    }
+
+    /** Severity weight of one hard issue (SPEC v2 05b mapping: CRITICAL > MAJOR > MODERATE). */
+    static int severity(TranslationValidator.Kind k) {
+        switch (k) {
+            case EMPTY: return 1000;
+            case NUMBER_LOST: case NEGATION_LOST: return 250;   // above two currency or place issues
+            case CURRENCY_MISMATCH: case PLACE_ADDED: case PLACE_MISSING: return 100;
+            case QUESTION_WORD_LOST: case WH_LOST: case REPETITION: case UNTRANSLATED_SOURCE_SCRIPT: return 60;
+            case OBLIGATION_LOST: case REQUEST_LOST: case PAST_LOST: case QUESTION_LOST: return 40;
+            case TERM_MISSING: return 30;
+            case NAME_EXTRA_VOWEL: return 10;
+            default: return 20;
+        }
+    }
+
+    static int severity(List<TranslationValidator.Issue> issues) {
+        int s = 0;
+        for (TranslationValidator.Issue i : issues) if (i.hard) s += severity(i.kind);
+        return s;
     }
 
     private static List<TranslationValidator.Issue> validate(String source, String output, List<String> req, String outLang) {

@@ -70,6 +70,9 @@ public class JaneEval {
                 public List<String> translateNBest(String text, String src, String tgt, int n) throws Exception {
                     return py.call(tgt, beam, Math.min(n, nbest), text);
                 }
+                public List<String> translateNBestWide(String text, String src, String tgt, int n, int b) throws Exception {
+                    return py.call(tgt, Math.max(beam, b), n, text);
+                }
             };
             for (String line : Files.readAllLines(Paths.get(a.get("--in")), StandardCharsets.UTF_8)) {
                 if (line.startsWith("#") || line.startsWith("id\t") || line.trim().isEmpty()) continue;
@@ -80,6 +83,7 @@ public class JaneEval {
                 long t0 = System.currentTimeMillis();
                 Glossary g = Glossary.withDefaults();
                 JaNeTranslator tr = new JaNeTranslator(backend, g);
+                tr.setDiversify(!a.containsKey("--no-diversify"));
                 if (a.containsKey("--userdict")) {   // directory of #!jane files (e.g. dictionaries/)
                     PhraseBook pb = new PhraseBook();
                     UserDictionary.loadDirectory(new java.io.File(a.get("--userdict")), g, pb);

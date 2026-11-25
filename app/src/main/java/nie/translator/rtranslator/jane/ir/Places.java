@@ -20,4 +20,11 @@ public final class Places {
         for (String[] p : TABLE) k.add(p[0]);
         return k;
     }
+
+    /** All Nepali stems of the known places. */
+    public static java.util.List<String> nepaliStems() {
+        java.util.List<String> k = new java.util.ArrayList<>();
+        for (String[] p : TABLE) for (int i = 1; i < p.length; i++) k.add(p[i]);
+        return k;
+    }
 }

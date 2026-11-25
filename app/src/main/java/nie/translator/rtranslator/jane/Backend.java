@@ -14,4 +14,12 @@ public interface Backend {
     default List<String> translateNBest(String text, String srcLang, String tgtLang, int n) throws Exception {
         return Collections.singletonList(translate(text, srcLang, tgtLang));
     }
+
+    /**
+     * Like {@link #translateNBest} with a wider beam, used only for the bounded extra round when every
+     * candidate still has a hard problem. Backends that cannot change the beam return the usual N-best.
+     */
+    default List<String> translateNBestWide(String text, String srcLang, String tgtLang, int n, int beam) throws Exception {
+        return translateNBest(text, srcLang, tgtLang, n);
+    }
 }

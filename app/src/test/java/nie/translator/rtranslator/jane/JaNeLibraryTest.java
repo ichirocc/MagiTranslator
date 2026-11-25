@@ -521,6 +521,34 @@ public class JaNeLibraryTest {
             } catch (Exception e) { yes(false, "dictionaries/" + df + " threw " + e); }
         }
 
+        // severity tie-break and the extra round when every candidate is hard
+        eq("なんじに会社へ行きますか？", JaParaphrase.paraphrase("何時に会社へ行きますか？"), "何時 -> なんじ");
+        eq("何時間かかりますか？", JaParaphrase.paraphrase("何時間かかりますか？"), "何時間 kept");
+        eq("यसको मूल्य 1000 रुपैयाँ हो।", NeParaphrase.paraphrase("यसको मूल्य १,००० रुपैयाँ हो।"), "Devanagari digits -> ASCII, no grouping");
+        eq("सीता नेपाल बाट आएकी हुन्।", NeParaphrase.paraphrase("सीता नेपालबाट आएकी हुन्।"), "place + case marker split");
+        eq("म नेपाली बोल्छु।", NeParaphrase.paraphrase("म नेपाली बोल्छु।"), "नेपाली untouched");
+        eq(2, JaParaphrase.clauses("雨が降ったら、家にいます。").size(), "clause split at 、");
+        {
+            java.util.List<TranslationValidator.Issue> numLost = TranslationValidator.validateNeToJa("यसको मूल्य १,००० रुपैयाँ हो।", "価格は100万ルピー。");
+            java.util.List<TranslationValidator.Issue> curOnly = TranslationValidator.validateNeToJa("यसको मूल्य १,००० रुपैयाँ हो।", "価格は1000円。");
+            yes(JaNeTranslator.severity(numLost) > JaNeTranslator.severity(curOnly), "a wrong amount (100万) is worse than a wrong currency word");
+            JaNeTranslator.Candidate a = new JaNeTranslator.Candidate("a", "", "x", null, 0.9, java.util.Arrays.asList(new TranslationValidator.Issue(TranslationValidator.Kind.NUMBER_LOST, true, "1000")));
+            JaNeTranslator.Candidate b = new JaNeTranslator.Candidate("b", "", "y", null, 0.1, java.util.Arrays.asList(new TranslationValidator.Issue(TranslationValidator.Kind.TERM_MISSING, true, "t"), new TranslationValidator.Issue(TranslationValidator.Kind.TERM_MISSING, true, "u")));
+            yes(JaNeTranslator.better(b, a), "all hard: two missing terms beat a lost number despite lower score");
+            JaNeTranslator.Candidate c = new JaNeTranslator.Candidate("c", "", "z", null, 0.0, java.util.Collections.emptyList());
+            yes(JaNeTranslator.better(c, b), "a clean candidate still beats any hard one");
+        }
+        {
+            // extra round: the first beam only has 何時 -> कहिले; the paraphrased input gives कति बजे
+            Backend wb = new Backend() {
+                public String translate(String text, String s, String t) { return "ja".equals(t) ? "明日の夕方、何時に会社へ行きますか？" : text.contains("なんじ") ? "तपाईँ भोलि साँझ कति बजे कम्पनी जानुहुन्छ?" : "तपाईँ भोलि साँझ कम्पनीमा कहिले जानुहुन्छ?"; }
+                public java.util.List<String> translateNBest(String text, String s, String t, int n) { return java.util.Collections.singletonList(translate(text, s, t)); }
+            };
+            JaNeTranslator tw = new JaNeTranslator(wb, Glossary.withDefaults());
+            eq("तपाईँ भोलि साँझ कति बजे कम्पनी जानुहुन्छ?", tw.translate("明日の夕方、何時に会社へ行きますか？", "ja", "ne").text, "jn19: extra round reaches कति बजे");
+            tw.setDiversify(false);
+            yes(tw.translate("明日の夕方、何時に会社へ行きますか？", "ja", "ne").needsReview(), "without the extra round it stays hard");
+        }
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }
