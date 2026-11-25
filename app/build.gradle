@@ -29,11 +29,11 @@ android {
     ndkVersion "28.0.12674087"
     defaultConfig {
         applicationId "com.magi.translator"
-        targetSdkVersion 36   //32
+        targetSdk 36
         compileSdk 36
         versionName '3.0.0-magi.11'
         versionCode 38
-        minSdkVersion 36   //MagiTranslator: Android 16+ only
+        minSdk 36   //MagiTranslator: Android 16+ only
         externalNativeBuild {
             cmake {
                 arguments '-DSPM_ENABLE_SHARED=OFF',  //sentencepiece flags
@@ -71,7 +71,7 @@ android {
         buildConfig true
     }
 
-    packagingOptions {
+    packaging {
         jniLibs {
             // store .so compressed and extract at install: only ELF segment alignment matters for 16KB pages
             useLegacyPackaging true
@@ -115,7 +115,7 @@ android {
             signingConfig signingConfigs.sideload
         }
     }
-    lintOptions {
+    lint {
         // run lint on release builds and report, but do not fail the build (fixes are tracked separately)
         checkReleaseBuilds true
         abortOnError false
