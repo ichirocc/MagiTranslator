@@ -1,4 +1,6 @@
-# MagiTranslator 総合詳細実装仕様書 v2（作成中）
+# MagiTranslator 総合詳細実装仕様書 v2
+
+> **正本は [`SPEC_v2.md`](./SPEC_v2.md)（統合版）。** 以下の各部ファイルはその出典として残す。`docs/SPEC.md`（v1）は SPEC_v2.md で置き換えられた（superseded）が、履歴として残す。
 
 `docs/SPEC.md`（v1）を置き換える新しい仕様書を、部ごとに作成している。各部の本文はユーザー提示の原稿をそのまま収め、
 **各部の末尾に「現状コードとの整合性メモ」** を付ける（実在コード・確定済み判断・実測結果との差分）。
@@ -21,7 +23,7 @@
 | 13 | `13_integration_testing.md` 全体統合・テスト・品質評価 | Claude 起草 |
 | 14 | `14_migration_acceptance.md` 既存コードからの移行・最終受入基準 | Claude 起草 |
 
-統合までの間、実装の正本は `docs/SPEC.md`（v1）と §19.A の対応状況表、および `docs/eval/` の実測記録とする。
+実装の正本は `SPEC_v2.md`。実測の記録は `docs/eval/`。`docs/SPEC.md`（v1）は superseded（決定 D1〜D10 は SPEC_v2 §1 に引き継ぎ）。
 
 ## 採用済みの判断（ユーザー「推奨で」2026-11-25）
 各部 notes の「A. 要判断」は推奨案で確定:
