@@ -29,6 +29,7 @@
 | 12 | **FLORES-200** | 評価専用（ja, ne の同一文対訳） | ja, ne | テキスト | CC BY-SA 4.0 — 一般知識（要再確認） | **評価専用**。辞書・学習に混ぜない（第3部 §6.4） |
 | 13 | **Nepali Brihat Sabdakosh（ネパール・アカデミー）の JSON 化** | ne 国語辞典（語義・品詞） | ne | JSON（GitHub の変換物） | 変換コードは MIT、**辞書本文のライセンス不明** | **不採用（権利不明）**。アカデミーの許諾があれば再検討 |
 | 14 | 公的機関の多言語資料（在留支援・医療・防災の ne 版） | 高リスク分野の用語 | ja, ne | PDF/HTML | 著作物。**個別に利用条件を確認** | 候補（専門用語。許諾確認後） |
+| 16 | **在日ネパール大使館公式サイト（jp.nepalembassy.gov.np）** | 行政・領事分野の用語（旅券・査証・委任状・認証・出生/死亡登録・遺体搬送・NRN カード等）、在日ネパール人向け告知の表現 | ne, en（**日本語ページの有無と量は要確認**） | HTML / PDF（告知・申請書類）。取得は低頻度・robots 遵守・取得日と URL を記録 | ネパール政府の著作物。**利用条件の記載を未確認** — 要確認（必要なら大使館へ照会） | **採用候補（行政用語の出典）**。本文の一括転載・同梱はせず、用語ペアの抽出と出典参照に限定。抽出語は UNVERIFIED→ネイティブ確認 |
 | 15 | **独自構築辞書** | ja⇔ne 特有の表現・会話表現・敬語 | ja, ne | 本リポジトリの TSV | 自前（ネイティブ確認必須） | **採用（最優先で小規模から）** |
 
 ## 3. 必要な辞書の種類と主な入力元
@@ -42,7 +43,7 @@
 | 固有名詞辞書（人名・地名・組織名） | 3, 5, 15 | MACHINE_REVIEWED（Wikidata ラベル） |
 | 敬語・丁寧表現辞書 | 15 | NATIVE_VERIFIED 必須 |
 | 会話表現・口語辞書 | 15, 11（参考） | NATIVE_VERIFIED 必須 |
-| 専門用語辞書（医療・行政・技術） | 14, 15 | 高リスク：専門家または母語話者の確認必須 |
+| 専門用語辞書（医療・行政・技術） | 14, 15, 16（行政・領事） | 高リスク：専門家または母語話者の確認必須 |
 | 数字・日時・単位・通貨表現辞書 | 4 | MACHINE_REVIEWED（CLDR は規格データ） |
 | ネパール語の表記揺れ・異形辞書 | 9, 1 | MACHINE_GENERATED |
 | ユーザー独自辞書 | 端末内入力 | ユーザー指定（`MANDATORY` はユーザー明示時のみ） |
@@ -107,10 +108,11 @@
 
 1. `license_registry.tsv`（ソース・版・URL・ライセンス・確認者・確認日・同梱可否）を作り、上表の「要確認」を人が埋める。
 2. **独自構築辞書（#15）**の雛形 TSV：高リスク用語・数字/通貨・地名・会話定型句から 100〜300 語。現行 `Glossary.withDefaults()` と `jane/ir/Places` をここへ移す（コードに直書きしない）。
-3. CLDR（#4）と Wikidata（#3）から、数字・通貨・国名・主要地名を自動生成（規格/CC0 系で権利が比較的明確）。
-4. Kaikki（#1）の ja / ne 翻訳表から ja–ne リンクを抽出し、収録量を実測（PC、机上見積り後）。
-5. ネイティブレビュー用 TSV の出力と取込ツール。
-6. 端末側 DictionaryRepository（SQLite）と、validator の TERM_MISSING を「検証状態つき用語」に切り替え。
+3. 在日ネパール大使館サイト（#16）のサービス一覧・申請書類から行政・領事用語の候補を抽出（ne 原語＋公式英語名。日本語ページがあれば ja も）。出典 URL・取得日を各語に記録し、レビュー用 TSV へ。
+4. CLDR（#4）と Wikidata（#3）から、数字・通貨・国名・主要地名を自動生成（規格/CC0 系で権利が比較的明確）。
+5. Kaikki（#1）の ja / ne 翻訳表から ja–ne リンクを抽出し、収録量を実測（PC、机上見積り後）。
+6. ネイティブレビュー用 TSV の出力と取込ツール。
+7. 端末側 DictionaryRepository（SQLite）と、validator の TERM_MISSING を「検証状態つき用語」に切り替え。
 
 ## 調査出典
 - PanLex スナップショット（CC0 と記載）: https://panlex.org/snapshot ／ db.panlex.org README: https://db.panlex.org/README.txt
@@ -120,3 +122,4 @@
 - IndoWordNet: https://en.wikipedia.org/wiki/IndoWordNet ／ https://arxiv.org/pdf/2201.02977.pdf
 - Nepali Brihat Sabdakosh JSON（本文の権利不明）: https://github.com/bikashpadhikari/nepali-brihat-sabdakosh-json
 - OPUS: https://github.com/Helsinki-NLP/OPUS
+- 在日ネパール大使館: https://jp.nepalembassy.gov.np/services-list/ ／ 査証: https://jp.nepalembassy.gov.np/pages/visa-1/ ／ 告知: https://jp.nepalembassy.gov.np/category/notices
