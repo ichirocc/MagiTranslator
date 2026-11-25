@@ -127,3 +127,43 @@
 # ---- government
 प्रधानमन्त्री	首相
 राष्ट्रपति	大統領
+
+# ---- everyday: family
+# दाइ / दिदी are also used to address an older stranger, which お兄さん / お姉さん also cover.
+# भाइ / बहिनी (younger brother / sister) are also used to address a younger stranger, which 弟 / 妹
+# do not: not listed.
+बुबा	お父さん
+आमा	お母さん
+दाइ	お兄さん
+दिदी	お姉さん
+हजुरबुबा	おじいさん
+हजुरआमा	おばあさん
+छोरा	息子
+छोरी	娘
+
+# ---- everyday: time
+आज	今日
+भोलि	明日
+हिजो	昨日
+दिनहुँ	毎日
+सप्ताहान्त	週末
+
+# ---- everyday: food and drink
+खाना	ご飯
+फलफूल	果物
+दूध	牛乳
+चिया	お茶
+कफी	コーヒー
+कुखुराको मासु	鶏肉
+सुँगुरको मासु	豚肉
+
+# ---- everyday: home and getting around
+कोठा	部屋
+भान्सा	台所
+शौचालय	トイレ
+ट्याक्सी	タクシー
+साइकल	自転車
+रेल	電車
+पेट	お腹
+दन्त चिकित्सक	歯医者
+मौसम	天気

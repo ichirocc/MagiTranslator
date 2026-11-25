@@ -1,0 +1,78 @@
+# MagiTranslator everyday phrase book (jane PhraseBook)
+# Format: japanese<TAB>nepali[<TAB>ja>ne], one phrase per line; lines starting with # are comments.
+# "ja>ne" in a third column = use only for Japanese -> Nepali (the Nepali is ambiguous when read back).
+#
+# A phrase is used only when the WHOLE utterance (or a whole sentence) is the phrase; punctuation and
+# spaces are ignored, so "ありがとうございます。" and "ありがとうございます" match the same line.
+# Several Japanese lines may share one Nepali translation; for Nepali -> Japanese the FIRST line wins,
+# so put the most neutral Japanese first.
+# Nepali uses the polite register (तपाईं, -नुहोस्), which is safe with strangers and elders.
+# Phrases without a natural equivalent (いただきます, お疲れ様です, よろしくお願いします) are not listed.
+# A native speaker should confirm new phrases before they are added.
+
+# ---- greetings
+こんにちは	नमस्ते
+こんばんは	नमस्ते
+今日は	नमस्ते
+今晩は	नमस्ते
+おはようございます	शुभ प्रभात
+おはよう	शुभ प्रभात
+おやすみなさい	शुभ रात्रि
+おやすみ	शुभ रात्रि
+さようなら	फेरि भेटौँला
+また会いましょう	फेरि भेटौँला
+また明日	भोलि भेटौँला
+はじめまして	तपाईंलाई भेटेर खुसी लाग्यो
+お元気ですか	तपाईंलाई कस्तो छ?
+元気ですか	तपाईंलाई कस्तो छ?
+元気です	म ठीक छु
+私は元気です	म ठीक छु
+お名前は何ですか	तपाईंको नाम के हो?
+
+# ---- thanks and apologies
+ありがとうございます	धन्यवाद
+ありがとう	धन्यवाद
+どうもありがとうございます	धेरै धन्यवाद
+本当にありがとうございます	धेरै धन्यवाद
+どういたしまして	केही छैन	ja>ne
+すみません	माफ गर्नुहोस्
+ごめんなさい	माफ गर्नुहोस्
+申し訳ありません	माफ गर्नुहोस्
+
+# ---- yes / no / reactions
+はい	हजुर	ja>ne
+はいそうです	हजुर, हो
+いいえ	होइन
+大丈夫です	ठीक छ
+大丈夫ですか	तपाईं ठीक हुनुहुन्छ?
+本当ですか	साँच्चै?
+いいですね	राम्रो छ
+わかりました	बुझेँ
+わかりません	मैले बुझिनँ
+
+# ---- asking for help in a conversation
+もう一度お願いします	फेरि भन्नुहोस् न
+もう一度言ってください	फेरि भन्नुहोस् न
+ゆっくり話してください	बिस्तारै बोल्नुहोस्
+ちょっと待ってください	एकछिन पर्खनुहोस्
+少々お待ちください	एकछिन पर्खनुहोस्
+助けてください	मद्दत गर्नुहोस्
+日本語が話せますか	तपाईं जापानी बोल्नुहुन्छ?
+ネパール語が少し話せます	म अलिअलि नेपाली बोल्छु
+
+# ---- everyday needs
+トイレはどこですか	शौचालय कहाँ छ?
+いくらですか	कति पर्छ?
+おいしいです	मिठो छ
+おいしい	मिठो छ
+お腹が空きました	मलाई भोक लाग्यो
+喉が渇きました	मलाई तिर्खा लाग्यो
+疲れました	म थाकेँ
+暑いです	गर्मी छ
+寒いです	जाडो छ
+
+# ---- wishes
+おめでとうございます	बधाई छ
+誕生日おめでとうございます	जन्मदिनको शुभकामना
+誕生日おめでとう	जन्मदिनको शुभकामना
+お大事に	आफ्नो ख्याल राख्नुहोस्

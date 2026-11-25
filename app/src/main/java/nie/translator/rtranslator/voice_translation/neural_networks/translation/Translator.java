@@ -229,6 +229,11 @@ public class Translator extends NeuralNetworkApi {
                         return silentTranslateNBest(t, src, tgt, janeBeamSize, n);
                     }
                 }, glossary, neGlossary);
+                nie.translator.rtranslator.jane.PhraseBook phrases = new nie.translator.rtranslator.jane.PhraseBook();
+                try (java.io.Reader r = new java.io.InputStreamReader(global.getResources().openRawResource(R.raw.jane_phrases), java.nio.charset.StandardCharsets.UTF_8)) {
+                    phrases.load(r);   //everyday set phrases (greetings, thanks ...), both directions
+                }
+                janeTranslator.setPhraseBook(phrases);
                 janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried
             }
             janeBeamSize = beamSize;

@@ -230,9 +230,63 @@ public class JaNeLibraryTest {
         // built-in dictionary (res/raw/jane_dictionary.tsv): format, overlap rule, behaviour
         checkDictionary("app/src/main/res/raw/jane_dictionary.tsv");
         checkNeJaDictionary("app/src/main/res/raw/jane_dictionary_ne_ja.tsv");
+        checkPhraseBook("app/src/main/res/raw/jane_phrases.tsv");
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
+    }
+
+    static void checkPhraseBook(String path) throws Exception {
+        java.util.List<String> lines = java.nio.file.Files.readAllLines(java.nio.file.Paths.get(path), java.nio.charset.StandardCharsets.UTF_8);
+        int entries = 0, bad = 0;
+        java.util.Set<String> jaKeys = new java.util.HashSet<>();
+        int dup = 0;
+        for (String line : lines) {
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String[] c = line.split("\t", -1);
+            boolean ok = (c.length == 2 || (c.length == 3 && c[2].equals("ja>ne")))
+                    && !c[0].isEmpty() && !c[0].matches(".*[\\u0900-\\u097F].*")
+                    && c[1].matches("[\\u0900-\\u097F ,?]+") && c[1].equals(c[1].trim());
+            if (!ok) { bad++; System.out.println("     bad phrase line: " + line); }
+            if (!jaKeys.add(PhraseBook.keyJa(c[0]))) { dup++; System.out.println("     duplicate phrase: " + c[0]); }
+            entries++;
+        }
+        eq(0, bad, "phrases: every line is japanese<TAB>nepali[<TAB>ja>ne] (" + entries + " phrases)");
+        eq(0, dup, "phrases: no duplicate Japanese phrase");
+
+        PhraseBook pb = new PhraseBook();
+        try (java.io.Reader r = new java.io.InputStreamReader(new java.io.FileInputStream(path), java.nio.charset.StandardCharsets.UTF_8)) {
+            pb.load(r);
+        }
+        eq("धन्यवाद", pb.lookupJaToNe("ありがとうございます。"), "phrases: ja->ne with punctuation");
+        eq("धन्यवाद", pb.lookupJaToNe("えっと、ありがとう"), "phrases: fillers ignored (same normaliser as the pipeline)");
+        eq("हजुर, हो", pb.lookupJaToNe("はい そうです"), "phrases: spaces / commas ignored");
+        eq("ありがとうございます", pb.lookupNeToJa("धन्यवाद।"), "phrases: ne->ja, first Japanese line wins");
+        eq("こんにちは", pb.lookupNeToJa("नमस्ते"), "phrases: नमस्ते -> こんにちは");
+        eq("いくらですか", pb.lookupNeToJa("कति पर्छ ?"), "phrases: ne->ja question");
+        eq(null, pb.lookupNeToJa("केही छैन"), "phrases: ja>ne-only line is not used backwards (केही छैन = there is nothing)");
+        eq(null, pb.lookupJaToNe("ありがとうございます、また来ます"), "phrases: never part of a sentence");
+
+        // pipeline: a whole phrase skips the model; a sentence that is a phrase is fixed inside a longer text
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        Backend counting = (text, s, t) -> { calls.incrementAndGet(); return "x"; };
+        JaNeTranslator tr = new JaNeTranslator(counting, Glossary.withDefaults(), new NeJaGlossary());
+        tr.setPhraseBook(pb);
+        JaNeTranslator.Result r1 = tr.translate("こんにちは", "ja", "ne");
+        eq("नमस्ते", r1.text, "phrases: whole utterance translated by the phrase book");
+        eq(0, calls.get(), "phrases: the model is not called for a set phrase");
+        JaNeTranslator.Result r2 = tr.translate("तपाईंलाई कस्तो छ?", "ne", "ja");
+        eq("お元気ですか", r2.text, "phrases: ne->ja whole utterance");
+        java.util.Map<String, String> f = new java.util.HashMap<>();
+        f.put("駅はどこですか？", "स्टेसन कहाँ छ?");
+        Backend seg = (text, s, t) -> f.getOrDefault(text, "");
+        JaNeTranslator tr2 = new JaNeTranslator(seg, Glossary.withDefaults(), new NeJaGlossary());
+        tr2.setPhraseBook(pb);
+        JaNeTranslator.Result r3 = tr2.translate("すみません。駅はどこですか？", "ja", "ne");
+        for (JaNeTranslator.Candidate c : r3.candidates) System.out.println("     " + c);
+        boolean fixedSentence = false;
+        for (JaNeTranslator.Candidate c : r3.candidates) if (c.output.startsWith("माफ गर्नुहोस्")) fixedSentence = true;
+        yes(fixedSentence, "phrases: a phrase sentence inside a longer text is translated by the phrase book");
     }
 
     static void checkNeJaDictionary(String path) throws Exception {
@@ -267,7 +321,7 @@ public class JaNeLibraryTest {
 
         // pipeline: the term-injected candidate keeps 病院; a plain one that loses it must not win
         java.util.Map<String, String> f = new java.util.HashMap<>();
-        f.put("म भोलि 病院मा जान्छु।", "私は明日病院に行きます。");
+        f.put("म 明日 病院मा जान्छु।", "私は明日病院に行きます。");   // भोलि and अस्पताल are both dictionary terms
         f.put("म भोलि अस्पतालमा जान्छु।", "私は明日医院に行きます。");
         java.util.Map<String, String> b = new java.util.HashMap<>();
         b.put("私は明日病院に行きます。", "म भोलि अस्पताल जान्छु।");

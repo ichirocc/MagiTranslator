@@ -48,7 +48,7 @@ public final class NeJaGlossary {
         BufferedReader br = new BufferedReader(reader);
         String line;
         while ((line = br.readLine()) != null) {
-            if (line.startsWith("﻿")) line = line.substring(1);
+            if (line.startsWith("\uFEFF")) line = line.substring(1);
             if (line.isEmpty() || line.startsWith("#")) continue;
             String[] cols = line.split("\t");
             if (cols.length >= 2) put(cols[0], cols[1]);

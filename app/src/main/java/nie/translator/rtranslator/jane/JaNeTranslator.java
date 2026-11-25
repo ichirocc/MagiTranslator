@@ -49,6 +49,10 @@ public final class JaNeTranslator {
     private static final double MBR_WEIGHT = 0.3;
 
     private final NeJaGlossary neGlossary;
+    private PhraseBook phrases = new PhraseBook();
+
+    /** Everyday set phrases translated by lookup (whole utterance or whole sentence only). */
+    public void setPhraseBook(PhraseBook phrases) { this.phrases = phrases == null ? new PhraseBook() : phrases; }
 
     public JaNeTranslator(Backend backend, Glossary glossary) {
         this(backend, glossary, null);
@@ -77,6 +81,8 @@ public final class JaNeTranslator {
     private Result jaToNe(String raw) throws Exception {
         String norm = JaNormalizer.normalize(raw);
         if (norm.isEmpty()) return new Result("", Collections.emptyList());
+        String fixed = phrases.lookupJaToNe(norm);
+        if (fixed != null) return phraseResult(norm, fixed);
         String whole = JaNormalizer.ensureSentenceEnd(norm);
         List<String> sentences = JaSegmenter.split(norm);
 
@@ -98,6 +104,7 @@ public final class JaNeTranslator {
             List<String> segs = new ArrayList<>();
             boolean changed = false;
             for (String s : sentences) {
+                if (phrases.lookupJaToNe(s) != null) { segs.add(s); continue; }   //translated by the phrase book
                 Glossary.Injection inj = glossary.inject(s);
                 segs.add(inj.text);
                 changed |= inj.changed(s);
@@ -134,6 +141,8 @@ public final class JaNeTranslator {
     private Result neToJa(String raw) throws Exception {
         String t = Normalizer.normalize(raw == null ? "" : raw, Normalizer.Form.NFC).replace('|', '।').trim();
         if (t.isEmpty()) return new Result("", Collections.emptyList());
+        String fixed = phrases.lookupNeToJa(t);
+        if (fixed != null) return phraseResult(t, fixed);
         Map<String, List<String>> inputs = new LinkedHashMap<>();
         // terminology (NeJaGlossary): the same required Japanese terms apply to every candidate
         Glossary.Injection inj = neGlossary.inject(t);
@@ -146,6 +155,7 @@ public final class JaNeTranslator {
             List<String> segs = new ArrayList<>();
             boolean changed = false;
             for (String s : sentences) {
+                if (phrases.lookupNeToJa(s) != null) { segs.add(s); continue; }   //translated by the phrase book
                 Glossary.Injection si = neGlossary.inject(s);
                 segs.add(si.text);
                 changed |= si.changed(s);
@@ -206,6 +216,11 @@ public final class JaNeTranslator {
         return new Result(best.output, scored, best.issues);
     }
 
+    private static Result phraseResult(String input, String output) {
+        Candidate c = new Candidate("phrase", input, output, null, Double.NaN);
+        return new Result(output, Collections.singletonList(c));
+    }
+
     static boolean better(Candidate a, Candidate b) {
         if (a.hard() != b.hard()) return a.hard() < b.hard();
         return a.score > b.score;
@@ -220,7 +235,8 @@ public final class JaNeTranslator {
     private String translateSegments(List<String> segments, String src, String tgt) throws Exception {
         StringBuilder sb = new StringBuilder();
         for (String s : segments) {
-            String o = backend.translate(s, src, tgt);
+            String fixed = phrases.lookup(s, src, tgt);   //a whole sentence that is a set phrase
+            String o = fixed != null ? fixed : backend.translate(s, src, tgt);
             if (o == null) continue;
             if (sb.length() > 0) sb.append(' ');
             sb.append(o.trim());
