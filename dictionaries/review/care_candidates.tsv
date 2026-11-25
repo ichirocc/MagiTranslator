@@ -2,20 +2,14 @@
 # established or the crawl gave no evidence. A native speaker (ideally a caregiver working in Japan)
 # should choose the Nepali, then the line can move to ja_ne_terms.tsv / ne_ja_terms.tsv.
 # Columns: japanese <TAB> nepali candidate(s) <TAB> evidence <TAB> note
-認知症	स्मृतिभ्रंश / डिमेन्सिया	crawl: 0 / 0 (अल्जाइमर 1)	essential in care; which word do caregivers use?
 介護福祉士	प्रमाणित केयरगिभर ?	ja crawl 4	certified care worker; keep the "certified" nuance?
 訪問介護	घरमै हेरचाह सेवा ?	ja crawl 131	home-visit care: no established Nepali term
-通所介護 / デイサービス	डे सर्भिस ?	ja crawl 121 / 5	day service: loanword used by caregivers in Japan?
 ショートステイ	सर्ट स्टे ?	ja crawl 0	short-stay care
-ケアマネジャー	केयर म्यानेजर ?	ja crawl 47 (+ケアマネ 208)	care manager
 ケアプラン	केयर प्लान ?	ja crawl 7	care plan
-特養 / 特別養護老人ホーム	वृद्धाश्रम ?	ja crawl 22 / 3	would lose the type of facility
 老健 / 介護老人保健施設	?	ja crawl 20 / 1	rehabilitation-oriented facility
 要介護 / 要支援	?	ja crawl 0	care-level certification
 食事介助	खाना खुवाउने ?	ja crawl 0	feeding assistance
 移乗	?	ja crawl 0	transfer (bed <-> wheelchair)
-誤嚥	?	ja crawl 0	aspiration
-褥瘡 / 床ずれ	?	ja crawl 0	pressure ulcer
 転倒	लड्नु ?	ja crawl 0	fall (verb in Nepali)
 見守り	निगरानी ?	ja crawl 0	watching over a resident
 夜勤	नाइट ड्युटी / रात्रि ड्युटी	ja crawl 0	night shift: which one is used?
@@ -32,7 +26,6 @@
 腹	पेट (Wikidata: कम्मर)	Wikidata	Wikidata label कम्मर is "waist"
 胃炎	? (Wikidata: अम्लपित्त)	Wikidata	अम्लपित्त is "acidity"; gastritis?
 熱中症	? (Wikidata: अतिताप / 熱射病 गर्मी स्ट्रोक)	Wikidata	which word is understood?
-認知症	स्मृतिभ्रंश / डिमेन्सिया	Wikidata: only अल्जाइमर (Alzheimer type)	still unresolved
 中毒	? (Wikidata: नशा)	Wikidata	नशा also means drunkenness / addiction
 
 # ---- from the care exams (2026-11): MHLW question standard (Japanese + English, PDL1.0) and the national
@@ -41,18 +34,17 @@
 介護福祉職 (resolved)	केयरगिभर	exam 38: 70	moved to ja_ne_terms.tsv
 訪問介護員 / ホームヘルパー	केयरगिभर ? / होम हेल्पर ?	exam 38: 15 / 15	home-visit care worker
 移乗	?	standard: transfer (bed <-> wheelchair)	still open
-誤嚥	?	standard: aspiration	still open
-褥瘡	?	standard: pressure ulcer (bedsore)	still open
-更衣	लुगा फेर्ने ?	standard: changing clothes	
 整容	?	standard: grooming (face washing, hair, oral care)	
 身体清拭	शरीर पुछ्ने ?	standard: wiping of body	
 失禁	?	standard: incontinence	
-身体拘束	?	standard: physical restraint	prohibited practice
-中核症状 / 周辺症状	?	standard: core / peripheral symptoms (of dementia)	
-傾聴	?	standard: listening	
 ボディメカニクス	बडी मेकानिक्स ?	standard: body mechanics	loanword?
-片麻痺	आधा शरीर पक्षाघात ?	exam 38: 3 (右片麻痺)	hemiplegia
-記憶障害	स्मरणशक्ति ह्रास ?	exam 38: 3	memory impairment
-仰臥位	उत्तानो ?	exam 38: 4	supine position
 受診	डाक्टरलाई देखाउने ?	exam 38: 3	seeing a doctor
 介護計画 / アセスメント	?	exam 38: 4 / 4	care plan / assessment
+
+# ---- resolved with the official Nepali study text (日本介護福祉士会, 2025; sources/textbook_2026-11.md):
+# 認知症, 通所介護 / デイサービス, ケアマネジャー, 特養 / 特別養護老人ホーム, 誤嚥, 褥瘡 / 床ずれ, 認知症, 誤嚥, 褥瘡, 更衣, 身体拘束, 中核症状 / 周辺症状, 傾聴, 片麻痺, 記憶障害, 仰臥位
+中核症状	महत्त्वपूर्ण लक्षणहरू (text p.93)	study text	literal "important symptoms": keep, or a clearer word?
+介護 (wording)	हेरचाह (dictionary) / नर्सिङ केयर (study text)	study text uses नर्सिङ केयर everywhere	which one for ja->ne? ne->ja accepts both
+福祉用具 (wording)	सहायक उपकरण (dictionary) / कल्याण उपकरण (study text)	study text p.25	ne->ja accepts both
+転倒	लड्ने (study text p.25: लड्ने तथा खस्ने रोकथाम)	study text	verb; also means "to fight"
+体位変換	शरीरको पोजिसन फेर्नु (study text p.127)	study text	verb phrase
