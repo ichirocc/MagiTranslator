@@ -263,3 +263,22 @@
 परेला	まつげ
 आँखीभुईं	眉毛
 राल	唾液
+
+# ---- care work: MHLW question standard (PDL1.0, edited) and Nepal's official disability categories.
+# See dictionaries/sources/exam_2026-11.md. Not listed: नाडी (pulse, but also wrist), गोपनीयता (confidentiality
+# duty, but also privacy in general), सरसफाइ (cleaning / hygiene).
+दिसापिसाब	排泄
+बुढ्यौली	老化
+सहायक उपकरण	福祉用具
+दृष्टि सम्बन्धी अपाङ्गता	視覚障害
+सुनाइ सम्बन्धी अपाङ्गता	聴覚障害
+स्वर र बोलाइ सम्बन्धी अपाङ्गता	言語障害
+बौद्धिक अपाङ्गता	知的障害
+मनोसामाजिक अपाङ्गता	精神障害
+शारीरिक अपाङ्गता	肢体不自由
+कम्मर दुखाइ	腰痛
+मुखको सरसफाइ	口腔ケア
+श्वासप्रश्वास	呼吸
+निद्रा	睡眠
+सुसूचित सहमति	インフォームド・コンセント
+संक्रमण रोकथाम	感染予防

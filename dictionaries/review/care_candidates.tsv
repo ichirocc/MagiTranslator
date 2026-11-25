@@ -12,9 +12,7 @@
 特養 / 特別養護老人ホーム	वृद्धाश्रम ?	ja crawl 22 / 3	would lose the type of facility
 老健 / 介護老人保健施設	?	ja crawl 20 / 1	rehabilitation-oriented facility
 要介護 / 要支援	?	ja crawl 0	care-level certification
-入浴介助	नुहाउन सहयोग ?	ja crawl 0	bathing assistance
 食事介助	खाना खुवाउने ?	ja crawl 0	feeding assistance
-排泄 / 排泄介助	दिसापिसाब / शौच ?	ne crawl: शौच 2, दिसा 2	toileting
 移乗	?	ja crawl 0	transfer (bed <-> wheelchair)
 誤嚥	?	ja crawl 0	aspiration
 褥瘡 / 床ずれ	?	ja crawl 0	pressure ulcer
@@ -36,3 +34,25 @@
 熱中症	? (Wikidata: अतिताप / 熱射病 गर्मी स्ट्रोक)	Wikidata	which word is understood?
 認知症	स्मृतिभ्रंश / डिमेन्सिया	Wikidata: only अल्जाइमर (Alzheimer type)	still unresolved
 中毒	? (Wikidata: नशा)	Wikidata	नशा also means drunkenness / addiction
+
+# ---- from the care exams (2026-11): MHLW question standard (Japanese + English, PDL1.0) and the national
+# care worker exam (frequency in the 38th exam). The English meaning helps the Nepali reviewer.
+# Resolved and moved to the dictionaries: 入浴介助 -> नुहाउन सहयोग, 排泄 -> दिसापिसाब.
+介護福祉職 (resolved)	केयरगिभर	exam 38: 70	moved to ja_ne_terms.tsv
+訪問介護員 / ホームヘルパー	केयरगिभर ? / होम हेल्पर ?	exam 38: 15 / 15	home-visit care worker
+移乗	?	standard: transfer (bed <-> wheelchair)	still open
+誤嚥	?	standard: aspiration	still open
+褥瘡	?	standard: pressure ulcer (bedsore)	still open
+更衣	लुगा फेर्ने ?	standard: changing clothes	
+整容	?	standard: grooming (face washing, hair, oral care)	
+身体清拭	शरीर पुछ्ने ?	standard: wiping of body	
+失禁	?	standard: incontinence	
+身体拘束	?	standard: physical restraint	prohibited practice
+中核症状 / 周辺症状	?	standard: core / peripheral symptoms (of dementia)	
+傾聴	?	standard: listening	
+ボディメカニクス	बडी मेकानिक्स ?	standard: body mechanics	loanword?
+片麻痺	आधा शरीर पक्षाघात ?	exam 38: 3 (右片麻痺)	hemiplegia
+記憶障害	स्मरणशक्ति ह्रास ?	exam 38: 3	memory impairment
+仰臥位	उत्तानो ?	exam 38: 4	supine position
+受診	डाक्टरलाई देखाउने ?	exam 38: 3	seeing a doctor
+介護計画 / アセスメント	?	exam 38: 4 / 4	care plan / assessment
