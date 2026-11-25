@@ -341,6 +341,8 @@ public class JaNeLibraryTest {
         eq("高齢者 र 高齢者हरू", g.inject("ज्येष्ठ नागरिक र जेष्ठ नागरिकहरू").text, "ne->ja: both spellings of ज्येष्ठ नागरिक");
         eq("म बिरामी छु।", g.inject("म बिरामी छु।").text, "ne->ja: बिरामी (patient / sick) is not replaced");
         eq("看護 पेशा", g.inject("नर्सिङ पेशा").text, "ne->ja: नर्सिङ is not नर्स + इङ");
+        eq("頭痛 र 痛み", g.inject("टाउको दुखाइ र दुखाइ").text, "ne->ja: टाउको दुखाइ before दुखाइ");
+        eq("乳がん", g.inject("स्तन क्यान्सर").text, "ne->ja: स्तन क्यान्सर before क्यान्सर");
         eq("[日本, 東京]", new java.util.TreeSet<>(g.inject("जापानको टोकियोमा।").requiredTargets), "ne->ja: required Japanese terms");
 
         // pipeline: the term-injected candidate keeps 病院; a plain one that loses it must not win
@@ -380,7 +382,8 @@ public class JaNeLibraryTest {
         // real compounds that contain another entry must be replaced as a whole
         for (String[] t : new String[][]{{"東京都", "टोकियो"}, {"小学校", "प्राथमिक विद्यालय"}, {"会社員", "कम्पनी कर्मचारी"},
                 {"保険証", "बीमा कार्ड"}, {"日本語学校", "जापानी भाषा विद्यालय"}, {"健康保険", "स्वास्थ्य बीमा"}, {"ネパール大使館", "नेपाली दूतावास"},
-                {"高血圧", "उच्च रक्तचाप"}, {"心臓発作", "हृदयाघात"}, {"介護士", "केयरगिभर"}, {"介護職員", "केयरगिभर"}, {"看護師", "नर्स"}, {"医療従事者", "स्वास्थ्यकर्मी"}}) {
+                {"高血圧", "उच्च रक्तचाप"}, {"心臓発作", "हृदयाघात"}, {"介護士", "केयरगिभर"}, {"介護職員", "केयरगिभर"}, {"看護師", "नर्स"}, {"医療従事者", "स्वास्थ्यकर्मी"},
+                {"気管支喘息", "दम"}, {"尿路感染症", "मूत्रमार्ग संक्रमण"}, {"血液型", "रक्त समूह"}, {"背部痛", "ढाड दुख्ने समस्या"}}) {
             eq(t[1], g.inject(t[0]).text, "dictionary: compound " + t[0] + " replaced as a whole");
         }
         eq("टोकियोのकम्पनीです。", g.inject("東京の会社です。").text, "dictionary: 東京 + 会社");

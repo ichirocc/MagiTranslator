@@ -29,3 +29,10 @@
 熱中症	?	-	heatstroke
 処方箋	प्रेस्क्रिप्सन ?	-	prescription
 救急外来	इमर्जेन्सी ?	-	emergency room
+# ---- from Wikidata (2026-11): the label looked wrong or unsure, so not in the active dictionaries
+心不全	? (Wikidata: हृदयघात)	Wikidata Q181754	Wikidata label means heart ATTACK; heart failure needs another word
+腹	पेट (Wikidata: कम्मर)	Wikidata	Wikidata label कम्मर is "waist"
+胃炎	? (Wikidata: अम्लपित्त)	Wikidata	अम्लपित्त is "acidity"; gastritis?
+熱中症	? (Wikidata: अतिताप / 熱射病 गर्मी स्ट्रोक)	Wikidata	which word is understood?
+認知症	स्मृतिभ्रंश / डिमेन्सिया	Wikidata: only अल्जाइमर (Alzheimer type)	still unresolved
+中毒	? (Wikidata: नशा)	Wikidata	नशा also means drunkenness / addiction
