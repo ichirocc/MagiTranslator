@@ -40,6 +40,16 @@ public final class JaNeTranslator {
         public final List<TranslationValidator.Issue> issues;
         Result(String text, List<Candidate> candidates) { this(text, candidates, Collections.emptyList()); }
         Result(String text, List<Candidate> candidates, List<TranslationValidator.Issue> issues) { this.text = text; this.candidates = candidates; this.issues = issues; }
+
+        /** Abstention (spec v2 part 5): the chosen translation still has a hard problem, so the UI marks it "要確認". */
+        public boolean needsReview() { return TranslationValidator.hardCount(issues) > 0; }
+
+        /** Kinds of the hard problems in the chosen translation, without any text (safe to log). */
+        public List<TranslationValidator.Kind> hardKinds() {
+            List<TranslationValidator.Kind> kinds = new ArrayList<>();
+            for (TranslationValidator.Issue i : issues) if (i.hard && !kinds.contains(i.kind)) kinds.add(i.kind);
+            return kinds;
+        }
     }
 
     private final Backend backend;

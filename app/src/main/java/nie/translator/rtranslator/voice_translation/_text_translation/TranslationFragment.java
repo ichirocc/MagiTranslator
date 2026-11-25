@@ -224,7 +224,11 @@ public class TranslationFragment extends Fragment {
         translateListener = new Translator.TranslateListener() {
             @Override
             public void onTranslatedText(String textToTranslate, String translatedText, String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
-                outputText.setText(translatedText);
+                if (isFinal && nie.translator.rtranslator.jane.ReviewMarks.isMarked(translatedText)) {
+                    outputText.setText(translatedText + "\n" + outputText.getContext().getString(R.string.translation_needs_review));   //display only
+                } else {
+                    outputText.setText(translatedText);
+                }
                 if(isFinal){
                     //eventually we show result type text
                     if(resultType != ResultType.NORMAL){
@@ -351,7 +355,7 @@ public class TranslationFragment extends Fragment {
         copyOutputButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String text = outputText.getText().toString();
+                String text = plainOutputText();
                 if(!text.isEmpty()){
                     ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(CLIPBOARD_SERVICE);
                     ClipData clip = ClipData.newPlainText("text", text);
@@ -370,7 +374,7 @@ public class TranslationFragment extends Fragment {
         fullScreenOutputButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startFullScreenTextActivity(outputText.getText().toString(), global.getSecondTextLanguage(true));
+                startFullScreenTextActivity(plainOutputText(), global.getSecondTextLanguage(true));
             }
         });
         // accessibility initialization
@@ -704,7 +708,7 @@ public class TranslationFragment extends Fragment {
                             if (CustomLocale.containsLanguage(ttsLanguages, secondLanguage)) { // check if the language can be speak
                                 tts.stop();
                                 ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
-                                speak(outputText.getText().toString(), secondLanguage);
+                                speak(plainOutputText(), secondLanguage);
                                 ttsOutputButton.setImageResource(R.drawable.stop_icon);
                                 ttsOutputButton.setTag(R.drawable.stop_icon);
                             }
@@ -1054,5 +1058,12 @@ public class TranslationFragment extends Fragment {
                 }
             }
         });
+    }
+
+    /** The output without the display-only "要確認" line, for copy / TTS / full screen. */
+    private String plainOutputText() {
+        String shown = outputText.getText().toString();
+        String marker = "\n" + outputText.getContext().getString(R.string.translation_needs_review);
+        return shown.endsWith(marker) ? shown.substring(0, shown.length() - marker.length()) : shown;
     }
 }

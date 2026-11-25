@@ -213,6 +213,7 @@
     <string name="missing_madlad_nepali_title">ネパール語にはMadladモデルが必要です</string>
     <string name="missing_madlad_nepali_message">ネパール語の翻訳にはMadladモデルが必要ですが、まだダウンロードされていません。設定 → モデル管理 からMadladをダウンロードしてください。</string>
     <string name="error_translation_out_of_memory">メモリが足りず翻訳できませんでした。短い文にするか、他のアプリを閉じてください。</string>
+    <string name="translation_needs_review">⚠ 要確認：この訳は不正確な可能性があります</string>
     <string name="open_models_manager">モデル管理を開く</string>
     <string name="toast_ne_tts_unavailable">この端末ではネパール語の読み上げができません。翻訳は文字で表示されます。</string>
 </resources>

@@ -231,6 +231,7 @@ public class Translator extends NeuralNetworkApi {
         if (jt != null) {
             jt.memory().clear();
         }
+        nie.translator.rtranslator.jane.ReviewMarks.clear();
     }
 
     /** Runs the ja<->ne library; the backend is this Translator's Madlad model with UI notifications muted. */
@@ -262,6 +263,8 @@ public class Translator extends NeuralNetworkApi {
             janeBeamSize = beamSize;
             nie.translator.rtranslator.jane.JaNeTranslator.Result r = janeTranslator.translate(text, in.getCode(), out.getCode());
             if (nie.translator.rtranslator.tools.PrivacyLog.isDebuggable()) for (nie.translator.rtranslator.jane.JaNeTranslator.Candidate c : r.candidates) Log.i("jane", c.toString());
+            nie.translator.rtranslator.jane.ReviewMarks.record(r.text, r.needsReview());   //UI shows "要確認" for it
+            if (r.needsReview()) Log.i("jane", "needs review: " + r.hardKinds());   //issue kinds only, no text
             if ("ja".equals(in.getCode()) && nie.translator.rtranslator.jane.JaNormalizer.normalize(text).isEmpty()) return "";   //only fillers: nothing to translate
             return r.text == null || r.text.isEmpty() ? null : r.text;   //empty for other reasons -> fall back to the normal pipeline
         } catch (Exception e) {

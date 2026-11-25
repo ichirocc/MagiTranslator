@@ -434,6 +434,24 @@ public class JaNeLibraryTest {
         nie.translator.rtranslator.jane.ir.LanguageIR src14 = nie.translator.rtranslator.jane.ir.JaAnalyzer.analyze("先生はもう帰られました。");
         eq(TranslationValidator.validateJaToNe("先生はもう帰られました。", "तपाईँको शिक्षक घरमा हुनुहुन्छ।", null).toString(),
                 TranslationValidator.compareJaToNe(src14, nie.translator.rtranslator.jane.ir.NeAnalyzer.analyze("तपाईँको शिक्षक घरमा हुनुहुन्छ।"), null, new java.util.ArrayList<>()).toString(), "IR compare == string API");
+        // abstention: a chosen translation with a hard problem is flagged "needs review" (kinds only, no text)
+        Backend negLost = new Backend() { public String translate(String text, String s, String t) { return "म भोलि जान्छु।"; } };
+        JaNeTranslator.Result rv = new JaNeTranslator(negLost, Glossary.withDefaults()).translate("明日は行きません。", "ja", "ne");
+        yes(rv.needsReview(), "negation lost -> needsReview");
+        yes(rv.hardKinds().contains(TranslationValidator.Kind.NEGATION_LOST), "hardKinds has NEGATION_LOST");
+        Backend negOk = new Backend() { public String translate(String text, String s, String t) { return "म भोलि जान्न।"; } };
+        JaNeTranslator.Result rok = new JaNeTranslator(negOk, Glossary.withDefaults()).translate("明日は行きません。", "ja", "ne");
+        yes(!rok.needsReview(), "correct negation -> no review");
+        eq(0, rok.hardKinds().size(), "no hard kinds");
+        ReviewMarks.clear();
+        ReviewMarks.record(rv.text, rv.needsReview());
+        yes(ReviewMarks.isMarked(rv.text), "marked text found");
+        ReviewMarks.record(rv.text, false);
+        yes(!ReviewMarks.isMarked(rv.text), "re-recorded as fine -> unmarked");
+        for (int k = 0; k < 100; k++) ReviewMarks.record("t" + k, true);
+        yes(ReviewMarks.size() <= 64, "marks are bounded");
+        ReviewMarks.clear();
+        yes(!ReviewMarks.isMarked("t99"), "clear removes marks");
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

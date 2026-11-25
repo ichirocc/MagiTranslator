@@ -252,6 +252,7 @@
     <string name="missing_madlad_nepali_title">Nepali needs the Madlad model</string>
     <string name="missing_madlad_nepali_message">Translating Nepali requires the Madlad model, which has not been downloaded yet. Open Settings → Models Manager and download Madlad.</string>
     <string name="error_translation_out_of_memory">Not enough memory to translate this text. Try a shorter text or close other apps.</string>
+    <string name="translation_needs_review">⚠ Please check: this translation may be inaccurate</string>
     <string name="open_models_manager">Open Models Manager</string>
     <string name="toast_ne_tts_unavailable">Nepali speech output is not available on this device. Translations are shown as text.</string>
 </resources>

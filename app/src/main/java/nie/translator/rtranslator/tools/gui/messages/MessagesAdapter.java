@@ -313,7 +313,12 @@ public class MessagesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             }else{
                 this.originalTextToBeTranslated.setVisibility(View.GONE);
             }
-            this.text.setText(text);
+            if (nie.translator.rtranslator.jane.ReviewMarks.isMarked(text)) {
+                //display only: the message text itself (TTS, copy, history) stays unchanged
+                this.text.setText(text + "\n" + this.text.getContext().getString(R.string.translation_needs_review));
+            } else {
+                this.text.setText(text);
+            }
         }
 
         public boolean isPlayingTTS() {
