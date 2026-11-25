@@ -1,4 +1,6 @@
-# MagiTranslator everyday phrase book (jane PhraseBook)
+#!jane phrases
+# MagiTranslator everyday phrase book (jane PhraseBook). Not in the APK: published to the
+# release "jane-dictionaries" and downloaded / imported by the app (DictionaryStore). Keep the first line.
 # Format: japanese<TAB>nepali[<TAB>ja>ne], one phrase per line; lines starting with # are comments.
 # "ja>ne" in a third column = use only for Japanese -> Nepali (the Nepali is ambiguous when read back).
 #

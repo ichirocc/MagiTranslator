@@ -104,6 +104,20 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     });
 
 
+    private static final int REQUEST_IMPORT_DICTIONARY = 4721;
+
+    private void onDictionariesSaved(java.util.List<String> saved, java.util.List<String> errors) {
+        if (!isAdded() || activity == null) return;
+        if (!saved.isEmpty()) {
+            android.widget.Toast.makeText(activity, getString(R.string.jane_dictionaries_done, android.text.TextUtils.join(", ", saved)), android.widget.Toast.LENGTH_LONG).show();
+        }
+        if (!errors.isEmpty()) {
+            android.widget.Toast.makeText(activity, getString(R.string.jane_dictionaries_failed, android.text.TextUtils.join(", ", errors)), android.widget.Toast.LENGTH_LONG).show();
+        }
+        Preference dictUpdate = findPreference("janeDictionariesUpdate");
+        if (dictUpdate != null) dictUpdate.setSummary(getString(R.string.jane_dictionaries_status, nie.translator.rtranslator.downloader.DictionaryStore.status(global)));
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -188,6 +202,27 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         });
 
         // link models manager initialization
+        // MagiTranslator: jane dictionaries (outside the APK)
+        Preference dictUpdate = findPreference("janeDictionariesUpdate");
+        if (dictUpdate != null) {
+            dictUpdate.setSummary(getString(R.string.jane_dictionaries_status, nie.translator.rtranslator.downloader.DictionaryStore.status(global)));
+            dictUpdate.setOnPreferenceClickListener(preference -> {
+                android.widget.Toast.makeText(activity, R.string.jane_dictionaries_updating, android.widget.Toast.LENGTH_SHORT).show();
+                nie.translator.rtranslator.downloader.DictionaryStore.downloadAll(global, this::onDictionariesSaved);
+                return true;
+            });
+        }
+        Preference dictImport = findPreference("janeDictionariesImport");
+        if (dictImport != null) {
+            dictImport.setOnPreferenceClickListener(preference -> {
+                Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                pick.addCategory(Intent.CATEGORY_OPENABLE);
+                pick.setType("*/*");   //.tsv has no reliable MIME type
+                startActivityForResult(pick, REQUEST_IMPORT_DICTIONARY);
+                return true;
+            });
+        }
+
         Preference modelsManagerPreference = findPreference("modelsManager");
         modelsManagerPreference.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
@@ -222,6 +257,12 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_IMPORT_DICTIONARY) {
+            if (resultCode == android.app.Activity.RESULT_OK && data != null && data.getData() != null && global != null) {
+                nie.translator.rtranslator.downloader.DictionaryStore.importFile(global, data.getData(), this::onDictionariesSaved);
+            }
+            return;
+        }
         //call onActivityResult
         userImageContainer.onActivityResult(requestCode, resultCode, data, true);
     }

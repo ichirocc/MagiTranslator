@@ -227,10 +227,29 @@ public class JaNeLibraryTest {
         yes(!TranslationValidator.validateJaToNe("なぜですか。", "किन", none).toString().contains("QUESTION_LOST"), "किन (why) is a question");
         yes(TranslationValidator.validateJaToNe("行きますか。", "म कहिलेकाहीं जान्छु।", none).toString().contains("QUESTION_LOST"), "कहिलेकाहीं (sometimes) is not a question");
 
-        // built-in dictionary (res/raw/jane_dictionary.tsv): format, overlap rule, behaviour
-        checkDictionary("app/src/main/res/raw/jane_dictionary.tsv");
-        checkNeJaDictionary("app/src/main/res/raw/jane_dictionary_ne_ja.tsv");
-        checkPhraseBook("app/src/main/res/raw/jane_phrases.tsv");
+        // dictionaries (dictionaries/*.tsv, outside the APK): format, compounds, behaviour
+        checkDictionary("dictionaries/ja_ne_terms.tsv");
+        checkNeJaDictionary("dictionaries/ne_ja_terms.tsv");
+        checkPhraseBook("dictionaries/phrases.tsv");
+
+        // dictionary files outside the APK: type line + strict whole-file check (DictionaryFiles)
+        String[][] repoFiles = {{"dictionaries/ja_ne_terms.tsv", "JA_NE_TERMS"}, {"dictionaries/ne_ja_terms.tsv", "NE_JA_TERMS"}, {"dictionaries/phrases.tsv", "PHRASES"}};
+        for (String[] rf : repoFiles) {
+            DictionaryFiles.Check c = DictionaryFiles.check(new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(rf[0])), java.nio.charset.StandardCharsets.UTF_8));
+            yes(c.ok() && c.kind.name().equals(rf[1]) && c.kind.fileName.equals(rf[0].substring("dictionaries/".length())), "dictionary file valid: " + rf[0] + " -> " + c);
+        }
+        yes(!DictionaryFiles.check("病院\tअस्पताल\n").ok(), "dictionary file without type line rejected");
+        yes(!DictionaryFiles.check("#!jane something\n病院\tअस्पताल\n").ok(), "unknown dictionary type rejected");
+        yes(!DictionaryFiles.check("#!jane ja-ne-terms\n病院\thospital\n").ok(), "ja-ne-terms: Latin translation rejected");
+        yes(!DictionaryFiles.check("#!jane ja-ne-terms\n病院\tअस्पताल\n病院\tअस्पताल\n").ok(), "duplicate entry rejected");
+        yes(!DictionaryFiles.check("#!jane ne-ja-terms\n病院\tअस्पताल\n").ok(), "ne-ja-terms with columns swapped rejected");
+        yes(!DictionaryFiles.check("#!jane phrases\n# only comments\n").ok(), "file without entries rejected");
+        yes(!DictionaryFiles.check("<html>Not Found</html>").ok(), "an HTML error page is not a dictionary");
+        DictionaryFiles.Check okBom = DictionaryFiles.check("\uFEFF#!jane phrases\r\nこんにちは\tनमस्ते\r\n");
+        yes(okBom.ok() && okBom.entries == 1, "BOM and CRLF accepted");
+        StringBuilder big = new StringBuilder("#!jane ja-ne-terms\n");
+        while (big.length() <= DictionaryFiles.MAX_BYTES) big.append("# padding padding padding padding padding\n");
+        yes(!DictionaryFiles.check(big.toString()).ok(), "file larger than MAX_BYTES rejected");
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);

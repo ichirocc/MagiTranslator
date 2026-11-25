@@ -1,4 +1,6 @@
-# MagiTranslator built-in Nepali -> Japanese dictionary (jane NeJaGlossary)
+#!jane ne-ja-terms
+# MagiTranslator Nepali -> Japanese dictionary (jane NeJaGlossary). Not in the APK: published to the
+# release "jane-dictionaries" and downloaded / imported by the app (DictionaryStore). Keep the first line.
 # Format: nepali<TAB>japanese, one entry per line; lines starting with # are comments.
 #
 # Every entry is injected into the Nepali input and its Japanese term becomes a REQUIRED term of the

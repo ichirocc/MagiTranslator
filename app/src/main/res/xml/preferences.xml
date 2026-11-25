@@ -45,6 +45,22 @@
             app:iconSpaceReserved="false" />
     </androidx.preference.PreferenceCategory>
 
+    <!-- MagiTranslator: Japanese <-> Nepali dictionaries, stored outside the APK (DictionaryStore) -->
+    <androidx.preference.PreferenceCategory
+        android:title="@string/jane_dictionaries"
+        app:iconSpaceReserved="false"
+        app:allowDividerBelow="true">
+        <androidx.preference.Preference
+            android:key="janeDictionariesUpdate"
+            android:title="@string/jane_dictionaries_update"
+            app:iconSpaceReserved="false" />
+        <androidx.preference.Preference
+            android:key="janeDictionariesImport"
+            android:title="@string/jane_dictionaries_import"
+            android:summary="@string/jane_dictionaries_import_summary"
+            app:iconSpaceReserved="false" />
+    </androidx.preference.PreferenceCategory>
+
     <androidx.preference.PreferenceCategory
         android:title="@string/preference_header_input"
         app:iconSpaceReserved="false"

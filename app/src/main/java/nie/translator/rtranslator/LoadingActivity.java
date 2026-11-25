@@ -164,6 +164,9 @@ public class LoadingActivity extends GeneralActivity {
 
     private void initializeApp(boolean ignoreTTSError) {
         Log.i("app", "App initialization");
+        //MagiTranslator: jane dictionaries are not in the APK; fetch the missing ones in the background
+        //(no network = translation without dictionaries, retried at the next start)
+        nie.translator.rtranslator.downloader.DictionaryStore.ensureDownloaded(this);
         adaptResourcesPreferencesToDownloads();
         global.getLanguagesAndCheckTTS(false, ignoreTTSError, new Global.GetLocalesListListener() {
             @Override

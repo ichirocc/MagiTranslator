@@ -252,4 +252,12 @@
     <string name="missing_madlad_nepali_title">Nepali needs the Madlad model</string>
     <string name="missing_madlad_nepali_message">Translating Nepali requires the Madlad model, which has not been downloaded yet. Open Settings → Models Manager and download Madlad.</string>
     <string name="open_models_manager">Open Models Manager</string>
+    <string name="jane_dictionaries">Japanese ⇄ Nepali dictionaries</string>
+    <string name="jane_dictionaries_update">Update dictionaries</string>
+    <string name="jane_dictionaries_import">Load a dictionary file</string>
+    <string name="jane_dictionaries_import_summary">A .tsv file whose first line is #!jane ja-ne-terms, ne-ja-terms or phrases</string>
+    <string name="jane_dictionaries_status">Installed entries\n%1$s</string>
+    <string name="jane_dictionaries_updating">Downloading the dictionaries…</string>
+    <string name="jane_dictionaries_done">Dictionaries saved: %1$s</string>
+    <string name="jane_dictionaries_failed">Dictionaries not saved: %1$s</string>
 </resources>

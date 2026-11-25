@@ -1,0 +1,48 @@
+name: Publish dictionaries
+
+# The jane dictionaries (dictionaries/*.tsv) are not in the APK: the app downloads them from the release
+# "jane-dictionaries" (DictionaryStore.BASE_URL). This workflow checks them and replaces the release files.
+# Only the default branch publishes, so that an unmerged branch never changes what users download.
+on:
+  push:
+    paths:
+      - 'dictionaries/**'
+      - '.github/workflows/publish-dictionaries.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: jane-dictionaries
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Check the dictionaries (same rules as the app)
+        shell: bash
+        run: |
+          mkdir -p /tmp/jt
+          javac -encoding UTF-8 -d /tmp/jt app/src/main/java/nie/translator/rtranslator/jane/*.java \
+            app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java
+          java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.jane.JaNeLibraryTest
+
+      - name: Create the release if it does not exist
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "MagiTranslator dictionaries" --latest=false \
+              --notes "Japanese <-> Nepali dictionaries downloaded by the app (Settings -> Update dictionaries). Source: dictionaries/ in this repository; replaced automatically on every change."
+          fi
+
+      - name: Upload (replace) the dictionary files
+        run: gh release upload "$TAG" dictionaries/ja_ne_terms.tsv dictionaries/ne_ja_terms.tsv dictionaries/phrases.tsv --clobber

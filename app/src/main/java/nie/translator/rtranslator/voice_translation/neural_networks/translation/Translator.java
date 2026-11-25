@@ -202,22 +202,22 @@ public class Translator extends NeuralNetworkApi {
     private String translateJaNeWithLibrary(String text, CustomLocale in, CustomLocale out, int beamSize) {
         try {
             File user = new File(global.getFilesDir(), "jane_glossary.tsv");   //optional user terminology: ja<TAB>ne
-            String stamp = user.exists() ? user.lastModified() + ":" + user.length() : "none";
+            //dictionaries live outside the APK (files/jane/, DictionaryStore): reload when one changes
+            String stamp = (user.exists() ? user.lastModified() + ":" + user.length() : "none") + "|" + nie.translator.rtranslator.downloader.DictionaryStore.stamp(global);
             if (janeTranslator == null || !stamp.equals(janeGlossaryStamp)) {
                 nie.translator.rtranslator.jane.Glossary glossary = nie.translator.rtranslator.jane.Glossary.withDefaults();
-                //built-in dictionary (res/raw/jane_dictionary.tsv), then the user's own terms, which win on the same key
-                try (java.io.Reader r = new java.io.InputStreamReader(global.getResources().openRawResource(R.raw.jane_dictionary), java.nio.charset.StandardCharsets.UTF_8)) {
-                    glossary.load(r);
-                }
+                //downloaded / imported dictionary (files/jane/ja_ne_terms.tsv), then the user's own terms, which win on the same key.
+                //A missing or invalid file is skipped: translation then runs without that dictionary.
+                String jaNeTerms = nie.translator.rtranslator.downloader.DictionaryStore.readValid(global, nie.translator.rtranslator.jane.DictionaryFiles.Kind.JA_NE_TERMS);
+                if (jaNeTerms != null) glossary.load(new java.io.StringReader(jaNeTerms));
                 if (user.exists()) {
                     try (java.io.Reader r = new java.io.InputStreamReader(new java.io.FileInputStream(user), java.nio.charset.StandardCharsets.UTF_8)) {
                         glossary.load(r);
                     }
                 }
                 nie.translator.rtranslator.jane.NeJaGlossary neGlossary = new nie.translator.rtranslator.jane.NeJaGlossary();
-                try (java.io.Reader r = new java.io.InputStreamReader(global.getResources().openRawResource(R.raw.jane_dictionary_ne_ja), java.nio.charset.StandardCharsets.UTF_8)) {
-                    neGlossary.load(r);   //built-in Nepali -> Japanese dictionary
-                }
+                String neJaTerms = nie.translator.rtranslator.downloader.DictionaryStore.readValid(global, nie.translator.rtranslator.jane.DictionaryFiles.Kind.NE_JA_TERMS);
+                if (neJaTerms != null) neGlossary.load(new java.io.StringReader(neJaTerms));   //Nepali -> Japanese dictionary
                 janeTranslator = new nie.translator.rtranslator.jane.JaNeTranslator(new nie.translator.rtranslator.jane.Backend() {
                     @Override
                     public String translate(String t, String src, String tgt) throws Exception {
@@ -230,9 +230,8 @@ public class Translator extends NeuralNetworkApi {
                     }
                 }, glossary, neGlossary);
                 nie.translator.rtranslator.jane.PhraseBook phrases = new nie.translator.rtranslator.jane.PhraseBook();
-                try (java.io.Reader r = new java.io.InputStreamReader(global.getResources().openRawResource(R.raw.jane_phrases), java.nio.charset.StandardCharsets.UTF_8)) {
-                    phrases.load(r);   //everyday set phrases (greetings, thanks ...), both directions
-                }
+                String phraseText = nie.translator.rtranslator.downloader.DictionaryStore.readValid(global, nie.translator.rtranslator.jane.DictionaryFiles.Kind.PHRASES);
+                if (phraseText != null) phrases.load(new java.io.StringReader(phraseText));   //everyday set phrases, both directions
                 janeTranslator.setPhraseBook(phrases);
                 janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried
             }

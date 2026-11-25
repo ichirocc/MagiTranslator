@@ -213,4 +213,12 @@
     <string name="missing_madlad_nepali_title">ネパール語にはMadladモデルが必要です</string>
     <string name="missing_madlad_nepali_message">ネパール語の翻訳にはMadladモデルが必要ですが、まだダウンロードされていません。設定 → モデル管理 からMadladをダウンロードしてください。</string>
     <string name="open_models_manager">モデル管理を開く</string>
+    <string name="jane_dictionaries">日本語⇄ネパール語の辞書</string>
+    <string name="jane_dictionaries_update">辞書を更新</string>
+    <string name="jane_dictionaries_import">辞書ファイルを読み込む</string>
+    <string name="jane_dictionaries_import_summary">1 行目が #!jane ja-ne-terms、ne-ja-terms、phrases のどれかの .tsv ファイル</string>
+    <string name="jane_dictionaries_status">収録数\n%1$s</string>
+    <string name="jane_dictionaries_updating">辞書をダウンロードしています…</string>
+    <string name="jane_dictionaries_done">辞書を保存しました：%1$s</string>
+    <string name="jane_dictionaries_failed">辞書を保存できませんでした：%1$s</string>
 </resources>
