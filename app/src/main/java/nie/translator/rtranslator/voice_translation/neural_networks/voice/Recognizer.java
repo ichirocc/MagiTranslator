@@ -409,7 +409,9 @@ public class Recognizer extends NeuralNetworkApi {
                     }
                     int[] decoderInitialInputIDs = {START_TOKEN_ID, languageID, TRANSCRIBE_TOKEN_ID, NO_TIMESTAMPS_TOKEN_ID};
                     int[] decoderInitialInputIDs2 = {START_TOKEN_ID, languageID2, TRANSCRIBE_TOKEN_ID, NO_TIMESTAMPS_TOKEN_ID};
-                    if (data.neDual) {
+                    //the fine-tuned Nepali model is measured best without prompt and mask (tools/whisper_ne/RESULTS.md:
+                    //WER 50.9% free vs 76.5% mask+prompt; the mask blocks the byte-level BPE pieces Devanagari needs)
+                    if (data.neDual && !useNeModel) {
                         //Peng et al. 2023: a previous-text prompt steers script/vocabulary (Nepali "-छु" form vs Hindi)
                         decoderInitialInputIDs = buildPromptedPrefix(decoderInitialInputIDs);
                         decoderInitialInputIDs2 = buildPromptedPrefix(decoderInitialInputIDs2);
@@ -475,7 +477,7 @@ public class Recognizer extends NeuralNetworkApi {
                             if (batchSize == 2) noSpeechProb2 = Utils.softmax(value[1][0][NO_SPEECH_TOKEN_ID], value[1][0]);
                         }
                         if(!finished1) {
-                            max = Utils.getIndexOfLargest(j >= prefixLen ? constrainedLogits(outputValues, data.languageCode, completeOutput) : outputValues);  // scoring keeps the raw logits
+                            max = Utils.getIndexOfLargest(j >= prefixLen ? constrainedLogits(outputValues, useNeModel ? null : data.languageCode, completeOutput) : outputValues);  // scoring keeps the raw logits
                             if (j >= firstRecordedStep) completeOutput.add(max);
                         }
                         if(batchSize == 2){
