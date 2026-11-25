@@ -389,6 +389,18 @@ public class JaNeLibraryTest {
         for (JaNeTranslator.Candidate c : r7.candidates) System.out.println("     " + c);
         yes(r7.text.startsWith("राम ") , "jn17 bare राम preferred over रामु");
 
+        // negative past (गइनँ / गएन) is negation; nouns in -ेन / दिन are not
+        yes(TranslationValidator.neHasNegation("म हिजो गइनँ।"), "गइनँ is negation");
+        yes(TranslationValidator.neHasNegation("उनी आएनन्।"), "आएनन् is negation");
+        yes(TranslationValidator.neHasNegation("उसले काम गरेन।"), "गरेन is negation");
+        yes(TranslationValidator.neHasNegation("मैले खाना खाइनँ।"), "खाइनँ is negation");
+        yes(TranslationValidator.neHasNegation("मैले गरिनँ।"), "गरिनँ is negation");
+        yes(!TranslationValidator.neHasNegation("म ट्रेनमा गएँ।"), "ट्रेनमा is not negation");
+        yes(!TranslationValidator.neHasNegation("म ट्रेन चढ्छु।"), "ट्रेन is not negation");
+        yes(!TranslationValidator.neHasNegation("आज राम्रो दिन हो।"), "दिन is not negation");
+        yes(!TranslationValidator.neHasNegation("उनी आए।"), "आए is affirmative");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("昨日は行きませんでした。", "म हिजो गइनँ।", null)), "ませんでした -> गइनँ passes");
+        eq(0, TranslationValidator.hardCount(TranslationValidator.validateNeToJa("उनी आएनन्।", "彼は来ませんでした。")), "आएनन् -> 来ませんでした passes");
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

@@ -41,6 +41,10 @@ public final class TranslationValidator {
     // before न्न is a noun/adjective (प्रसन्न, सम्पन्न); भिन्न-type words are listed explicitly.
     private static final Pattern NE_NEG_NN = Pattern.compile("[\\u093E-\\u094C\\u0901\\u0902]न्नँ?$");
     private static final String[] NE_NN_NOT_NEGATION = {"भिन्न", "विभिन्न", "खिन्न", "छिन्न", "छिन्नभिन्न"};
+    // negative past: गएन / आएन / गरेन / गरेनन् (3rd person), गइनँ / गरिनँ / गइनौं (1st/2nd person).
+    // The bare ि+न ending is "day"-like (दिन, बिन) so it only counts with ँ / न् / ौं; loanwords in े+न are listed.
+    private static final Pattern NE_NEG_PAST = Pattern.compile("(?:[एइ]न|\u0947न|\u093Fनँ|\u093Fनन्|\u093Fनौं|\u093Fनौ)(?:ँ|न्|ौं|ौँ|ौ)?$");
+    private static final String[] NE_NEG_PAST_NOT = {"येन", "ट्रेन", "प्लेन", "ब्रेन", "स्पेन", "चेन", "लेन", "सेन", "मेन", "जेन", "डेन", "केन", "पेन", "टेन", "हेन", "क्रेन", "भेन"};
     private static final Pattern NE_NEG_PREFIX = Pattern.compile("^न(?:[क-ह]|[अआइईउऊएऐओऔ])");
     // nouns / adjectives / names that start with न + consonant. Matched as prefixes, so they must not
     // swallow verb negations: "नगर" (city) is listed only with its case endings, because
@@ -70,6 +74,7 @@ public final class TranslationValidator {
             String w = m.group();
             if (w.equals("दिन")) continue;                 // "day"
             if (NE_NEG_WORD.matcher(w).find()) return true;
+            if (w.length() >= 3 && NE_NEG_PAST.matcher(w).find() && !java.util.Arrays.asList(NE_NEG_PAST_NOT).contains(w)) return true;
             if (NE_NEG_NN.matcher(w).find() && !java.util.Arrays.asList(NE_NN_NOT_NEGATION).contains(w)) return true;
             if (w.length() >= 3 && NE_NEG_PREFIX.matcher(w).find()) {
                 boolean excluded = false;
