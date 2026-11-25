@@ -191,7 +191,7 @@ public class Translator extends NeuralNetworkApi {
     // serialises translations: model switching and jane calls share the ONNX sessions
     private final java.util.concurrent.locks.ReentrantLock translationLock = new java.util.concurrent.locks.ReentrantLock(true);
     @Nullable
-    private nie.translator.rtranslator.jane.JaNeTranslator janeTranslator;
+    private volatile nie.translator.rtranslator.jane.JaNeTranslator janeTranslator;
     // identity of files/jane_glossary.tsv when janeTranslator was built: an edited file is picked up
     // on the next translation instead of only after an app restart
     @Nullable
@@ -199,13 +199,11 @@ public class Translator extends NeuralNetworkApi {
 
     /** Clears the jane TranslationMemory so term/name renderings never leak between conversations (SPEC §19.A). */
     public void resetConversationMemory() {
-        translationLock.lock();
-        try {
-            if (janeTranslator != null) {
-                janeTranslator.memory().clear();
-            }
-        } finally {
-            translationLock.unlock();
+        // Called on the main thread (service onDestroy, language setters): never wait for translationLock,
+        // a jane translation can take tens of seconds (ANR). TranslationMemory is itself synchronized.
+        nie.translator.rtranslator.jane.JaNeTranslator jt = janeTranslator;
+        if (jt != null) {
+            jt.memory().clear();
         }
     }
 
