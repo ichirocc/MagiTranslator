@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/jt
-          javac -encoding UTF-8 -d /tmp/jt app/src/main/java/nie/translator/rtranslator/jane/*.java app/src/main/java/nie/translator/rtranslator/jane/ir/*.java \
+          javac -encoding UTF-8 -d /tmp/jt app/src/main/java/nie/translator/rtranslator/jane/*.java app/src/main/java/nie/translator/rtranslator/jane/ir/*.java app/src/main/java/nie/translator/rtranslator/jane/text/*.java \
             app/src/main/java/nie/translator/rtranslator/downloader/ZipSafety.java \
             app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java \
             app/src/test/java/nie/translator/rtranslator/jane/ValidatorParityDump.java \
@@ -54,8 +54,10 @@ jobs:
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ModelStoreTest     # atomic install, rollback, manifest signature
           python3 -I tools/eval/test_metrics.py   # eval metrics must stay in sync with the Java validator
           python3 -I tools/eval/test_eval_dataset.py   # eval dataset tools (build_candidates, review_sheet, run_eval extensions)
-          # Java validator vs its Python port on seed sources x stored candidates (identical verdict text)
-          java -cp /tmp/jt nie.translator.rtranslator.jane.ValidatorParityDump tools/eval/testset_seed.tsv docs/eval/outputs/*.tsv > /tmp/validator_dump.tsv
+          # Java validator vs its Python port (identical verdict text): seed + test_v1 sources x every stored
+          # candidate (seed references and all docs/eval/outputs/*.tsv, i.e. raw, v1-v5, with/without dictionaries)
+          java -cp /tmp/jt nie.translator.rtranslator.jane.ValidatorParityDump tools/eval/testset_seed.tsv \
+            --testset tools/eval/testsets/test_v1_candidates.tsv docs/eval/outputs/*.tsv > /tmp/validator_dump.tsv
           python3 -I tools/eval/check_validator_parity.py /tmp/validator_dump.tsv
 
       - name: Restore release keystore from secrets (optional)

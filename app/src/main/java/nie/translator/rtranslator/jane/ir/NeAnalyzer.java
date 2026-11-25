@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import nie.translator.rtranslator.jane.QualityScorer;
+import nie.translator.rtranslator.jane.text.Numbers;
 
 import static nie.translator.rtranslator.jane.ir.IrText.NE_CH;
 import static nie.translator.rtranslator.jane.ir.IrText.NE_L;
@@ -136,7 +136,7 @@ public final class NeAnalyzer {
                 if (Pattern.compile(NE_L + Pattern.quote(IrText.canon(p[i])) + "(?!ी)").matcher(canon).find()) { places.add(p[0]); break; }
             }
         }
-        List<String> nums = QualityScorer.numbers(raw);
+        List<String> nums = Numbers.numbers(raw);
         return new LanguageIR("ne", raw, hasNegation(raw), QUESTION.matcher(raw).find(), wh, cover,
                 EnumSet.noneOf(Modality.class), modCover, hasPast(ne) ? Tense.PAST : Tense.UNKNOWN,
                 nums, new ArrayList<>(nums), cur, places, new LinkedHashSet<>(), new ArrayList<>(), false);

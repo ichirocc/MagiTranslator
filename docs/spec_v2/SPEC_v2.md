@@ -129,7 +129,7 @@ Resources      ModelStore(staging→verify→rename) / ManifestSignature / Downl
 Infrastructure Room / SharedPreferences / PrivacyLog / Network                 … §15–§16
 ```
 
-**依存規則**（01 §4.1）：UI はモデルを直接呼ばない／Translation Core は Provider の具体実装に依存しない／Domain（jane、jane.ir）は Android クラスに依存しない（現状：jane は純 Java、CI で単体テスト）／循環依存を作らない（**既知の例外**：`jane` ⇔ `jane.ir` が相互参照。`QualityScorer.numbers` と `KanjiNumber` を `jane.text` 等へ移して解消する＝未実装）。
+**依存規則**（01 §4.1）：UI はモデルを直接呼ばない／Translation Core は Provider の具体実装に依存しない／Domain（jane、jane.ir）は Android クラスに依存しない（現状：jane は純 Java、CI で単体テスト）／循環依存を作らない（`jane` ⇔ `jane.ir` の相互参照は解消済み：数字抽出と漢数字変換を葉パッケージ `jane.text`（`Numbers`、`KanjiNumber`）へ移し、`jane.QualityScorer.numbers` / `jane.KanjiNumber` は委譲のみ。依存は `jane → jane.ir → jane.text` の一方向。判定は移動前と 13,798 組でバイト一致）。
 
 **標準処理フロー**：入力検証 → 正規化 → 言語判定 → IR 解析 → 用語・固有名詞・TM の取得 → 候補生成 → IR 比較による hard 検査 → 同点崩し → 最終決定（必要なら「要確認」）→ 後処理（`finishJa`/`finishNe`）→ 結果。
 
@@ -698,7 +698,7 @@ CPU 負荷の大きい測定は事前に机上検証する（V18）。
 5. 独自構築辞書の雛形と `license_registry.tsv`（§8.2）。現行の `Glossary.withDefaults()` と `jane/ir/Places` をデータへ移す。
 6. `ModelRuntimeManager`/Lease、`onTrimMemory`、ロード前の空き確認（§7.7）。
 7. 共通型（§4）の Java 実装と `TranslationEngine` 入口。
-8. `jane`⇔`jane.ir` の循環依存の解消。
+8. ~~`jane`⇔`jane.ir` の循環依存の解消~~ → 解消済み（`jane.text` 葉パッケージ）。
 
 ## 18.3 最終受入基準（リリース判定）
 - **機能**：ja⇔ne・ja⇔vi のテキスト・音声通訳がオフラインで動く。キャンセルが効く。資源を検証してから使う。

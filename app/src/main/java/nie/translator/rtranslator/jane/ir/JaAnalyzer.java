@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import nie.translator.rtranslator.jane.KanjiNumber;
-import nie.translator.rtranslator.jane.QualityScorer;
+import nie.translator.rtranslator.jane.text.KanjiNumber;
+import nie.translator.rtranslator.jane.text.Numbers;
 
 /**
  * Japanese Stage 1 analyzer: rules over the surface string, no morphological analyzer yet.
@@ -114,7 +114,7 @@ public final class JaAnalyzer {
 
         return new LanguageIR("ja", raw, hasNegation(raw), QUESTION.matcher(ja.trim()).find(), wh, cover,
                 mod, EnumSet.noneOf(Modality.class), tense,
-                QualityScorer.numbers(raw), QualityScorer.numbers(KanjiNumber.toDigits(raw)), cur,
+                Numbers.numbers(raw), Numbers.numbers(KanjiNumber.toDigits(raw)), cur,
                 places, asPlace, names, KATAKANA_REPEAT.matcher(raw).find());
     }
 }
