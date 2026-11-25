@@ -48,6 +48,7 @@ jobs:
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ModelSourcesTest   # pinned model hashes, no upstream URL
           python3 -I tools/eval/test_metrics.py   # eval metrics must stay in sync with the Java validator
+          python3 -I tools/dict/test_textbook_terms.py   # textbook vocabulary tool
 
       - name: Restore release keystore from secrets (optional)
         shell: bash
