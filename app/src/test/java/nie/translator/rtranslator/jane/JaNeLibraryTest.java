@@ -334,6 +334,33 @@ public class JaNeLibraryTest {
         };
         eq("これは何ですか。", new JaNeTranslator(fb, Glossary.withDefaults()).translate("यो के हो?", "ne", "ja").text, "ne->ja beam alternatives only as fallback");
 
+        // ne->ja meaning checks (nj04 / nj12 / nj17)
+        java.util.function.BiFunction<String, String, Integer> hardNJ = (n, j) -> TranslationValidator.hardCount(TranslationValidator.validateNeToJa(n, j));
+        java.util.function.BiFunction<String, String, String> kindsNJ = (n, j) -> TranslationValidator.validateNeToJa(n, j).toString();
+        yes(kindsNJ.apply("यो कति हो?", "これは何ですか。").contains("QUESTION_WORD_LOST"), "nj04: कति rendered as bare 何 is hard");
+        eq(0, hardNJ.apply("यो कति हो?", "これはいくらですか？"), "nj04: いくら keeps कति");
+        eq(0, hardNJ.apply("तपाईंको परिवारमा कति जना हुनुहुन्छ?", "ご家族は何人ですか？"), "कति + 何人 ok");
+        eq(0, hardNJ.apply("कतिपय मानिस आए।", "何人かの人が来た。"), "कतिपय is not कति");
+        yes(kindsNJ.apply("तपाईं कहाँ जानुहुन्छ?", "あなたは行きますか？").contains("QUESTION_WORD_LOST"), "कहाँ needs どこ");
+        eq(0, hardNJ.apply("तपाईं कहाँ जानुहुन्छ?", "どこに行きますか？"), "कहाँ -> どこ ok");
+        eq(0, hardNJ.apply("के तपाईं आउनुहुन्छ?", "来ますか？"), "के as yes/no particle is not checked");
+        eq(0, hardNJ.apply("म कहिलेकाहीं पौडी खेल्छु।", "私は時々泳ぎます。"), "कहिलेकाहीं is not कहिले");
+        yes(kindsNJ.apply("यसको मूल्य १,००० रुपैयाँ हो।", "価格は1000円。").contains("CURRENCY_MISMATCH"), "nj12: रुपैयाँ -> 円 is hard");
+        eq(0, hardNJ.apply("यसको मूल्य १,००० रुपैयाँ हो।", "価格は1,000ルピーです。"), "nj12: ルピー ok");
+        eq(0, hardNJ.apply("यो ५०० येन हो।", "これは500円です。"), "येन -> 円 ok");
+        eq(0, hardNJ.apply("उनी परिवारसँग रमाइलो गर्छिन्।", "彼女は家族と円満に過ごす。"), "円満 is not currency");
+        yes(kindsNJ.apply("म नेपालबाट आएँ।", "ネバダ州シアトル出身。").contains("PLACE_MISSING"), "nj17: नेपाल missing");
+        yes(kindsNJ.apply("म नेपालबाट आएँ।", "ネバダ州シアトル出身。").contains("PLACE_ADDED"), "nj17: hallucinated ネバダ/シアトル");
+        eq(0, hardNJ.apply("म नेपालबाट आएँ।", "私はネパールから来ました。"), "nj17: ネパール ok");
+        eq(0, hardNJ.apply("म नेपाली बोल्छु।", "私はネパール語を話します。"), "नेपाली -> ネパール語 is not a place mention");
+        eq(0, hardNJ.apply("म जापानी सिक्दैछु।", "私は日本語を勉強しています。"), "जापानी -> 日本語 ok");
+        eq(0, hardNJ.apply("राम काठमाडौँमा बस्छन्।", "ラムはカトマンズに住んでいる。"), "candrabindu place stem");
+        Backend qb = new Backend() {
+            public String translate(String text, String s, String t) { return text.startsWith("यो") ? "これは何ですか。" : text; }
+            public java.util.List<String> translateNBest(String text, String s, String t, int n) { return java.util.Arrays.asList("これは何ですか。", "いくらですか？"); }
+        };
+        eq("いくらですか？", new JaNeTranslator(qb, Glossary.withDefaults()).translate("यो कति हो?", "ne", "ja").text, "nj04: fallback reaches the price question");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

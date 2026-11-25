@@ -13,7 +13,9 @@ import java.util.regex.Pattern;
  */
 public final class TranslationValidator {
 
-    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION }
+    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
+        // ne->ja meaning checks (checkNeToJaMeaning)
+        QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED }
 
     public static final class Issue {
         public final Kind kind;
@@ -100,7 +102,66 @@ public final class TranslationValidator {
         if (!srcNeg && tgtNeg) issues.add(new Issue(Kind.NEGATION_ADDED, false, null));
         if (Pattern.compile("[\\u0900-\\u097F]").matcher(ja).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
         if (JA_KATAKANA_REPEAT.matcher(ja).find()) issues.add(new Issue(Kind.REPETITION, true, null));
+        checkNeToJaMeaning(sourceNe, ja, issues);
         return issues;
+    }
+
+    // ===== ne->ja meaning checks: question word, currency, place names =====
+    private static final String NE_L = "(?<![\\u0900-\\u0963\\u0966-\\u097F])";
+    private static final String NE_R = "(?![\\u0900-\\u0963\\u0966-\\u097F])";
+    // Nepali wh-word -> Japanese forms that render it. के is left out: it is also the yes/no question
+    // particle (के तपाईं आउनुहुन्छ? = will you come?). For कति a bare 何 is not enough (これは何ですか for
+    // यो कति हो? is the nj04 error): it needs いくら / いくつ / どれくらい or 何 + counter.
+    private static final Object[][] NE_WH = {
+            {Pattern.compile(NE_L + "कति(?!पय)\\S*"), Pattern.compile("いくら|幾ら|いくつ|幾つ|どれ(くらい|ぐらい|位)|どの(くらい|ぐらい|位)|何[人個歳回時日本枚台度分秒年月週円階番件杯匹冊着名]|なん(にん|こ|さい|かい|じ|にち|ぼん|まい|だい|ど|ぷん|ふん|ねん)")},
+            {Pattern.compile(NE_L + "किन" + NE_R), Pattern.compile("なぜ|何故|どうして|なんで|何で|理由")},
+            {Pattern.compile(NE_L + "कह[ाँां]{2}\\S*"), Pattern.compile("どこ|何処|どちら|どっち")},
+            {Pattern.compile(NE_L + "कहिले(?!काहीं|काहीँ|काहिँ|काहिं)" + NE_R), Pattern.compile("いつ|何時|何日|何曜")},
+            {Pattern.compile(NE_L + "कसरी" + NE_R), Pattern.compile("どう|どのよう|どうやって|如何")},
+    };
+    private static final Pattern NE_RUPEE = Pattern.compile("रुपैयाँ|रुपैयां|रुपियाँ|रुपियां|" + NE_L + "(रु|रू)\\.?\\s*[0-9०-९]|NPR|Rs\\.?\\s*[0-9]");
+    private static final Pattern NE_YEN = Pattern.compile(NE_L + "(येन|जापानी येन)" + NE_R);
+    private static final Pattern NE_DOLLAR = Pattern.compile(NE_L + "डलर");
+    private static final Pattern JA_RUPEE = Pattern.compile("ルピー");
+    private static final Pattern JA_YEN = Pattern.compile("[0-9０-９〇一二三四五六七八九十百千万億]\\s*円|円(?![滑満形熟周])");
+    private static final Pattern JA_DOLLAR = Pattern.compile("ドル");
+    // place names: {Japanese, Nepali stems...}. Stems match at word start (case markers attach: नेपालबाट),
+    // but नेपाल must not match नेपाली (the demonym/language is handled by the glossary, not here).
+    private static final String[][] PLACES = {
+            {"ネパール", "नेपाल"}, {"カトマンズ", "काठमाडौं", "काठमाडौँ"}, {"ポカラ", "पोखरा"}, {"日本", "जापान"},
+            {"東京", "टोकियो", "तोक्यो"}, {"大阪", "ओसाका"}, {"インド", "भारत", "इन्डिया"}, {"中国", "चीन"},
+            {"アメリカ", "अमेरिका"}, {"ネバダ", "नेभाडा"}, {"シアトル", "सियाटल"}, {"カタルーニャ", "क्याटालोनिया"},
+            {"ルンビニ", "लुम्बिनी"}, {"チトワン", "चितवन"}, {"エベレスト", "सगरमाथा", "एभरेस्ट"},
+    };
+    private static boolean neHasPlace(String ne, String[] place) {
+        for (int i = 1; i < place.length; i++) {
+            Matcher m = Pattern.compile(NE_L + Pattern.quote(canonTerm(place[i])) + "(?!ी)").matcher(ne);
+            if (m.find()) return true;
+        }
+        return false;
+    }
+
+    /** ne -> ja checks kept separate from the ja->ne code paths. All hard: each one is a meaning change. */
+    static void checkNeToJaMeaning(String sourceNe, String ja, List<Issue> issues) {
+        String ne = Normalizer.normalize(sourceNe, Normalizer.Form.NFC);
+        String neCanon = canonTerm(sourceNe);
+        String j = Normalizer.normalize(ja, Normalizer.Form.NFKC);
+        // demonyms / languages (ネパール語, 日本人) are not place mentions: नेपाली is not नेपाल
+        String jPlaces = j.replaceAll("(ネパール|日本|インド|中国|アメリカ)(語|人)", "");
+        for (Object[] wh : NE_WH) {
+            Matcher m = ((Pattern) wh[0]).matcher(ne);
+            if (m.find() && !((Pattern) wh[1]).matcher(j).find()) issues.add(new Issue(Kind.QUESTION_WORD_LOST, true, m.group()));
+        }
+        boolean rupee = NE_RUPEE.matcher(ne).find(), yen = NE_YEN.matcher(ne).find(), dollar = NE_DOLLAR.matcher(ne).find();
+        if (rupee && !JA_RUPEE.matcher(j).find()) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "ルピー"));
+        if (!yen && JA_YEN.matcher(j).find()) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "円"));
+        if (!dollar && JA_DOLLAR.matcher(j).find()) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "ドル"));
+        for (String[] place : PLACES) {
+            boolean inSrc = neHasPlace(neCanon, place), inTgt = jPlaces.contains(place[0]);
+            if (inSrc && !j.contains(place[0])) issues.add(new Issue(Kind.PLACE_MISSING, true, place[0]));
+            // a known place in the output that the source never mentions: hallucinated (ネバダ州シアトル)
+            if (!inSrc && inTgt) issues.add(new Issue(Kind.PLACE_ADDED, true, place[0]));
+        }
     }
 
     private static void checkNumbers(String src, String tgt, List<Issue> issues) {
