@@ -35,3 +35,8 @@ To update a library: replace the folder with the new upstream checkout (without 
 | `app/src/main/cpp/src/fasttext/libs/fastText` | https://github.com/niedev/fastText | `1142dc4c4ecbc19cc16eee5cdd28472e689267e6` |
 | `app/src/main/cpp/src/libs/protobuf-lite` | https://github.com/niedev/protobuf | `31fef64d9d9d86aba94192b8e1152f1fe1968793` |
 | `app/src/main/cpp/src/libs/sentencepiece` | https://github.com/niedev/sentencepiece | `d4fd0d230394f9ba3a6544fdcf61aef08c08d716` |
+
+## Local patches to vendored code
+- `bergamot_translator/libs/bergamot/3rd_party/marian-dev/src/CMakeLists.txt`: the git-revision header was generated
+  from `../.git`, which does not exist in a vendored tree (CMake configure failed). When `.git` is absent a fixed
+  `common/git_revision.h` (`GIT_REVISION "vendored"`) is written and `marian_version` is an empty target.
