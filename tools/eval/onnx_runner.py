@@ -361,12 +361,61 @@ class MadladRunner:
             dec_past = {i: (reorder_cache(k, src), reorder_cache(v, src)) for i, (k, v) in present.items()}
             j += 1
             stop = len(finished) >= p_len
+        self._last_nbest = ([finished[i] for i in sorted(range(len(finished)), key=lambda i: -finished_scores[i])]
+                            if finished else [list(b) for b in beams])
         if finished_scores:
             return finished[first_index_of_max(finished_scores)]
         return beams[first_index_of_max(scores)]
 
     def translate(self, text, tgt_lang, beam=1):
         return decode_ids(self.id_to_piece, self.translate_ids(text, tgt_lang, beam))
+
+    def translate_nbest(self, text, tgt_lang, beam, n):
+        """Mirror of Translator.silentTranslateNBest: the chosen best first, then the beam N-best sink
+        (finished sentences by score, or the active beams when none finished), de-duplicated, up to n."""
+        self._last_nbest = []
+        best = self.translate(text, tgt_lang, beam).strip()
+        out = [best] if best else []
+        for ids in (self._last_nbest if beam > 1 else []):
+            if len(out) >= n:
+                break
+            d = decode_ids(self.id_to_piece, ids).strip()
+            if d and d not in out:
+                out.append(d)
+        return out
+
+
+def _esc(s):
+    return s.replace("\\", "\\\\").replace("\n", "\\n").replace("\t", "\\t")
+
+
+def _unesc(s):
+    out, i = [], 0
+    while i < len(s):
+        c = s[i]
+        if c == "\\" and i + 1 < len(s):
+            nx = s[i + 1]
+            out.append({"n": "\n", "t": "\t", "\\": "\\"}.get(nx, nx))
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def serve(runner, inp=None, out=None):
+    """Line protocol for tools/eval/JaneEval.java. Request: tgt<TAB>beam<TAB>n<TAB>escaped text.
+    Response: count<TAB>escaped hyp1<TAB>escaped hyp2 ... (count = number of hypotheses)."""
+    inp = inp or sys.stdin
+    out = out or sys.stdout
+    for line in inp:
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        tgt, beam, n, text = line.split("\t", 3)
+        hyps = runner.translate_nbest(_unesc(text), tgt, int(beam), int(n))
+        out.write("\t".join([str(len(hyps))] + [_esc(h) for h in hyps]) + "\n")
+        out.flush()
 
 
 def check_files(model_dir, variant):
@@ -408,12 +457,18 @@ def main(argv=None):
     ap.add_argument("--variant", choices=sorted(VARIANTS), default="int4")
     ap.add_argument("--src", default=None, help="only rows whose direction starts with this (e.g. ja)")
     ap.add_argument("--tgt", default=None, help="only rows whose direction ends with this (e.g. ne)")
-    ap.add_argument("--in", dest="inp", required=True, help="testset.tsv (run_eval.py format)")
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--in", dest="inp", default=None, help="testset.tsv (run_eval.py format)")
+    ap.add_argument("--out", default=None)
     ap.add_argument("--beam", type=int, default=1,
                     help="1 = greedy (app default for plain Madlad); the app forces 4 for ja<->ne")
     ap.add_argument("--dry-run", action="store_true", help="check files + print planned feeds, no inference")
+    ap.add_argument("--serve", action="store_true", help="line protocol on stdin/stdout for JaneEval.java (ignores --in/--out)")
     a = ap.parse_args(argv)
+    if a.serve:
+        serve(MadladRunner(a.models, a.variant))
+        return 0
+    if not a.inp or not a.out:
+        ap.error("--in and --out are required unless --serve")
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from run_eval import read_testset
     rows = [r for r in read_testset(a.inp)
