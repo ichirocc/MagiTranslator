@@ -45,3 +45,14 @@
 - **キャンセル（§16.5）**: 未実装（第1部メモ E と同件）。
 - **TermConstraint（§24.3）**: 現行 `Glossary` の注入＋validator の TERM_MISSING が §24.4 の 3（入力前処理）＋4（候補後評価）に相当。`prohibitedTargets` は今回の CURRENCY/PLACE_ADDED 検査が部分的に近い。`isMandatory` 未達時の警告返却は未実装（現在は hard issue で候補を落とすのみ）。
 - **COMET/COMETKiwi（§19.3）**: 未導入。ネ語での適合性検証が前提。
+
+## G. INT8 / INT4 の実測（2026-11-26）と次の手順
+- 実測：素の Madlad をシードセット 40 文で比較。INT4（アプリ, ORT）chrF++ ja→ne 63.59 / ne→ja 40.23、INT8（CTranslate2 代理）63.27 / 38.50。自動重大誤り率は両方向とも同値（5% / 20%）。記録：`docs/eval/2026-11-26_madlad-int4-vs-int8-raw-seed.md`。INT4 の劣化を示す証拠は無いが、規模・参照未検証・実行系の違いにより結論は保留。
+- アプリ形式の INT8 が無い：`Madlad.zip` は Int4Acc4 のみ。Int8WO 経路（`Translator.java` 421–428）は無効設定で、ファイルの入手元は未確認。
+- アプリ形式 INT8 の作成手順（未実施・PC 作業）：
+  1. `google/madlad400-3b-mt`（Apache-2.0、safetensors 約 12GB）を取得。
+  2. RTranslator と同じ分割で ONNX 化：encoder / decoder（KV キャッシュ入出力）/ cache_initializer / embed（共有埋め込み 8bit）。入出力名・形状は `onnx_runner.py` の VARIANTS と `Translator.java` のテンソル名に合わせる（32 層・16 ヘッド・head_dim 128）。
+  3. `onnxruntime.quantization.quantize_dynamic`（重みのみ INT8, per-channel）で Int8WO を作る。
+  4. `onnx_runner.py --variant int8` でシードセットと 16_eval_dataset の dev を測定し、INT4 と重大誤り率・chrF++・PC 時間を比較。
+  5. 端末メモリの見込み：INT8 重みは INT4 の約 2 倍（暗算：3B パラメータ ≈ 3GB＋埋め込み・KV、INT4 の Madlad.zip 1.48GB に対し 3GB 前後）。Pixel 10 Pro XL（16GB 級）では収まる見込みだが、ロード時間・速度は実機で要測定（未測定）。
+- 必要リソース（PC）：ディスク約 30GB（fp32 中間を含む）、RAM 16GB 以上推奨（本環境 15GB はぎりぎり）。

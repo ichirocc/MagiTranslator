@@ -1,0 +1,479 @@
+{
+  "date": "2026-11-25",
+  "label": "2026-11-26_madlad-int4-vs-ct2int8-raw-seed",
+  "commit": "9889292",
+  "model": "madlad-3b",
+  "notes": "PC proxy int8 via CTranslate2, not app runtime; beam 4 top-1; seed refs UNVERIFIED",
+  "testset": "testset_seed.tsv",
+  "testset_rows": 40,
+  "metrics_def": "chrF++ (char6, word2, beta2; sacrebleu-compatible); rates are fractions; auto_critical_error_rate = rows with >=1 hard validator issue",
+  "verified_only": false,
+  "systems": {
+    "int4_ort": {
+      "missing_ids": [],
+      "directions": {
+        "ja-ne": {
+          "overall": {
+            "n": 20,
+            "chrfpp": 63.59239728053441,
+            "number_preservation": 1.0,
+            "number_n": 3,
+            "negation_consistency": 1.0,
+            "term_accuracy": 0.9,
+            "term_n": 10,
+            "leftover_source_script": 0.0,
+            "auto_critical_error_rate": 0.05
+          },
+          "categories": {
+            "asr": {
+              "n": 2,
+              "chrfpp": 76.76693580659305,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "greeting": {
+              "n": 3,
+              "chrfpp": 49.04379065086248,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 2,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "honorific": {
+              "n": 2,
+              "chrfpp": 16.437065957515642,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "long": {
+              "n": 1,
+              "chrfpp": 66.53184733147968,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "negation": {
+              "n": 3,
+              "chrfpp": 56.73448050136322,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 0.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.3333333333333333
+            },
+            "numbers": {
+              "n": 3,
+              "chrfpp": 78.3974329430379,
+              "number_preservation": 1.0,
+              "number_n": 3,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "proper_name": {
+              "n": 2,
+              "chrfpp": 64.52801053892601,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 3,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "question": {
+              "n": 2,
+              "chrfpp": 84.38510242642695,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "request": {
+              "n": 2,
+              "chrfpp": 64.13417151719976,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            }
+          }
+        },
+        "ne-ja": {
+          "overall": {
+            "n": 20,
+            "chrfpp": 40.228523080701436,
+            "number_preservation": 0.6666666666666666,
+            "number_n": 3,
+            "negation_consistency": 1.0,
+            "term_accuracy": 0.42857142857142855,
+            "term_n": 7,
+            "leftover_source_script": 0.0,
+            "auto_critical_error_rate": 0.2
+          },
+          "categories": {
+            "asr": {
+              "n": 2,
+              "chrfpp": 53.78073403510375,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "greeting": {
+              "n": 3,
+              "chrfpp": 52.6445449062667,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "honorific": {
+              "n": 2,
+              "chrfpp": 31.018439200845503,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "long": {
+              "n": 1,
+              "chrfpp": 68.06595171905789,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "negation": {
+              "n": 3,
+              "chrfpp": 69.5423956805485,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "numbers": {
+              "n": 3,
+              "chrfpp": 13.452932430781281,
+              "number_preservation": 0.6666666666666666,
+              "number_n": 3,
+              "negation_consistency": 1.0,
+              "term_accuracy": 0.0,
+              "term_n": 2,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.3333333333333333
+            },
+            "proper_name": {
+              "n": 2,
+              "chrfpp": 22.183431074861147,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 0.0,
+              "term_n": 2,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 1.0
+            },
+            "question": {
+              "n": 2,
+              "chrfpp": 24.46407164357433,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.5
+            },
+            "request": {
+              "n": 2,
+              "chrfpp": 21.571835063402837,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            }
+          }
+        }
+      }
+    },
+    "int8_ct2": {
+      "missing_ids": [],
+      "directions": {
+        "ja-ne": {
+          "overall": {
+            "n": 20,
+            "chrfpp": 63.26638090146248,
+            "number_preservation": 1.0,
+            "number_n": 3,
+            "negation_consistency": 1.0,
+            "term_accuracy": 0.9,
+            "term_n": 10,
+            "leftover_source_script": 0.0,
+            "auto_critical_error_rate": 0.05
+          },
+          "categories": {
+            "asr": {
+              "n": 2,
+              "chrfpp": 76.76693580659305,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "greeting": {
+              "n": 3,
+              "chrfpp": 52.88482181239606,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 2,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "honorific": {
+              "n": 2,
+              "chrfpp": 16.437065957515642,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "long": {
+              "n": 1,
+              "chrfpp": 66.53184733147968,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "negation": {
+              "n": 3,
+              "chrfpp": 57.980912489809704,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 0.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.3333333333333333
+            },
+            "numbers": {
+              "n": 3,
+              "chrfpp": 78.3974329430379,
+              "number_preservation": 1.0,
+              "number_n": 3,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "proper_name": {
+              "n": 2,
+              "chrfpp": 57.95929273581241,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 3,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "question": {
+              "n": 2,
+              "chrfpp": 84.38510242642695,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "request": {
+              "n": 2,
+              "chrfpp": 64.13417151719976,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            }
+          }
+        },
+        "ne-ja": {
+          "overall": {
+            "n": 20,
+            "chrfpp": 38.49530887562076,
+            "number_preservation": 0.6666666666666666,
+            "number_n": 3,
+            "negation_consistency": 1.0,
+            "term_accuracy": 0.42857142857142855,
+            "term_n": 7,
+            "leftover_source_script": 0.0,
+            "auto_critical_error_rate": 0.2
+          },
+          "categories": {
+            "asr": {
+              "n": 2,
+              "chrfpp": 53.78073403510375,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "greeting": {
+              "n": 3,
+              "chrfpp": 52.6445449062667,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "honorific": {
+              "n": 2,
+              "chrfpp": 31.018439200845503,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "long": {
+              "n": 1,
+              "chrfpp": 68.06595171905789,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "negation": {
+              "n": 3,
+              "chrfpp": 59.085781513237094,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 1.0,
+              "term_n": 1,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            },
+            "numbers": {
+              "n": 3,
+              "chrfpp": 13.452932430781281,
+              "number_preservation": 0.6666666666666666,
+              "number_n": 3,
+              "negation_consistency": 1.0,
+              "term_accuracy": 0.0,
+              "term_n": 2,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.3333333333333333
+            },
+            "proper_name": {
+              "n": 2,
+              "chrfpp": 21.336416278758968,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": 0.0,
+              "term_n": 2,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 1.0
+            },
+            "question": {
+              "n": 2,
+              "chrfpp": 24.46407164357433,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.5
+            },
+            "request": {
+              "n": 2,
+              "chrfpp": 21.571835063402837,
+              "number_preservation": null,
+              "number_n": 0,
+              "negation_consistency": 1.0,
+              "term_accuracy": null,
+              "term_n": 0,
+              "leftover_source_script": 0.0,
+              "auto_critical_error_rate": 0.0
+            }
+          }
+        }
+      }
+    }
+  }
+}
