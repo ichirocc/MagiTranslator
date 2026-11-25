@@ -811,6 +811,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("language", language.getCode());
         editor.apply();
+        if (translator != null) {
+            translator.resetConversationMemory();   //new language pair: drop jane term memory
+        }
         if(ConversationService.isRunning && translator != null){
             translator.loadTgtLangResourcesForConversation(language, null);
             if(getBluetoothCommunicator() != null){
@@ -825,6 +828,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstLanguage", language.getCode());
         editor.apply();
+        if (translator != null) {
+            translator.resetConversationMemory();   //new language pair: drop jane term memory
+        }
         loadLanguagesResources(language, getSecondLanguage(true), RTranslatorMode.WALKIE_TALKIE_MODE, listener);
     }
 
@@ -834,6 +840,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("secondLanguage", language.getCode());
         editor.apply();
+        if (translator != null) {
+            translator.resetConversationMemory();   //new language pair: drop jane term memory
+        }
         loadLanguagesResources(getFirstLanguage(true), language, RTranslatorMode.WALKIE_TALKIE_MODE, listener);
     }
 
@@ -843,6 +852,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstTextLanguage", language.getCode());
         editor.apply();
+        if (translator != null) {
+            translator.resetConversationMemory();   //new language pair: drop jane term memory
+        }
         loadLanguagesResources(language, getSecondTextLanguage(true), RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
     }
 
@@ -853,6 +865,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("secondTextLanguage", language.getCode());
         editor.apply();
+        if (translator != null) {
+            translator.resetConversationMemory();   //new language pair: drop jane term memory
+        }
         loadLanguagesResources(getFirstTextLanguage(true), language, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
     }
 

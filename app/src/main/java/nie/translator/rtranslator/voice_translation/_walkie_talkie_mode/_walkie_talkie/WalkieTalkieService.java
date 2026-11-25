@@ -459,6 +459,9 @@ public class WalkieTalkieService extends VoiceTranslationService {
         speechRecognizer.removeCallback(speechRecognizerSingleCallback);
         // Stop recognizer
         speechRecognizer.stop();
+        if (translator != null) {
+            translator.resetConversationMemory();
+        }
         super.onDestroy();
     }
 

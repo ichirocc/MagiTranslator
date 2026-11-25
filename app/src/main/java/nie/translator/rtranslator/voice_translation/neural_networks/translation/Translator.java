@@ -197,6 +197,18 @@ public class Translator extends NeuralNetworkApi {
     @Nullable
     private String janeGlossaryStamp;
 
+    /** Clears the jane TranslationMemory so term/name renderings never leak between conversations (SPEC §19.A). */
+    public void resetConversationMemory() {
+        translationLock.lock();
+        try {
+            if (janeTranslator != null) {
+                janeTranslator.memory().clear();
+            }
+        } finally {
+            translationLock.unlock();
+        }
+    }
+
     /** Runs the ja<->ne library; the backend is this Translator's Madlad model with UI notifications muted. */
     @Nullable
     private String translateJaNeWithLibrary(String text, CustomLocale in, CustomLocale out, int beamSize) {

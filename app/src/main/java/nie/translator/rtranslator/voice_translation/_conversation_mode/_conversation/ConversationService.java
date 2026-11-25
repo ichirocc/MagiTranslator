@@ -320,6 +320,7 @@ public class ConversationService extends VoiceTranslationService {
             global.getBluetoothCommunicator().removeCallback(communicationCallback);
         }
         translator.unloadAllLangResourcesForConversation(null);
+        translator.resetConversationMemory();
         isRunning = false;
         super.onDestroy();
     }
