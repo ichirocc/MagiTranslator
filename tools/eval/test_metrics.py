@@ -120,5 +120,60 @@ class ReviewFixesTest(unittest.TestCase):
         self.assertTrue(M.numbers_preserved("३ जना आउनुभयो।", "三人が来ました。", "ja"))
 
 
+class ValidatorPortTest(unittest.TestCase):
+    """Port of the IR-based validator kinds (JaNeLibraryTest; full parity: check_validator_parity.py)."""
+
+    def kinds(self, src, hyp, d):
+        return [k for k, _, _ in M.validate(src, hyp, d)]
+
+    def test_negative_past(self):
+        for s in ("म हिजो गइनँ।", "उनी आएनन्।", "उसले काम गरेन।", "मैले खाना खाइनँ।", "मैले गरिनँ।"):
+            self.assertTrue(M.ne_has_negation(s), s)
+        for s in ("म ट्रेनमा गएँ।", "आज राम्रो दिन हो।", "उनी आए।", "यो ५०० येन हो।"):
+            self.assertFalse(M.ne_has_negation(s), s)
+        self.assertEqual(M.hard_count(M.validate("昨日は行きませんでした。", "म हिजो गइनँ।", "ja-ne")), 0)
+
+    def test_ja_ne_agreement(self):
+        self.assertEqual(self.kinds("先生はもう帰られました。", "तपाईँको शिक्षक घरमा हुनुहुन्छ।", "ja-ne"), ["PAST_LOST"])
+        self.assertEqual(M.hard_count(M.validate("先生はもう帰られました。", "शिक्षक घर गएका छन् ।", "ja-ne")), 0)
+        self.assertIn("WH_LOST", self.kinds("明日の夕方、何時に会社へ行きますか？", "तपाईँ भोलि साँझ कम्पनीमा कहिले जानुहुन्छ?", "ja-ne"))
+        self.assertEqual(M.hard_count(M.validate("明日の夕方、何時に会社へ行きますか？", "तपाईँ भोलि साँझ कति बजे कम्पनी जानुहुन्छ ?", "ja-ne")), 0)
+        self.assertEqual(self.kinds("明日行かなければなりません。", "म भोलि जान्छु।", "ja-ne"), ["OBLIGATION_LOST"])
+        self.assertEqual(self.kinds("少々お待ちください。", "म पर्खन्छु।", "ja-ne"), ["REQUEST_LOST"])
+        self.assertEqual(M.validate("明日は雨でしょう。", "भोलि पानी पर्छ।", "ja-ne"), [("CONJECTURE_LOST", False, None)])
+        self.assertEqual(M.validate("ここで写真を撮ってもいいですか？", "यहाँ फोटो खिच्ने?", "ja-ne")[-1], ("PERMISSION_LOST", False, None))
+
+    def test_ne_ja_meaning(self):
+        self.assertIn("QUESTION_WORD_LOST", self.kinds("यो कति हो?", "これは何ですか。", "ne-ja"))
+        self.assertEqual(M.hard_count(M.validate("यो कति हो?", "これはいくらですか？", "ne-ja")), 0)
+        self.assertEqual(M.hard_count(M.validate("के तपाईं आउनुहुन्छ?", "来ますか？", "ne-ja")), 0)
+        self.assertIn("CURRENCY_MISMATCH", self.kinds("यसको मूल्य १,००० रुपैयाँ हो।", "価格は1000円。", "ne-ja"))
+        self.assertEqual(M.hard_count(M.validate("यो ५०० येन हो।", "これは500円です。", "ne-ja")), 0)
+        k = self.kinds("म नेपालबाट आएँ।", "ネバダ州シアトル出身。", "ne-ja")
+        self.assertIn("PLACE_MISSING", k)
+        self.assertIn("PLACE_ADDED", k)
+        self.assertEqual(M.hard_count(M.validate("म नेपाली बोल्छु।", "私はネパール語を話します。", "ne-ja")), 0)
+        self.assertEqual(M.hard_count(M.validate("राम काठमाडौँमा बस्छन्।", "ラムはカトマンズに住んでいる。", "ne-ja")), 0)
+
+    def test_repetition_and_format(self):
+        self.assertEqual(M.format_issues(M.validate("नमस्ते", "ラムラムです", "ne-ja")), "[HARD REPETITION]")
+        self.assertEqual(M.validate("x", "  ", "ja-ne"), [("EMPTY", True, None)])
+
+    def test_name_extra_vowel(self):
+        self.assertEqual(M.name_extra_vowel("रामु काठमाडौँबाट आए।", ["रामु"]), [("NAME_EXTRA_VOWEL", True, "रामु")])
+        self.assertEqual(M.name_extra_vowel("राम काठमाडौँबाट आए।", ["रामु"]), [])
+
+    def test_ir(self):
+        ir = M.analyze_ja("ラムさんは三人でネパール語を話した。")
+        self.assertEqual(ir["numbers_norm"], ["3"])
+        self.assertIn("ネパール", ir["places"])
+        self.assertNotIn("ネパール", ir["places_as_place"])
+        self.assertEqual(ir["tense"], "PAST")
+        ne = M.analyze_ne("म नेपालबाट १,००० रुपैयाँ लिएर आइनँ।")
+        self.assertTrue(ne["negated"])
+        self.assertEqual(ne["places"], {"ネパール"})
+        self.assertEqual(ne["cur"], {"RUPEE"})
+
+
 if __name__ == "__main__":
     unittest.main()

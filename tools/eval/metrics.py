@@ -189,6 +189,10 @@ JA_NOT_NEGATION = re.compile(
 NE_NEG_WORD = re.compile(r"(छैन|छैनन्|छैनौं|होइन|होइनन्|हुँदैन|हुन्न|दैन|दैनन्|दैनौं|दैनौ|दिनँ|दिनौं|हुन्नँ|न्नँ)$")
 NE_NEG_NN = re.compile(r"[\u093E-\u094C\u0901\u0902]न्नँ?$")
 NE_NN_NOT_NEGATION = {"भिन्न", "विभिन्न", "खिन्न", "छिन्न", "छिन्नभिन्न"}
+# negative past: गएन / आएन / गरेन (3rd person), गइनँ / गरिनँ (1st/2nd person); loanwords in े+न listed
+NE_NEG_PAST = re.compile("(?:[एइ]न|ेन|िनँ|िनन्|िनौं|िनौ)(?:ँ|न्|ौं|ौँ|ौ)?$")
+NE_NEG_PAST_NOT = {"येन", "ट्रेन", "प्लेन", "ब्रेन", "स्पेन", "चेन", "लेन", "सेन", "मेन", "जेन", "डेन", "केन", "पेन", "टेन",
+                   "हेन", "क्रेन", "भेन"}
 NE_NEG_PREFIX = re.compile(r"^न(?:[क-ह]|[अआइईउऊएऐओऔ])")
 NE_NOT_NEGATION = ("नमस्ते", "नमस्कार", "नयाँ", "नजिक", "नदी", "नक्सा", "नक्शा", "नम्बर", "नरम", "नर्स", "नल", "नसा",
                    "नक्कली", "नतिजा", "नर्सरी", "नगरपालिका", "नगरमा", "नगरको", "नगरका", "नगरले", "नगरबाट", "नगरवासी",
@@ -211,6 +215,8 @@ def ne_has_negation(ne):
         if w == "दिन":  # "day"
             continue
         if NE_NEG_WORD.search(w):
+            return True
+        if len(w) >= 3 and NE_NEG_PAST.search(w) and w not in NE_NEG_PAST_NOT:
             return True
         if NE_NEG_NN.search(w) and w not in NE_NN_NOT_NEGATION:
             return True
@@ -243,3 +249,184 @@ def term_hits(hyp, terms):
 def leftover_source_script(hyp, direction):
     """True if hyp contains source script (ja-ne: kana/kanji; ne-ja: Devanagari)."""
     return (JA_SCRIPT if direction == "ja-ne" else DEVANAGARI).search(hyp) is not None
+
+
+# ---------------------------------------------------------------- Stage 1 Language IR + full validator
+# Port of jane/ir (JaAnalyzer, NeAnalyzer) and TranslationValidator.validateJaToNe / validateNeToJa.
+# CI compares this port with the Java validator (check_validator_parity.py); keep both in step.
+_NE_CH = "ऀ-ॣ०-ॿ"
+_NE_L = "(?<![" + _NE_CH + "])"
+_NE_R = "(?![" + _NE_CH + "])"
+
+
+def _ne_word(alt):
+    return re.compile("(?<![" + _NE_CH + "])(?:" + alt + ")(?![" + _NE_CH + "])")
+
+
+def canon(s):
+    """TranslationValidator.canonTerm / IrText.canon: NFKC, candrabindu == anusvara."""
+    return unicodedata.normalize("NFKC", s).replace("ँ", "ं")
+
+
+JA_QUESTION = re.compile(r"(か[。？]?$|？|\?)")
+NE_QUESTION = re.compile(
+    r"(\?|？|को हो|(?<![ऀ-ॣ०-ॿ])(?:के|किन|कसरी|कस्तो|कस्ती|कस्ता|कुन|कुनचाहिँ|कुनचाहिं|कहाँ\S*|"
+    r"कति(?!पय)\S*|कहिले(?!काहीं|काहीँ|काहिँ|काहिं))(?![ऀ-ॣ०-ॿ]))")
+
+_JA_WH = [("TIME_OCLOCK", re.compile("何時(?![間代])")), ("COUNT_PERSON", re.compile("何人")), ("PRICE", re.compile("いくら")),
+          ("WHO", re.compile("(?:誰|だれ|どなた)(?![かも])")), ("WHERE", re.compile("どこ(?![かも])")),
+          ("WHEN", re.compile("いつ(?![かも])")), ("WHY", re.compile("(?:なぜ|どうして|なんで)")),
+          ("HOW", re.compile("(?:どうやって|どのように|どうすれば)")), ("WHICH", re.compile("(?:どれ|どの|どちら|どっち)(?![かも])"))]
+_JA_WH_COVER = [("QUANTITY", re.compile("いくら|幾ら|いくつ|幾つ|どれ(くらい|ぐらい|位)|どの(くらい|ぐらい|位)|"
+                                        "何[人個歳回時日本枚台度分秒年月週円階番件杯匹冊着名]|"
+                                        "なん(にん|こ|さい|かい|じ|にち|ぼん|まい|だい|ど|ぷん|ふん|ねん)")),
+                ("WHY", re.compile("なぜ|何故|どうして|なんで|何で|理由")), ("WHERE", re.compile("どこ|何処|どちら|どっち")),
+                ("WHEN", re.compile("いつ|何時|何日|何曜")), ("HOW", re.compile("どう|どのよう|どうやって|如何"))]
+_NE_WH = [("QUANTITY", re.compile(_NE_L + r"कति(?!पय)\S*")), ("WHY", re.compile(_NE_L + "किन" + _NE_R)),
+          ("WHERE", re.compile(_NE_L + r"कह[ाँां]{2}\S*")),
+          ("WHEN", re.compile(_NE_L + "कहिले(?!काहीं|काहीँ|काहिँ|काहिं)" + _NE_R)),
+          ("HOW", re.compile(_NE_L + "कसरी" + _NE_R))]
+_NE_WH_COVER = [("TIME_OCLOCK", _ne_word("बजे|बेला")), ("COUNT_PERSON", _ne_word("कति|कतिजना")),
+                ("PRICE", _ne_word(r"कति\S*|मूल्य|दाम|पैसा")), ("WHO", _ne_word("को|कसले|कसको|कसलाई|कोसँग|कोही")),
+                ("WHERE", _ne_word(r"कहाँ\S*|कुन ठाउँ\S*")), ("WHEN", _ne_word(r"कहिले\S*|कुन दिन\S*|कति बेला|कति बजे")),
+                ("WHY", _ne_word("किन")), ("HOW", _ne_word(r"कसरी|के गर\S*")), ("WHICH", _ne_word(r"कुन\S*|कुनचाहिँ|कुनचाहिं"))]
+_JA_MOD = [("OBLIGATION", re.compile("(なければ(なら|なり|いけ)|なくては(なら|なり|いけ)|ないと(いけ|だめ|ダメ)|なきゃ|なくちゃ|べき)")),
+           ("REQUEST", re.compile("(ください|下さい|[てで](くれ(ませんか|ますか)?|ちょうだい|もらえ|いただけ)|お願い)")),
+           ("CONJECTURE", re.compile("(でしょう(?!か)|だろう|かもしれ|と思い|と思う|みたい|らしい|はず)")),
+           ("PERMISSION", re.compile("[てで]も(いい|良い|よい|大丈夫|かまわ|構わ)"))]
+_NE_MOD = [("OBLIGATION", re.compile("(पर्छ|पर्छन्|पर्ने|पर्यो|पर्‍यो|पर्थ्यो|पर्दछ|पर्नेछ|पर्नुहुन्छ|नुपर|चाहिन्छ|अनिवार्य)")),
+           ("REQUEST", re.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|सक्छौ|ऊ(?![" + _NE_CH + "])|ओ(?![" + _NE_CH + "]))")),
+           ("CONJECTURE", re.compile("(होला|ला(?![" + _NE_CH + "])|सक्छ|सक्छन्|जस्तो|जस्तै|लाग्छ|लाग्यो|ठान्छु|सायद|शायद|पक्का|हुनुपर्छ|होइन र)")),
+           ("PERMISSION", re.compile("(हुन्छ|सकिन्छ|सक्नुहुन्छ|सक्छ|ठीक|ठिक|अनुमति|पाइन्छ|पर्दैन|मिल्छ)"))]
+JA_PAST = re.compile("(ました|でした|かった(です)?|[っんいきしちにびみりえけせてねべめれげ]た|[っん]だ)(よ|ね|よね|か)?[。！!？?]?$")
+NE_PAST = _ne_word(r"\S*(?:थियो|थिए|थिइन्|थिएँ|थियौं|थ्यो|यो|एको|एका|एकी|भयो|भएको|सक्यो|सके|इन्|इनँ|इनौं|ए|एँ|एन|एनन्|ेन|ेनन्|ेको|ेका|ेकी|्यो|"
+                   "‍यो)")
+NE_PAST_NOT = {"यो", "त्यो", "जो", "उनको"}
+_JA_CUR = [("RUPEE", re.compile("ルピー")), ("YEN", re.compile(r"[0-9０-９〇一二三四五六七八九十百千万億]\s*円|円(?![滑満形熟周])")),
+           ("DOLLAR", re.compile("ドル"))]
+_NE_CUR = [("RUPEE", re.compile("रुपैयाँ|रुपैयां|रुपियाँ|रुपियां|" + _NE_L + r"(रु|रू)\.?\s*[0-9०-९]|NPR|Rs\.?\s*[0-9]")),
+           ("YEN", re.compile(_NE_L + "(येन|जापानी येन)" + _NE_R)), ("DOLLAR", re.compile(_NE_L + "डलर"))]
+_DEMONYM = re.compile("(ネパール|日本|インド|中国|アメリカ)(語|人)")
+_KATAKANA_REPEAT = re.compile(r"([ァ-ヺー]{2,})\1")
+PLACES = [("ネパール", "नेपाल"), ("カトマンズ", "काठमाडौं", "काठमाडौँ"), ("ポカラ", "पोखरा"), ("日本", "जापान"),
+          ("東京", "टोकियो", "तोक्यो"), ("大阪", "ओसाका"), ("インド", "भारत", "इन्डिया"), ("中国", "चीन"),
+          ("アメリカ", "अमेरिका"), ("ネバダ", "नेभाडा"), ("シアトル", "सियाटल"), ("カタルーニャ", "क्याटालोनिया"),
+          ("ルンビニ", "लुम्बिनी"), ("チトワン", "चितवन"), ("エベレスト", "सगरमाथा", "एभरेस्ट")]
+
+
+def _last_sentence(ja):
+    t = ja.strip()
+    for p in reversed(re.split("(?<=[。！!？?])", t)):
+        if p.strip():
+            return p.strip()
+    return t
+
+
+def analyze_ja(text):
+    """Port of JaAnalyzer.analyze (Stage 1 IR) as a dict."""
+    raw = text or ""
+    ja = unicodedata.normalize("NFKC", raw)
+    as_place = _DEMONYM.sub("", ja)
+    return {
+        "negated": ja_has_negation(raw), "question": JA_QUESTION.search(ja.strip()) is not None,
+        "wh": [(k, m.group()) for k, p in _JA_WH for m in [p.search(ja)] if m],
+        "wh_cover": {k for k, p in _JA_WH_COVER if p.search(ja)},
+        "mod": {k for k, p in _JA_MOD if p.search(ja)}, "mod_cover": set(),
+        "tense": "PAST" if JA_PAST.search(_last_sentence(ja)) else "NON_PAST",
+        "numbers": numbers(raw), "numbers_norm": numbers(kanji_to_digits(raw)),
+        "cur": {k for k, p in _JA_CUR if p.search(ja)},
+        "places": {p[0] for p in PLACES if p[0] in ja}, "places_as_place": {p[0] for p in PLACES if p[0] in as_place},
+        "repeat": _KATAKANA_REPEAT.search(raw) is not None,
+    }
+
+
+def analyze_ne(text):
+    """Port of NeAnalyzer.analyze (Stage 1 IR) as a dict."""
+    raw = text or ""
+    ne = unicodedata.normalize("NFC", raw)
+    c = canon(raw)
+    places = {p[0] for p in PLACES if any(re.search(_NE_L + re.escape(canon(st)) + "(?!ी)", c) for st in p[1:])}
+    nums = numbers(raw)
+    return {
+        "negated": ne_has_negation(raw), "question": NE_QUESTION.search(raw) is not None,
+        "wh": [(k, m.group()) for k, p in _NE_WH for m in [p.search(ne)] if m],
+        "wh_cover": {k for k, p in _NE_WH_COVER if p.search(ne)},
+        "mod": set(), "mod_cover": {k for k, p in _NE_MOD if p.search(ne)},
+        "tense": "PAST" if any(m.group() not in NE_PAST_NOT for m in NE_PAST.finditer(ne)) else "UNKNOWN",
+        "numbers": nums, "numbers_norm": nums,
+        "cur": {k for k, p in _NE_CUR if p.search(ne)}, "places": places, "places_as_place": set(), "repeat": False,
+    }
+
+
+def _check_numbers(a, b, issues):
+    rest = list(b)
+    for n in a:
+        if n in rest:
+            rest.remove(n)
+        else:
+            issues.append(("NUMBER_LOST", True, n))
+    for n in rest:
+        issues.append(("NUMBER_ADDED", False, n))
+
+
+def validate(src, hyp, direction, required_targets=None):
+    """Port of TranslationValidator.validateJaToNe / validateNeToJa: [(kind, hard, detail)] in Java order."""
+    if hyp is None or not hyp.strip():
+        return [("EMPTY", True, None)]
+    issues = []
+    if direction == "ja-ne":
+        s, t = analyze_ja(src), analyze_ne(hyp)
+        _check_numbers(s["numbers"], t["numbers"], issues)
+        if s["negated"] != t["negated"]:
+            issues.append(("NEGATION_LOST", True, None) if s["negated"] else ("NEGATION_ADDED", False, None))
+        for term in required_targets or []:
+            if canon(term) not in canon(hyp):
+                issues.append(("TERM_MISSING", True, term))
+        if JA_SCRIPT.search(hyp):
+            issues.append(("UNTRANSLATED_SOURCE_SCRIPT", True, None))
+        if s["question"] and not t["question"]:
+            issues.append(("QUESTION_LOST", False, None))
+        if s["question"]:
+            issues += [("WH_LOST", True, surface) for k, surface in s["wh"] if k not in t["wh_cover"]]
+        for k, hard in (("OBLIGATION", True), ("REQUEST", True), ("CONJECTURE", False), ("PERMISSION", False)):
+            if k in s["mod"] and k not in t["mod_cover"]:
+                issues.append((k + "_LOST", hard, None))
+        if s["tense"] == "PAST" and t["tense"] != "PAST":
+            issues.append(("PAST_LOST", True, None))
+        return issues
+    s, t = analyze_ne(src), analyze_ja(hyp)
+    _check_numbers(s["numbers"], t["numbers_norm"], issues)
+    if s["negated"] != t["negated"]:
+        issues.append(("NEGATION_LOST", True, None) if s["negated"] else ("NEGATION_ADDED", False, None))
+    if DEVANAGARI.search(hyp):
+        issues.append(("UNTRANSLATED_SOURCE_SCRIPT", True, None))
+    if t["repeat"]:
+        issues.append(("REPETITION", True, None))
+    issues += [("QUESTION_WORD_LOST", True, surface) for k, surface in s["wh"] if k not in t["wh_cover"]]
+    if "RUPEE" in s["cur"] and "RUPEE" not in t["cur"]:
+        issues.append(("CURRENCY_MISMATCH", True, "ルピー"))
+    if "YEN" not in s["cur"] and "YEN" in t["cur"]:
+        issues.append(("CURRENCY_MISMATCH", True, "円"))
+    if "DOLLAR" not in s["cur"] and "DOLLAR" in t["cur"]:
+        issues.append(("CURRENCY_MISMATCH", True, "ドル"))
+    for p in PLACES:
+        if p[0] in s["places"] and p[0] not in t["places"]:
+            issues.append(("PLACE_MISSING", True, p[0]))
+        if p[0] not in s["places"] and p[0] in t["places_as_place"]:
+            issues.append(("PLACE_ADDED", True, p[0]))
+    return issues
+
+
+def hard_count(issues):
+    return sum(1 for _, h, _ in issues if h)
+
+
+def format_issues(issues):
+    """Same text as Java List<Issue>.toString()."""
+    return "[" + ", ".join(("HARD " if h else "soft ") + k + ("" if d is None else "(" + d + ")") for k, h, d in issues) + "]"
+
+
+def name_extra_vowel(candidate, extra_vowel_forms):
+    """Port of JaNeTranslator's NAME_EXTRA_VOWEL rule: one hard issue per name spelled with the extra
+    katakana u (रामु) while a bare rendering (राम) exists."""
+    return [("NAME_EXTRA_VOWEL", True, d) for d in extra_vowel_forms if canon(d) in canon(candidate)]

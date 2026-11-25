@@ -12,7 +12,8 @@
 |---|---|---|
 | JapaneseNormalizer / UnicodeNormalizer | `jane/JaNormalizer` | 実装済(NFKC・全半角) |
 | TextSegmenter | `jane/JaSegmenter` | 文分割・用語抽出 |
-| NegationAnalyzer(ja/ne) | `TranslationValidator` の否定検出 | 規則ベース。作用範囲は未解析（有無のみ） |
+| NegationAnalyzer(ja/ne) | `jane/ir/JaAnalyzer`・`NeAnalyzer` の否定検出（否定過去形を含む） | 規則ベース。作用範囲は未解析（有無のみ） |
+| LanguageIR（Stage1） | `jane/ir/LanguageIR`（否定・疑問・疑問語・モダリティ・時制・数・通貨・地名・名前候補・反復） | 実装済。validator は IR(原文)×IR(候補) で判定。旧実装と 130,371 組で判定一致を確認 |
 | 数量・日時 | `KanjiNumber` + validator 数字照合 | 実装済 |
 | EntityAnalyzer / 固有名 | `ProperNameResolver`, `KanaDevanagari` | 音写・KEEP・NOUN |
 | ModalityAnalyzer(一部) | validator の謝罪/義務/推量/勧誘≠否定 判定 | 部分的 |

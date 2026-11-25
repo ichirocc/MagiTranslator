@@ -401,6 +401,39 @@ public class JaNeLibraryTest {
         yes(!TranslationValidator.neHasNegation("उनी आए।"), "आए is affirmative");
         eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("昨日は行きませんでした。", "म हिजो गइनँ।", null)), "ませんでした -> गइनँ passes");
         eq(0, TranslationValidator.hardCount(TranslationValidator.validateNeToJa("उनी आएनन्।", "彼は来ませんでした。")), "आएनन् -> 来ませんでした passes");
+        // Stage 1 Language IR (jane.ir): analyzers per language, verdicts come from IR(source) vs IR(candidate)
+        nie.translator.rtranslator.jane.ir.LanguageIR ij = nie.translator.rtranslator.jane.ir.JaAnalyzer.analyze("明日の夕方、何時に会社へ行きますか？");
+        yes(ij.question, "IR ja: question");
+        yes(ij.whWords.containsKey(nie.translator.rtranslator.jane.ir.WhConcept.TIME_OCLOCK), "IR ja: 何時 -> TIME_OCLOCK");
+        eq("何時", ij.whWords.get(nie.translator.rtranslator.jane.ir.WhConcept.TIME_OCLOCK), "IR ja: wh surface kept");
+        eq(nie.translator.rtranslator.jane.ir.Tense.NON_PAST, ij.tense, "IR ja: non-past");
+        yes(!ij.negated, "IR ja: affirmative");
+        nie.translator.rtranslator.jane.ir.LanguageIR ij2 = nie.translator.rtranslator.jane.ir.JaAnalyzer.analyze("昨日は行かなければなりませんでした。");
+        eq(nie.translator.rtranslator.jane.ir.Tense.PAST, ij2.tense, "IR ja: past");
+        yes(ij2.modalities.contains(nie.translator.rtranslator.jane.ir.Modality.OBLIGATION), "IR ja: obligation");
+        yes(!ij2.negated, "IR ja: obligation is not negation");
+        nie.translator.rtranslator.jane.ir.LanguageIR ij3 = nie.translator.rtranslator.jane.ir.JaAnalyzer.analyze("ラムさんは三人でネパール語を話した。価格は500円。");
+        eq("[3, 500]", ij3.numbersNormalized, "IR ja: kanji numbers normalised");
+        eq("[500]", ij3.numbers, "IR ja: raw numbers as written");
+        yes(ij3.places.contains("ネパール") && !ij3.placesAsPlace.contains("ネパール"), "IR ja: ネパール語 is not a place mention");
+        yes(ij3.names.contains("ラム"), "IR ja: katakana name candidate");
+        yes(ij3.currencies.contains(nie.translator.rtranslator.jane.ir.Currency.YEN), "IR ja: yen");
+        yes(nie.translator.rtranslator.jane.ir.JaAnalyzer.analyze("ネパールネパール").degenerateRepeat, "IR ja: repeat");
+        nie.translator.rtranslator.jane.ir.LanguageIR in = nie.translator.rtranslator.jane.ir.NeAnalyzer.analyze("म हिजो नेपालबाट १,००० रुपैयाँ लिएर आइनँ। कति बजे?");
+        yes(in.negated, "IR ne: negative past");
+        eq(nie.translator.rtranslator.jane.ir.Tense.PAST, in.tense, "IR ne: past evidence");
+        yes(in.places.contains("ネパール"), "IR ne: नेपालबाट -> ネパール");
+        yes(in.currencies.contains(nie.translator.rtranslator.jane.ir.Currency.RUPEE), "IR ne: rupee");
+        yes(in.whWords.containsKey(nie.translator.rtranslator.jane.ir.WhConcept.QUANTITY), "IR ne: कति stated");
+        yes(in.whCover.contains(nie.translator.rtranslator.jane.ir.WhConcept.TIME_OCLOCK), "IR ne: बजे covers 何時");
+        eq("[1000]", in.numbers, "IR ne: numbers");
+        yes(nie.translator.rtranslator.jane.ir.NeAnalyzer.analyze("म नेपाली बोल्छु।").places.isEmpty(), "IR ne: नेपाली is not नेपाल");
+        yes(nie.translator.rtranslator.jane.ir.NeAnalyzer.analyze("कृपया पर्खनुहोस्।").modalityCover.contains(nie.translator.rtranslator.jane.ir.Modality.REQUEST), "IR ne: request cover");
+        yes(nie.translator.rtranslator.jane.ir.NeAnalyzer.analyze("ऊ भोलि आउँछ।").modalities.isEmpty(), "IR ne: stated modalities not analysed in stage 1");
+        // source IR reused across candidates gives the same verdict as the string API
+        nie.translator.rtranslator.jane.ir.LanguageIR src14 = nie.translator.rtranslator.jane.ir.JaAnalyzer.analyze("先生はもう帰られました。");
+        eq(TranslationValidator.validateJaToNe("先生はもう帰られました。", "तपाईँको शिक्षक घरमा हुनुहुन्छ।", null).toString(),
+                TranslationValidator.compareJaToNe(src14, nie.translator.rtranslator.jane.ir.NeAnalyzer.analyze("तपाईँको शिक्षक घरमा हुनुहुन्छ।"), null, new java.util.ArrayList<>()).toString(), "IR compare == string API");
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }
