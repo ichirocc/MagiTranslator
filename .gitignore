@@ -11,3 +11,4 @@ app/release
 # local-only dictionary copies (published ones live in dictionaries/)
 private_dicts/
 *.private.tsv
+__pycache__/

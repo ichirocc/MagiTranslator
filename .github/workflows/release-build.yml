@@ -62,6 +62,7 @@ jobs:
           java -cp /tmp/jt nie.translator.rtranslator.jane.ValidatorParityDump tools/eval/testset_seed.tsv \
             --testset tools/eval/testsets/test_v1_candidates.tsv docs/eval/outputs/*.tsv > /tmp/validator_dump.tsv
           python3 -I tools/eval/check_validator_parity.py /tmp/validator_dump.tsv
+          python3 -I tools/dict/test_textbook_terms.py   # textbook vocabulary tool
 
       - name: Restore release keystore from secrets (optional)
         shell: bash
