@@ -1,0 +1,31 @@
+# Care / medical terms that are NOT in the active dictionaries yet: the Nepali equivalent is not
+# established or the crawl gave no evidence. A native speaker (ideally a caregiver working in Japan)
+# should choose the Nepali, then the line can move to ja_ne_terms.tsv / ne_ja_terms.tsv.
+# Columns: japanese <TAB> nepali candidate(s) <TAB> evidence <TAB> note
+認知症	स्मृतिभ्रंश / डिमेन्सिया	crawl: 0 / 0 (अल्जाइमर 1)	essential in care; which word do caregivers use?
+介護福祉士	प्रमाणित केयरगिभर ?	ja crawl 4	certified care worker; keep the "certified" nuance?
+訪問介護	घरमै हेरचाह सेवा ?	ja crawl 131	home-visit care: no established Nepali term
+通所介護 / デイサービス	डे सर्भिस ?	ja crawl 121 / 5	day service: loanword used by caregivers in Japan?
+ショートステイ	सर्ट स्टे ?	ja crawl 0	short-stay care
+ケアマネジャー	केयर म्यानेजर ?	ja crawl 47 (+ケアマネ 208)	care manager
+ケアプラン	केयर प्लान ?	ja crawl 7	care plan
+特養 / 特別養護老人ホーム	वृद्धाश्रम ?	ja crawl 22 / 3	would lose the type of facility
+老健 / 介護老人保健施設	?	ja crawl 20 / 1	rehabilitation-oriented facility
+要介護 / 要支援	?	ja crawl 0	care-level certification
+入浴介助	नुहाउन सहयोग ?	ja crawl 0	bathing assistance
+食事介助	खाना खुवाउने ?	ja crawl 0	feeding assistance
+排泄 / 排泄介助	दिसापिसाब / शौच ?	ne crawl: शौच 2, दिसा 2	toileting
+移乗	?	ja crawl 0	transfer (bed <-> wheelchair)
+誤嚥	?	ja crawl 0	aspiration
+褥瘡 / 床ずれ	?	ja crawl 0	pressure ulcer
+転倒	लड्नु ?	ja crawl 0	fall (verb in Nepali)
+見守り	निगरानी ?	ja crawl 0	watching over a resident
+夜勤	नाइट ड्युटी / रात्रि ड्युटी	ja crawl 0	night shift: which one is used?
+申し送り	?	ja crawl 0	shift handover
+看取り	?	ja crawl 5	end-of-life care
+リハビリ	फिजियोथेरापी ?	ja crawl 1, ne crawl 0	rehabilitation is wider than physiotherapy
+特定技能	विशिष्ट सीप / स्पेसिफाइड स्किल्ड वर्कर	ne crawl: no hit	visa status of many Nepali caregivers in Japan
+技能実習	?	ja crawl 0	technical intern training
+熱中症	?	-	heatstroke
+処方箋	प्रेस्क्रिप्सन ?	-	prescription
+救急外来	इमर्जेन्सी ?	-	emergency room
