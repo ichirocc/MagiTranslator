@@ -6,6 +6,8 @@ import java.util.*;
 import nie.translator.rtranslator.jane.Backend;
 import nie.translator.rtranslator.jane.Glossary;
 import nie.translator.rtranslator.jane.JaNeTranslator;
+import nie.translator.rtranslator.jane.PhraseBook;
+import nie.translator.rtranslator.jane.UserDictionary;
 
 /**
  * Runs the app's ja<->ne library (jane) on a test set on a PC. The neural backend is the Python port of
@@ -76,7 +78,13 @@ public class JaneEval {
                 if (only != null && !only.equals(dir)) continue;
                 String[] d = dir.split("-");
                 long t0 = System.currentTimeMillis();
-                JaNeTranslator tr = new JaNeTranslator(backend, Glossary.withDefaults());
+                Glossary g = Glossary.withDefaults();
+                JaNeTranslator tr = new JaNeTranslator(backend, g);
+                if (a.containsKey("--userdict")) {   // directory of #!jane files (e.g. dictionaries/)
+                    PhraseBook pb = new PhraseBook();
+                    UserDictionary.loadDirectory(new java.io.File(a.get("--userdict")), g, pb);
+                    tr.setPhraseBook(pb);
+                }
                 JaNeTranslator.Result r = tr.translate(src, d[0], d[1]);
                 String o = r.text == null ? "" : r.text.replace("\t", " ").replace("\n", " ");
                 out.write(id + "\t" + o + "\n");
