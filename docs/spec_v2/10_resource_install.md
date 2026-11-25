@@ -255,3 +255,13 @@ data class InstallFailure(
 - 変更前後で `ModelStoreTest`・`ModelSourcesTest` が通ることを確認する（CI の javac/java ステップ）。
 - Android 側はここでコンパイルできない前提で、API・import・ラムダ捕捉を目視確認し、CI で確かめる。
 - 容量・時間・WER などの数値は実測したものだけ書く。調整済みネパール語 Whisper の配布はライセンス確認後。
+
+## 追記：NLLB・TranslationDictionaries・Tatoeba の使用状況（コード調査 2026-11-25、未実機）
+
+| ファイル | 使われる条件（コード上） | ja/ne/vi での役割 |
+|---|---|---|
+| NLLB_*.onnx（4ファイル） | ユーザーが Models Manager で翻訳モデルに NLLB を選んだとき（`selectedTranslationModel`）。`resolveModeForPair` は ne→Madlad、ja⇔vi→HY-MT（ダウンロード済みなら）を優先し、それ以外は選択中のモデル（既定 MOZILLA）を使う | **ne では使われない**（Madlad 必須）。ja⇔vi で HY-MT が無く、かつ NLLB を選んだ場合だけのフォールバック |
+| TranslationDictionaries.zip | 設定 `useTranslationDictionaries`（既定 false）を ON にしたときだけ | 既定では未使用。収録言語ペアに ja/ne/vi が含まれるかは未確認 |
+| Tatoeba.zip | 設定 `useTatoeba`（既定 false）を ON にしたときだけ（`LoadingActivity` もこの時だけ完了確認） | 既定では未使用。jpn–nep のリンクがあるかは未確認 |
+
+結論：3つとも**既定の ja⇔ne / ja⇔vi 経路では不要**。初回ダウンロードの既定セットから外し、「追加パック（任意）」へ移すのが妥当（**本コミットではダウンロード構成は変更していない**）。移す前に、初回セットアップが NLLB を前提にしていないか（`LoadingActivity` の NLLB ダウンロード確認）を実機で確認すること。

@@ -59,6 +59,7 @@ import nie.translator.rtranslator.bluetooth.Peer;
 import nie.translator.rtranslator.databases.tatoeba.LinksData;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
+import nie.translator.rtranslator.tools.MemoryGuard;
 import nie.translator.rtranslator.tools.FileTools;
 import nie.translator.rtranslator.tools.TextTools;
 import nie.translator.rtranslator.tools.Tools;
@@ -356,7 +357,14 @@ public class Translator extends NeuralNetworkApi {
             if (oldMode != -1 && oldMode != MOZILLA) {
                 onnxTranslationModelCleanup(oldMode);
             }
+            if (!MemoryGuard.hasRoomFor(global, MemoryGuard.sizeOf(modelFilesFor(newMode)))) {
+                //refuse the load instead of letting the low-memory killer end the process (spec v2 part 11)
+                mode = -1;
+                releasedMode = newMode;
+                throw new OutOfMemoryError("not enough free memory to load translation model " + newMode);
+            }
             mode = newMode;
+            releasedMode = -1;
             onnxTranslationModelInitialization();
             Log.i("translation", "model switched " + oldMode + " -> " + newMode);
         }
@@ -889,7 +897,7 @@ public class Translator extends NeuralNetworkApi {
             boolean isDictionaryResult = false;  //will be true and remain true only if all the splits of the text are translated by a dictionary
             String[] synonyms = null;
 
-            int performMode = mode;
+            int performMode = mode != -1 ? mode : releasedMode;   //a model released on memory pressure is reloaded here
             if(global.isUseMozillaForVoiceTranslation() && (rtranslatorMode == Global.RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == Global.RTranslatorMode.WALKIE_TALKIE_MODE)){
                 performMode = MOZILLA;
             }
@@ -2198,5 +2206,46 @@ public class Translator extends NeuralNetworkApi {
 
     public static abstract class GeneralListener extends TranslatorListener {
         public abstract void onSuccess();
+    }
+
+    // ===== MagiTranslator: memory pressure (spec v2 part 11) =====
+    /** mode of the big model released by {@link #releaseIdleModel()}; reloaded lazily by the next translation */
+    private volatile int releasedMode = -1;
+
+    private java.io.File modelFilesFor(int m) {
+        String base = global.getFilesDir().getPath();
+        if (m == MADLAD || m == MADLAD_CACHE) return new java.io.File(base + "/Translation/Madlad");
+        if (m == HY_MT) return new java.io.File(base + "/Translation/HY-MT");
+        if (m == NLLB || m == NLLB_CACHE) return new java.io.File(base + "/NLLB_decoder.onnx");   //rough: the decoder dominates
+        return null;
+    }
+
+    /**
+     * Closes the big translation model if no translation holds the lock. Never waits: called from
+     * onTrimMemory on the main thread. Returns true when a model was released.
+     */
+    public boolean releaseIdleModel() {
+        if (!translationLock.tryLock()) return false;   //a translation is queued or running: keep the model
+        try {
+            synchronized (langResourcesLock) {
+                if (mode == -1 || mode == MOZILLA) return false;
+                int old = mode;
+                onnxTranslationModelCleanup(old);
+                encoderSession = null;
+                decoderSession = null;
+                cacheInitSession = null;
+                embedSession = null;
+                embedAndLmHeadSession = null;
+                releasedMode = old;
+                mode = -1;
+                android.util.Log.i("translation", "model " + old + " released on memory pressure");
+                return true;
+            }
+        } catch (Exception e) {
+            android.util.Log.w("translation", "model release failed: " + e.getClass().getSimpleName());
+            return false;
+        } finally {
+            translationLock.unlock();
+        }
     }
 }

@@ -1270,5 +1270,28 @@ public class Global extends Application implements DefaultLifecycleObserver {
             listener.onSuccess();  //if the translator is not initialized yet we do not load the language resources
         }
     }
+
+    // ===== MagiTranslator: memory pressure (spec v2 part 11) =====
+    // Releases models that are not in use; they are reloaded lazily on the next translation / utterance.
+    // Nothing is released while a translation or a recognition is running (both checks never wait).
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND && !isForeground) {
+            releaseIdleModels("trim " + level);
+        }
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        releaseIdleModels("low memory");
+    }
+
+    private void releaseIdleModels(String reason) {
+        boolean t = translator != null && translator.releaseIdleModel();
+        boolean r = speechRecognizer != null && speechRecognizer.releaseIdleNeModel();
+        android.util.Log.i("memory", reason + ": translation model released=" + t + ", Nepali Whisper released=" + r);
+    }
 }
 

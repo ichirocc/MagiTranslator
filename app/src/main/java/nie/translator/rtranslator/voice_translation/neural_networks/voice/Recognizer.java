@@ -748,6 +748,12 @@ public class Recognizer extends NeuralNetworkApi {
         if (neDecoderSession != null) return true;
         if (neModelTried) return false;
         neModelTried = true;
+        if (!nie.translator.rtranslator.tools.MemoryGuard.hasRoomFor(global,
+                nie.translator.rtranslator.tools.MemoryGuard.sizeOf(new java.io.File(global.getFilesDir().getPath() + "/Whisper_ne/")))) {
+            neModelTried = false;   //try again later, the base model is used meanwhile
+            android.util.Log.w("recognizer", "not enough free memory for the Nepali Whisper, using the base model");
+            return false;
+        }
         String dir = global.getFilesDir().getPath() + "/Whisper_ne/";
         String[] names = {"Whisper_encoder.onnx", "Whisper_cache_initializer.onnx", "Whisper_cache_initializer_batch.onnx", "Whisper_decoder.onnx"};
         for (String n : names) {
@@ -921,6 +927,32 @@ public class Recognizer extends NeuralNetworkApi {
             this.beamSize = beamSize;
             this.languageCode = languageCode;
             this.languageCode2 = languageCode2;
+        }
+    }
+
+    // ===== MagiTranslator: memory pressure (spec v2 part 11) =====
+    /**
+     * Closes the optional Nepali Whisper sessions when nothing is being recognised; ensureNeModel() reloads them
+     * on the next Nepali utterance. The base model stays loaded (it serves every language). Never waits.
+     */
+    public boolean releaseIdleNeModel() {
+        synchronized (lock) {
+            if (recognizing || !dataToRecognize.isEmpty() || neDecoderSession == null) return false;
+            try {
+                neEncoderSession.close();
+                neCacheInitSession.close();
+                neCacheInitBatchSession.close();
+                neDecoderSession.close();
+            } catch (Exception e) {
+                android.util.Log.w("recognizer", "Nepali Whisper release failed: " + e.getClass().getSimpleName());
+            }
+            neEncoderSession = null;
+            neCacheInitSession = null;
+            neCacheInitBatchSession = null;
+            neDecoderSession = null;
+            neModelTried = false;   //allow the lazy reload
+            android.util.Log.i("recognizer", "Nepali Whisper released on memory pressure");
+            return true;
         }
     }
 }
