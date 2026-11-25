@@ -13,6 +13,7 @@ SAMPLE_JA = """第1章 食事の介助
 利用者の誤嚥を防ぐため、食事介助では姿勢に注意する。誤嚥性肺炎は高齢者に多い。
 入浴介助の前にバイタルを確認する。血圧と体温を測る。
 移乗の介助では車椅子のブレーキを確認する。転倒に注意する。
+薬の中毒に注意する。
 """
 SAMPLE_GLOSSARY = """用語集
 1. 入浴介助 ........ नुहाउन सहयोग
@@ -40,7 +41,8 @@ class TermsTest(unittest.TestCase):
         self.assertEqual(rows["誤嚥"][1], "1")                 # 誤嚥を防ぐ
         self.assertIn("誤嚥性肺炎", rows)                        # a run of kanji is one compound word
         self.assertEqual(rows["車椅子"][3], "dictionary")       # already in ja_ne_terms.tsv
-        self.assertEqual(rows["移乗"][3], "review")             # in review/care_candidates.tsv
+        self.assertEqual(rows["移乗"][3], "dictionary")         # decided 2026-11-25
+        self.assertEqual(rows["中毒"][3], "review")             # still open in review/care_candidates.tsv
         self.assertIn("バイタル", rows)                          # katakana word
         self.assertNotIn("注意", rows)                           # stop word
 

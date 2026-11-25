@@ -1,50 +1,40 @@
-# Care / medical terms that are NOT in the active dictionaries yet: the Nepali equivalent is not
-# established or the crawl gave no evidence. A native speaker (ideally a caregiver working in Japan)
-# should choose the Nepali, then the line can move to ja_ne_terms.tsv / ne_ja_terms.tsv.
-# Columns: japanese <TAB> nepali candidate(s) <TAB> evidence <TAB> note
-介護福祉士	प्रमाणित केयरगिभर ?	ja crawl 4	certified care worker; keep the "certified" nuance?
-訪問介護	घरमै हेरचाह सेवा ?	ja crawl 131	home-visit care: no established Nepali term
-ショートステイ	सर्ट स्टे ?	ja crawl 0	short-stay care
-ケアプラン	केयर प्लान ?	ja crawl 7	care plan
-老健 / 介護老人保健施設	?	ja crawl 20 / 1	rehabilitation-oriented facility
-要介護 / 要支援	?	ja crawl 0	care-level certification
-食事介助	खाना खुवाउने ?	ja crawl 0	feeding assistance
-移乗	?	ja crawl 0	transfer (bed <-> wheelchair)
-転倒	लड्नु ?	ja crawl 0	fall (verb in Nepali)
-見守り	निगरानी ?	ja crawl 0	watching over a resident
-夜勤	नाइट ड्युटी / रात्रि ड्युटी	ja crawl 0	night shift: which one is used?
-申し送り	?	ja crawl 0	shift handover
-看取り	?	ja crawl 5	end-of-life care
-リハビリ	फिजियोथेरापी ?	ja crawl 1, ne crawl 0	rehabilitation is wider than physiotherapy
-特定技能	विशिष्ट सीप / स्पेसिफाइड स्किल्ड वर्कर	ne crawl: no hit	visa status of many Nepali caregivers in Japan
-技能実習	?	ja crawl 0	technical intern training
-熱中症	?	-	heatstroke
-処方箋	प्रेस्क्रिप्सन ?	-	prescription
-救急外来	इमर्जेन्सी ?	-	emergency room
-# ---- from Wikidata (2026-11): the label looked wrong or unsure, so not in the active dictionaries
-心不全	? (Wikidata: हृदयघात)	Wikidata Q181754	Wikidata label means heart ATTACK; heart failure needs another word
-腹	पेट (Wikidata: कम्मर)	Wikidata	Wikidata label कम्मर is "waist"
-胃炎	? (Wikidata: अम्लपित्त)	Wikidata	अम्लपित्त is "acidity"; gastritis?
-熱中症	? (Wikidata: अतिताप / 熱射病 गर्मी स्ट्रोक)	Wikidata	which word is understood?
-中毒	? (Wikidata: नशा)	Wikidata	नशा also means drunkenness / addiction
-
-# ---- from the care exams (2026-11): MHLW question standard (Japanese + English, PDL1.0) and the national
-# care worker exam (frequency in the 38th exam). The English meaning helps the Nepali reviewer.
-# Resolved and moved to the dictionaries: 入浴介助 -> नुहाउन सहयोग, 排泄 -> दिसापिसाब.
-介護福祉職 (resolved)	केयरगिभर	exam 38: 70	moved to ja_ne_terms.tsv
-訪問介護員 / ホームヘルパー	केयरगिभर ? / होम हेल्पर ?	exam 38: 15 / 15	home-visit care worker
-移乗	?	standard: transfer (bed <-> wheelchair)	still open
-整容	?	standard: grooming (face washing, hair, oral care)	
-身体清拭	शरीर पुछ्ने ?	standard: wiping of body	
-失禁	?	standard: incontinence	
-ボディメカニクス	बडी मेकानिक्स ?	standard: body mechanics	loanword?
-受診	डाक्टरलाई देखाउने ?	exam 38: 3	seeing a doctor
-介護計画 / アセスメント	?	exam 38: 4 / 4	care plan / assessment
-
-# ---- resolved with the official Nepali study text (日本介護福祉士会, 2025; sources/textbook_2026-11.md):
-# 認知症, 通所介護 / デイサービス, ケアマネジャー, 特養 / 特別養護老人ホーム, 誤嚥, 褥瘡 / 床ずれ, 認知症, 誤嚥, 褥瘡, 更衣, 身体拘束, 中核症状 / 周辺症状, 傾聴, 片麻痺, 記憶障害, 仰臥位
-中核症状	महत्त्वपूर्ण लक्षणहरू (text p.93)	study text	literal "important symptoms": keep, or a clearer word?
-介護 (wording)	हेरचाह (dictionary) / नर्सिङ केयर (study text)	study text uses नर्सिङ केयर everywhere	which one for ja->ne? ne->ja accepts both
-福祉用具 (wording)	सहायक उपकरण (dictionary) / कल्याण उपकरण (study text)	study text p.25	ne->ja accepts both
-転倒	लड्ने (study text p.25: लड्ने तथा खस्ने रोकथाम)	study text	verb; also means "to fight"
-体位変換	शरीरको पोजिसन फेर्नु (study text p.127)	study text	verb phrase
+# Care / medical terms: decisions and what is still open.
+# On 2026-11-25 every open term was decided by recommendation (the user asked to adopt the recommended
+# choice). They are in the dictionaries now; a native Nepali speaker (ideally a caregiver in Japan)
+# should still check them. Columns: japanese <TAB> nepali <TAB> basis <TAB> note
+#
+# ---- decided by recommendation
+介護 (wording)	हेरचाह	plain Nepali, understood by everyone	study text uses नर्सिङ केयर; ne->ja accepts both
+福祉用具 (wording)	सहायक उपकरण	natural Nepali for assistive device	study text uses कल्याण उपकरण; ne->ja accepts both
+介護福祉士	सर्टिफाइड केयर वर्कर	study text: the association's Nepali name	
+特定技能	निर्दिष्ट सीप	study text title	
+技能実習	प्राविधिक इन्टर्न तालिम	English name Technical Intern Training	
+訪問介護	होम हेल्प सर्भिस	study text p.22 (ホームヘルプサービス)	
+訪問介護員 / ホームヘルパー	होम हेल्पर	loanword, like होम हेल्प सर्भिस	
+ショートステイ / ケアプラン	सर्ट स्टे / केयर प्लान	loanwords, like डे सर्भिस / केयर म्यानेजर	
+介護計画 / アセスメント	हेरचाह योजना / मूल्याङ्कन	plain Nepali	मूल्याङ्कन only ja->ne (also "evaluation")
+介護老人保健施設	वृद्धवृद्धाको स्वास्थ्य सेवा नर्सिङ होम	pattern of 特養 in the study text	老健 (abbreviation) not listed
+要介護 / 要支援	हेरचाह आवश्यक / सहयोग आवश्यक	study text: "नर्सिङ केयर आवश्यक व्यक्ति"	
+食事介助	खाना खान सहयोग	pattern of नुहाउन सहयोग / हिँड्न सहयोग	
+移乗	स्थानान्तरण	standard word for transfer	only ja->ne (also job transfer)
+体位変換	शरीरको पोजिसन फेर्ने	study text p.127	
+転倒	लड्ने	study text p.25	only ja->ne (also "to fight")
+見守り	निगरानी	plain Nepali	only ja->ne
+夜勤 / 申し送り	नाइट ड्युटी / ह्यान्डओभर	loanwords used at work	
+看取り	जीवनको अन्तिम हेरचाह	end-of-life care	
+リハビリ	रिह्याबिलिटेसन	loanword; फिजियोथेरापी is narrower	
+整容	व्यक्तिगत सरसफाइ	personal grooming / hygiene	
+身体清拭 / 清拭	शरीर पुछ्ने	wiping of body	
+失禁	पिसाब वा दिसा चुहिने	study text p.157 (both kinds)	
+中核症状	मुख्य लक्षणहरू	"core symptoms"	study text: महत्त्वपूर्ण लक्षणहरू ("important") is misleading
+ボディメカニクス	बडी मेकानिक्स	loanword	
+受診	डाक्टरलाई देखाउने	seeing a doctor	
+熱中症 / 熱射病	हिट स्ट्रोक	loanword in common use	Wikidata अतिताप not used
+処方箋	प्रेस्क्रिप्सन	loanword in common use	
+救急外来	इमर्जेन्सी	used in Nepali hospitals	only ja->ne
+心不全	हृदय विफलता	standard term	Wikidata हृदयघात means heart attack
+胃炎	ग्यास्ट्राइटिस	loanword in common use	Wikidata अम्लपित्त means acidity
+#
+# ---- not added
+腹	-	single character; お腹 -> पेट is in the dictionary	
+中毒	-	poisoning (विषाक्तता) and addiction are different words in Nepali	open
