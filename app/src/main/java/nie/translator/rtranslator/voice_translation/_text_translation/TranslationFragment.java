@@ -895,6 +895,7 @@ public class TranslationFragment extends Fragment {
                             break;
                         }
                     }
+                    activity.warnIfNepaliWithoutMadlad(item);
                 }
             }
         });

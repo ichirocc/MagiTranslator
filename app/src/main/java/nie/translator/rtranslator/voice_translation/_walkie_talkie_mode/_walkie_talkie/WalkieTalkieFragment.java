@@ -587,6 +587,7 @@ public class WalkieTalkieFragment extends VoiceTranslationFragment {
                             break;
                         }
                     }
+                    activity.warnIfNepaliWithoutMadlad(item);
                 }
             }
         });

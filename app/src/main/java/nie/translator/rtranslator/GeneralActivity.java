@@ -167,10 +167,25 @@ public abstract class GeneralActivity extends AppCompatActivity {
 
     //MagiTranslator (SPEC 19.9): Nepali needs Madlad; guide the user to the Models Manager instead of failing silently
     public void showMissingMadladDialog() {
+        showMissingMadladDialog(false);
+    }
+
+    //MagiTranslator (SPEC 19.9): warn as soon as Nepali is selected while Madlad is missing (the selection itself is not blocked)
+    public void warnIfNepaliWithoutMadlad(@Nullable nie.translator.rtranslator.tools.CustomLocale language) {
+        if (language == null || !"ne".equals(language.getCode())) {
+            return;
+        }
+        Global global = (Global) getApplication();
+        if (!new nie.translator.rtranslator.downloader.DownloadManager(global).checkDownloadCompleted(global.getMadladDownloadInfo())) {
+            showMissingMadladDialog(true);   //explicit user action: always show the dialog, even if dismissed before
+        }
+    }
+
+    private void showMissingMadladDialog(boolean force) {
         if (isFinishing() || (missingMadladDialog != null && missingMadladDialog.isShowing())) {
             return;
         }
-        if (missingMadladDismissed) {
+        if (missingMadladDismissed && !force) {
             android.widget.Toast.makeText(this, R.string.missing_madlad_nepali_title, android.widget.Toast.LENGTH_SHORT).show();
             return;
         }
