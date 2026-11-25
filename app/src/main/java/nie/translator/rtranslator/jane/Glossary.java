@@ -45,6 +45,69 @@ public final class Glossary {
 
     public int size() { return terms.size(); }
 
+    // ---- user dictionary terms (UserDictionary): PREFERRED only, never required ----
+    // Measured on the seed set, required/injected terms helped ne->ja but hurt ja->ne, and user data is
+    // not verified: these terms only raise the score of candidates that use them.
+    private final Map<String, String> userTerms = new LinkedHashMap<>();
+    private final Map<String, String> userReverse = new LinkedHashMap<>();
+
+    public void putUser(String ja, String ne) {
+        if (ja != null && ne != null && !ja.trim().isEmpty() && !ne.trim().isEmpty()) userTerms.put(ja.trim(), ne.trim());
+    }
+
+    public void putUserReverse(String ne, String ja) {
+        if (ja != null && ne != null && !ja.trim().isEmpty() && !ne.trim().isEmpty()) userReverse.put(ne.trim(), ja.trim());
+    }
+
+    public int userSize() { return userTerms.size() + userReverse.size(); }
+
+    /**
+     * Nepali renderings of user terms found in a Japanese source: longest first, a matched span is not
+     * reused by a shorter term, and a term followed by a derivational suffix is skipped (日本語 is not 日本).
+     */
+    public List<String> userPreferred(String ja) {
+        List<String> out = new ArrayList<>();
+        if (ja == null || userTerms.isEmpty()) return out;
+        StringBuilder work = new StringBuilder(ja);
+        List<String> keys = new ArrayList<>(userTerms.keySet());
+        keys.sort(Comparator.comparingInt(String::length).reversed());
+        for (String k : keys) {
+            if (terms.containsKey(k)) continue;   // built-in glossary entries are handled by inject()
+            Matcher m = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])").matcher(work);
+            if (!m.find()) continue;
+            String v = userTerms.get(k);
+            if (!out.contains(v)) out.add(v);
+            do { for (int i = m.start(); i < m.end(); i++) work.setCharAt(i, '\u0000'); } while (m.find());
+        }
+        return out;
+    }
+
+    /**
+     * ne -> ja user terms: annotates the Nepali source with the Japanese term (like injectReverse) but
+     * returns the terms as preferred, not required. Longest Nepali first, word-bounded.
+     */
+    public Injection injectReverseUser(String ne) {
+        List<String> preferred = new ArrayList<>();
+        String t = ne;
+        if (ne == null || userReverse.isEmpty()) return new Injection(ne == null ? "" : ne, new ArrayList<>(), preferred);
+        List<String> keys = new ArrayList<>(userReverse.keySet());
+        keys.sort(Comparator.comparingInt(String::length).reversed());
+        for (String neTerm : keys) {
+            String jaTerm = userReverse.get(neTerm);
+            StringBuilder rx = new StringBuilder("(?<![\\u0900-\\u0963\\u0966-\\u097F])");
+            for (char c : neTerm.toCharArray()) {
+                if (c == '\u0901' || c == '\u0902') rx.append("[\\u0901\\u0902]");
+                else rx.append(Pattern.quote(String.valueOf(c)));
+            }
+            rx.append("(?=$|[^\\u0900-\\u0963\\u0966-\\u097F]|").append(NE_CASE_MARKERS).append(")");
+            Matcher m = Pattern.compile(rx.toString()).matcher(t);
+            if (!m.find()) continue;
+            t = m.replaceAll(Matcher.quoteReplacement(jaTerm));
+            if (!preferred.contains(jaTerm)) preferred.add(jaTerm);
+        }
+        return new Injection(t, new ArrayList<>(), preferred);
+    }
+
     /** Reads "ja<TAB>ne" lines; lines starting with # are comments. */
     public void load(Reader reader) throws IOException {
         BufferedReader br = new BufferedReader(reader);

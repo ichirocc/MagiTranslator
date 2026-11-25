@@ -240,7 +240,8 @@ public class Translator extends NeuralNetworkApi {
     private String translateJaNeWithLibrary(String text, CustomLocale in, CustomLocale out, int beamSize) {
         try {
             File user = new File(global.getFilesDir(), "jane_glossary.tsv");   //optional user terminology: ja<TAB>ne
-            String stamp = user.exists() ? user.lastModified() + ":" + user.length() : "none";
+            File userDictDir = new File(global.getFilesDir(), nie.translator.rtranslator.jane.UserDictionary.DIR_NAME);   //imported user dictionaries (Settings)
+            String stamp = (user.exists() ? user.lastModified() + ":" + user.length() : "none") + "|" + nie.translator.rtranslator.jane.UserDictionary.stamp(userDictDir);
             if (janeTranslator == null || !stamp.equals(janeGlossaryStamp)) {
                 nie.translator.rtranslator.jane.Glossary glossary = nie.translator.rtranslator.jane.Glossary.withDefaults();
                 if (user.exists()) {
@@ -248,6 +249,10 @@ public class Translator extends NeuralNetworkApi {
                         glossary.load(r);
                     }
                 }
+                nie.translator.rtranslator.jane.PhraseBook phraseBook = new nie.translator.rtranslator.jane.PhraseBook();
+                //counts only: dictionary contents are never logged
+                for (nie.translator.rtranslator.jane.UserDictionary.Parsed p : nie.translator.rtranslator.jane.UserDictionary.loadDirectory(userDictDir, glossary, phraseBook))
+                    android.util.Log.i("jane", "user dictionary loaded: " + p);
                 janeTranslator = new nie.translator.rtranslator.jane.JaNeTranslator(new nie.translator.rtranslator.jane.Backend() {
                     @Override
                     public String translate(String t, String src, String tgt) throws Exception {
@@ -259,6 +264,7 @@ public class Translator extends NeuralNetworkApi {
                         return silentTranslateNBest(t, src, tgt, janeBeamSize, n);
                     }
                 }, glossary);
+                janeTranslator.setPhraseBook(phraseBook);
                 janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried
             }
             janeBeamSize = beamSize;

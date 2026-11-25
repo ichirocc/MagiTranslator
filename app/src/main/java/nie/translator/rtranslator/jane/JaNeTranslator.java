@@ -54,6 +54,11 @@ public final class JaNeTranslator {
 
     private final Backend backend;
     private final Glossary glossary;
+    // whole-sentence phrases from the user's own dictionary (UserDictionary); empty unless imported
+    private volatile PhraseBook phrases = new PhraseBook();
+
+    /** Sets the user's phrase book. A hit adds a "phrase" candidate that is validated and ranked like the others. */
+    public void setPhraseBook(PhraseBook p) { phrases = p == null ? new PhraseBook() : p; }
     private final TranslationMemory memory;
     private int maxCandidates = 5;
     private int nBest = 3;
@@ -99,6 +104,7 @@ public final class JaNeTranslator {
         // otherwise a candidate without injection (and without the terms) would be exempt and win.
         List<String> mustHave = injWhole.requiredTargets;
         List<String> preferred = new ArrayList<>(injWhole.preferredTargets);
+        for (String u : glossary.userPreferred(whole)) if (!preferred.contains(u) && !mustHave.contains(u)) preferred.add(u);
         // unknown names: transliterate / keep katakana / common noun, chosen by the rerank (SPEC §10.2)
         List<ProperNameResolver.Variant> nameVariants = ProperNameResolver.variants(injWhole.text, glossary, mem);
         Map<String, Map<String, String>> labelNames = new LinkedHashMap<>();
@@ -175,6 +181,15 @@ public final class JaNeTranslator {
                 cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
             }
         }
+        String phrase = phrases.lookupJaNe(whole);
+        if (phrase != null) {
+            String out = finishNe(phrase, whole);
+            if (!out.isEmpty()) {
+                cands.add(new Candidate("phrase", whole, out, null, Double.NaN));
+                required.put("phrase", mustHave);
+                if (!preferred.contains(out)) preferred.add(out);
+            }
+        }
         Result res = rerank(cands, whole, required, preferred, "ne", "ja", extraVowel);
         remember(res, injWhole.applied, labelNames);
         return res;
@@ -212,6 +227,11 @@ public final class JaNeTranslator {
             inputs.put("terms", Collections.singletonList(rev.text));
             required.put("terms", rev.requiredTargets);
         }
+        Glossary.Injection user = glossary.injectReverseUser(rev.text);
+        List<String> neToJaPreferred = new ArrayList<>(user.preferredTargets);
+        if (!user.text.equals(rev.text)) {
+            inputs.put("userterms", Collections.singletonList(user.text));
+        }
         inputs.put("whole", Collections.singletonList(t));
         List<String> sentences = new ArrayList<>();
         for (String s : t.split("(?<=[।?!])")) if (!s.trim().isEmpty()) sentences.add(s.trim());
@@ -237,7 +257,16 @@ public final class JaNeTranslator {
                 cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
             }
         }
-        return rerank(cands, t, required, Collections.emptyList(), "ja", "ne");
+        String phrase = phrases.lookupNeJa(t);
+        if (phrase != null) {
+            String out = finishJa(phrase);
+            if (!out.isEmpty()) {
+                cands.add(new Candidate("phrase", t, out, null, Double.NaN));
+                required.put("phrase", rev.requiredTargets);
+                if (!neToJaPreferred.contains(out)) neToJaPreferred.add(out);
+            }
+        }
+        return rerank(cands, t, required, neToJaPreferred, "ja", "ne");
     }
 
     /**
@@ -272,7 +301,8 @@ public final class JaNeTranslator {
             for (String p : preferred) if (!scoredTerms.contains(p)) scoredTerms.add(p);
             double s = "ne".equals(outLang)
                     ? QualityScorer.score(source, c.output, back, scoredTerms)
-                    : QualityScorer.chrF(back, source) - 0.15 * missingNumbers(source, KanjiNumber.toDigits(c.output));
+                    : QualityScorer.chrF(back, source) - 0.15 * missingNumbers(source, KanjiNumber.toDigits(c.output))
+                      + PREFERRED_JA_WEIGHT * preferredShare(c.output, preferred);
             // MBR consensus (Freitag et al. 2022/2023): expected chrF against the other candidates
             if (unique.size() >= 3) {
                 double agree = 0;
@@ -306,6 +336,17 @@ public final class JaNeTranslator {
         List<TranslationValidator.Issue> all = new ArrayList<>(issues);
         for (String d : extraVowel) if (TranslationValidator.containsTerm(output, d)) all.add(new TranslationValidator.Issue(TranslationValidator.Kind.NAME_EXTRA_VOWEL, true, d));
         return all;
+    }
+
+    // ne->ja: share of the user's preferred Japanese terms present in a candidate (0 when there are none,
+    // so behaviour without a user dictionary is unchanged)
+    static final double PREFERRED_JA_WEIGHT = 0.05;
+
+    static double preferredShare(String output, List<String> preferred) {
+        if (preferred == null || preferred.isEmpty()) return 0;
+        int hit = 0;
+        for (String p : preferred) if (TranslationValidator.containsTerm(output, p)) hit++;
+        return hit / (double) preferred.size();
     }
 
     static boolean better(Candidate a, Candidate b) {

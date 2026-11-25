@@ -216,4 +216,10 @@
     <string name="translation_needs_review">⚠ 要確認：この訳は不正確な可能性があります</string>
     <string name="open_models_manager">モデル管理を開く</string>
     <string name="toast_ne_tts_unavailable">この端末ではネパール語の読み上げができません。翻訳は文字で表示されます。</string>
+    <string name="preference_title_user_dictionary_import">辞書ファイルを読み込む</string>
+    <string name="preference_description_user_dictionary_import">自分の jane 辞書（#!jane ja-ne-terms / ne-ja-terms / phrases）。この端末内だけに保存し、送信・バックアップしません。</string>
+    <string name="preference_title_user_dictionary_delete">読み込んだ辞書を削除する</string>
+    <string name="user_dictionary_import_result">%1$s を読み込みました：%2$d 件（不正な行 %3$d、重複 %4$d を除外）。</string>
+    <string name="user_dictionary_import_failed">jane 辞書ではないか、読み込めないファイルです。</string>
+    <string name="user_dictionary_deleted">読み込んだ辞書を削除しました。</string>
 </resources>

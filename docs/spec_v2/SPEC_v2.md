@@ -811,3 +811,6 @@ CPU 負荷の大きい測定は事前に机上検証する（V18）。
 | §16 | `12_storage.md` |
 | §17 | `13_integration_testing.md`、`docs/eval/` |
 | §18 | `14_migration_acceptance.md`、01 §10、03 §20 |
+
+
+> 追記（2026-11-25）：ユーザー辞書の取り込み（`UserDictionary` / `PhraseBook`、設定から端末内に読み込み、用語は PREFERRED、フレーズは検査付き候補）を **実装済**。詳細は `04a_dictionary_data_sources.md` §9。

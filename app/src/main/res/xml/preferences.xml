@@ -43,6 +43,15 @@
             android:title="@string/preference_title_models_manager"
             android:summary="@string/preference_description_models_manager"
             app:iconSpaceReserved="false" />
+        <androidx.preference.Preference
+            android:key="userDictionaryImport"
+            android:title="@string/preference_title_user_dictionary_import"
+            android:summary="@string/preference_description_user_dictionary_import"
+            app:iconSpaceReserved="false" />
+        <androidx.preference.Preference
+            android:key="userDictionaryDelete"
+            android:title="@string/preference_title_user_dictionary_delete"
+            app:iconSpaceReserved="false" />
     </androidx.preference.PreferenceCategory>
 
     <androidx.preference.PreferenceCategory

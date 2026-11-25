@@ -50,6 +50,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     //internet Lack types
     public static final int DOWNLOAD_LANGUAGES = 0;
     public static final int ON_MISSING_GOOGLE_TTS = 2;
+    private static final int REQUEST_USER_DICTIONARY = 7342;
     //variables
     private int downloads = 0;
     private boolean isDownloading = false;
@@ -197,6 +198,33 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             }
         });
 
+        // user dictionary (device-only): pick a file with the system picker, validate, store in files/user_dict/
+        Preference userDictionaryImport = findPreference("userDictionaryImport");
+        if (userDictionaryImport != null) {
+            userDictionaryImport.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("text/*");
+                    intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"text/*", "application/octet-stream"});
+                    startActivityForResult(intent, REQUEST_USER_DICTIONARY);
+                    return true;
+                }
+            });
+        }
+        Preference userDictionaryDelete = findPreference("userDictionaryDelete");
+        if (userDictionaryDelete != null) {
+            userDictionaryDelete.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    nie.translator.rtranslator.jane.UserDictionary.deleteAll(new java.io.File(activity.getFilesDir(), nie.translator.rtranslator.jane.UserDictionary.DIR_NAME));
+                    new AlertDialog.Builder(activity).setMessage(R.string.user_dictionary_deleted).setPositiveButton(android.R.string.ok, null).show();
+                    return true;
+                }
+            });
+        }
+
         // change microphone sensibility initialization
         SeekBarPreference beamSizePreference = (SeekBarPreference) findPreference("BeamSizeSetting");
         beamSizePreference.initialize(activity, SeekBarPreference.BEAM_SIZE_MODE);
@@ -222,8 +250,40 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_USER_DICTIONARY) {
+            if (resultCode == android.app.Activity.RESULT_OK && data != null && data.getData() != null) importUserDictionary(data.getData());
+            return;
+        }
         //call onActivityResult
-        userImageContainer.onActivityResult(requestCode, resultCode, data, true);
+        if (userImageContainer != null) userImageContainer.onActivityResult(requestCode, resultCode, data, true);
+    }
+
+    /** Copies the picked file into app-private storage off the main thread; only counts are shown, never contents. */
+    private void importUserDictionary(final android.net.Uri uri) {
+        final SettingsActivity a = activity;
+        if (a == null) return;
+        final java.io.File dir = new java.io.File(a.getFilesDir(), nie.translator.rtranslator.jane.UserDictionary.DIR_NAME);
+        new Thread("user-dictionary-import") {
+            @Override
+            public void run() {
+                String message;
+                try (java.io.InputStream in = a.getContentResolver().openInputStream(uri)) {
+                    if (in == null) throw new java.io.IOException("no stream");
+                    nie.translator.rtranslator.jane.UserDictionary.Parsed p = nie.translator.rtranslator.jane.UserDictionary.importStream(in, dir);
+                    message = a.getString(R.string.user_dictionary_import_result, p.kind.header, p.accepted(), p.rejected, p.duplicates);
+                } catch (java.io.IOException | IllegalArgumentException | SecurityException e) {
+                    message = a.getString(R.string.user_dictionary_import_failed);
+                }
+                final String shown = message;
+                a.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (a.isFinishing() || a.isDestroyed()) return;
+                        new AlertDialog.Builder(a).setMessage(shown).setPositiveButton(android.R.string.ok, null).show();
+                    }
+                });
+            }
+        }.start();
     }
 
     public boolean isDownloading() {

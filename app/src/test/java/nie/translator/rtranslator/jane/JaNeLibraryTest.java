@@ -452,6 +452,75 @@ public class JaNeLibraryTest {
         yes(ReviewMarks.size() <= 64, "marks are bounded");
         ReviewMarks.clear();
         yes(!ReviewMarks.isMarked("t99"), "clear removes marks");
+        // ---- user dictionary (synthetic data only) ----
+        try {
+            String terms = "#!jane ja-ne-terms\n# comment\n血圧\tरक्तचाप\n高血圧\tउच्च रक्तचाप\nबैंक\t銀行\n\tरक्तचाप\n血圧\tरक्तचाप\nfoo\tbar\tbaz\n";
+            UserDictionary.Parsed ut = UserDictionary.parse(new java.io.StringReader(terms));
+            eq(2, ut.accepted(), "user terms: 2 valid lines");
+            eq(3, ut.rejected, "user terms: swapped, empty and extra-column lines rejected");
+            eq(1, ut.duplicates, "user terms: duplicate key skipped");
+            boolean udBad = false;
+            try { UserDictionary.parse(new java.io.StringReader("血圧\tरक्तचाप\n")); } catch (IllegalArgumentException e) { udBad = true; }
+            yes(udBad, "user dictionary without header rejected");
+            yes(UserDictionary.kindOf("﻿#!jane phrases") == UserDictionary.Kind.PHRASES, "header with BOM");
+            Glossary ug = Glossary.withDefaults();
+            PhraseBook upb = new PhraseBook();
+            UserDictionary.apply(ut, ug, upb);
+            java.util.List<String> pref = ug.userPreferred("高血圧の薬です。");
+            yes(pref.contains("उच्च रक्तचाप") && !pref.contains("रक्तचाप"), "userPreferred: longest term wins, no overlap");
+            UserDictionary.Parsed udRv = UserDictionary.parse(new java.io.StringReader("#!jane ne-ja-terms\nरक्तचाप\t血圧\n"));
+            UserDictionary.apply(udRv, ug, upb);
+            Glossary.Injection udRi = ug.injectReverseUser("मेरो रक्तचापमा समस्या छ।");
+            yes(udRi.text.contains("血圧") && udRi.preferredTargets.contains("血圧") && udRi.requiredTargets.isEmpty(), "injectReverseUser: preferred, not required");
+            UserDictionary.Parsed ph = UserDictionary.parse(new java.io.StringReader("#!jane phrases\n少々お待ちください。\tकृपया एकछिन पर्खनुहोस्।\nお先にどうぞ\tपहिले जानुहोस्।\tja>ne\nありがとう\tधन्यवाद\tmaybe\n"));
+            eq(2, ph.accepted(), "phrases: two valid lines");
+            eq(1, ph.rejected, "phrases: unknown third column rejected");
+            UserDictionary.apply(ph, ug, upb);
+            eq("कृपया एकछिन पर्खनुहोस्।", upb.lookupJaNe("少々お待ちください"), "phrase lookup ignores final punctuation");
+            yes(upb.lookupNeJa("पहिले जानुहोस्") == null, "ja>ne-only phrase not used for ne->ja");
+            eq("少々お待ちください。", upb.lookupNeJa("कृपया एकछिन पर्खनुहोस् ।"), "ne->ja phrase lookup ignores danda spacing");
+            // a phrase hit is a candidate that is still validated: a phrase that drops the number loses
+            PhraseBook numPb = new PhraseBook();
+            numPb.add("3時に来てください。", "कृपया आउनुहोस्।", false);
+            Backend udNb = new Backend() {
+                public String translate(String text, String sl, String tl) { return "ja".equals(sl) ? "कृपया ३ बजे आउनुहोस्।" : "3時に来てください。"; }
+            };
+            JaNeTranslator njt = new JaNeTranslator(udNb, Glossary.withDefaults());
+            njt.setPhraseBook(numPb);
+            JaNeTranslator.Result nr = njt.translate("3時に来てください。", "ja", "ne");
+            yes(nr.text.contains("३"), "phrase candidate that loses a number does not win");
+            boolean phraseSeen = false;
+            for (JaNeTranslator.Candidate c : nr.candidates) if ("phrase".equals(c.label)) phraseSeen = c.hard() > 0;
+            yes(phraseSeen, "phrase candidate is validated (number lost is hard)");
+            // import / load / stamp / delete in a temp dir
+            java.io.File dir = java.nio.file.Files.createTempDirectory("jane-ud").toFile();
+            String st0 = UserDictionary.stamp(dir);
+            UserDictionary.Parsed imp = UserDictionary.importStream(new java.io.ByteArrayInputStream(terms.getBytes(java.nio.charset.StandardCharsets.UTF_8)), dir);
+            yes(new java.io.File(dir, UserDictionary.Kind.JA_NE_TERMS.fileName).isFile() && imp.accepted() == 2, "importStream stores the file under its kind");
+            yes(!st0.equals(UserDictionary.stamp(dir)), "stamp changes after import");
+            boolean rejectedImport = false;
+            try { UserDictionary.importStream(new java.io.ByteArrayInputStream("hello\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)), dir); } catch (IllegalArgumentException e) { rejectedImport = true; }
+            yes(rejectedImport, "non-dictionary file is not stored");
+            Glossary lg = new Glossary();
+            eq(1, UserDictionary.loadDirectory(dir, lg, new PhraseBook()).size(), "loadDirectory reads stored dictionaries");
+            eq(2, lg.userSize(), "loaded user terms");
+            UserDictionary.deleteAll(dir);
+            yes(!new java.io.File(dir, UserDictionary.Kind.JA_NE_TERMS.fileName).exists(), "deleteAll removes stored dictionaries");
+            dir.delete();
+        } catch (Exception e) {
+            yes(false, "user dictionary tests threw " + e);
+        }
+
+        // the published dictionaries in dictionaries/ must parse with no rejected line (run from the repo root)
+        for (String df : new String[]{"ja_ne_terms.tsv", "ne_ja_terms.tsv", "phrases.tsv"}) {
+            java.io.File f = new java.io.File("dictionaries", df);
+            if (!f.isFile()) continue;
+            try (java.io.Reader dr = new java.io.InputStreamReader(new java.io.FileInputStream(f), java.nio.charset.StandardCharsets.UTF_8)) {
+                UserDictionary.Parsed dp = UserDictionary.parse(dr);
+                yes(dp.rejected == 0 && dp.duplicates == 0 && dp.accepted() > 0, "dictionaries/" + df + " parses cleanly: " + dp);
+            } catch (Exception e) { yes(false, "dictionaries/" + df + " threw " + e); }
+        }
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

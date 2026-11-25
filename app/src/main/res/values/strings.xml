@@ -255,4 +255,10 @@
     <string name="translation_needs_review">⚠ Please check: this translation may be inaccurate</string>
     <string name="open_models_manager">Open Models Manager</string>
     <string name="toast_ne_tts_unavailable">Nepali speech output is not available on this device. Translations are shown as text.</string>
+    <string name="preference_title_user_dictionary_import">Load a dictionary file</string>
+    <string name="preference_description_user_dictionary_import">Your own jane dictionary (#!jane ja-ne-terms / ne-ja-terms / phrases). Kept only on this device; never uploaded or backed up.</string>
+    <string name="preference_title_user_dictionary_delete">Delete loaded dictionaries</string>
+    <string name="user_dictionary_import_result">Loaded %1$s: %2$d entries (%3$d lines rejected, %4$d duplicates skipped).</string>
+    <string name="user_dictionary_import_failed">This file is not a jane dictionary or could not be read.</string>
+    <string name="user_dictionary_deleted">Loaded dictionaries were deleted.</string>
 </resources>
