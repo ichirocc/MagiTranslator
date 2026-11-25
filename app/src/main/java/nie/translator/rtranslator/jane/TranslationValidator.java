@@ -87,6 +87,11 @@ public final class TranslationValidator {
 
     /** ne -> ja */
     public static List<Issue> validateNeToJa(String sourceNe, String ja) {
+        return validateNeToJa(sourceNe, ja, null);
+    }
+
+    /** ne -> ja with required Japanese terms (NeJaGlossary) */
+    public static List<Issue> validateNeToJa(String sourceNe, String ja, List<String> requiredTargets) {
         List<Issue> issues = new ArrayList<>();
         if (ja == null || ja.trim().isEmpty()) { issues.add(new Issue(Kind.EMPTY, true, null)); return issues; }
         checkNumbers(sourceNe, KanjiNumber.toDigits(ja), issues);   // 三人 in the output = 3 in the source
@@ -94,6 +99,7 @@ public final class TranslationValidator {
         if (srcNeg && !tgtNeg) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
         if (!srcNeg && tgtNeg) issues.add(new Issue(Kind.NEGATION_ADDED, false, null));
         if (Pattern.compile("[\\u0900-\\u097F]").matcher(ja).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
+        if (requiredTargets != null) for (String t : requiredTargets) if (!ja.contains(t)) issues.add(new Issue(Kind.TERM_MISSING, true, t));
         return issues;
     }
 

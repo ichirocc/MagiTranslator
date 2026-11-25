@@ -48,9 +48,17 @@ public final class JaNeTranslator {
     private int nBest = 3;
     private static final double MBR_WEIGHT = 0.3;
 
+    private final NeJaGlossary neGlossary;
+
     public JaNeTranslator(Backend backend, Glossary glossary) {
+        this(backend, glossary, null);
+    }
+
+    /** @param neGlossary Nepali -> Japanese terms for the ne -> ja direction (null = none) */
+    public JaNeTranslator(Backend backend, Glossary glossary, NeJaGlossary neGlossary) {
         this.backend = backend;
         this.glossary = glossary == null ? Glossary.withDefaults() : glossary;
+        this.neGlossary = neGlossary == null ? new NeJaGlossary() : neGlossary;
     }
 
     public void setMaxCandidates(int n) { maxCandidates = Math.max(1, n); }
@@ -127,10 +135,23 @@ public final class JaNeTranslator {
         String t = Normalizer.normalize(raw == null ? "" : raw, Normalizer.Form.NFC).replace('|', '।').trim();
         if (t.isEmpty()) return new Result("", Collections.emptyList());
         Map<String, List<String>> inputs = new LinkedHashMap<>();
+        // terminology (NeJaGlossary): the same required Japanese terms apply to every candidate
+        Glossary.Injection inj = neGlossary.inject(t);
+        List<String> mustHave = inj.requiredTargets;
+        if (inj.changed(t)) inputs.put("terms", Collections.singletonList(inj.text));
         inputs.put("whole", Collections.singletonList(t));
         List<String> sentences = new ArrayList<>();
         for (String s : t.split("(?<=[।?!])")) if (!s.trim().isEmpty()) sentences.add(s.trim());
-        if (sentences.size() > 1) inputs.put("sentences", sentences);
+        if (sentences.size() > 1) {
+            List<String> segs = new ArrayList<>();
+            boolean changed = false;
+            for (String s : sentences) {
+                Glossary.Injection si = neGlossary.inject(s);
+                segs.add(si.text);
+                changed |= si.changed(s);
+            }
+            inputs.put(changed ? "sentences+terms" : "sentences", segs);
+        }
         List<Candidate> cands = new ArrayList<>();
         Map<String, List<String>> required = new LinkedHashMap<>();
         for (Map.Entry<String, List<String>> e : inputs.entrySet()) {
@@ -138,7 +159,7 @@ public final class JaNeTranslator {
             out = collapseJa(out);
             if (out.isEmpty()) continue;
             cands.add(new Candidate(e.getKey(), String.join(" ", e.getValue()), out, null, Double.NaN));
-            required.put(e.getKey(), Collections.emptyList());
+            required.put(e.getKey(), mustHave);
         }
         return rerank(cands, t, required, Collections.emptyList(), "ja", "ne");
     }
@@ -193,7 +214,7 @@ public final class JaNeTranslator {
     private static List<TranslationValidator.Issue> validate(String source, String output, List<String> req, String outLang) {
         return "ne".equals(outLang)
                 ? TranslationValidator.validateJaToNe(source, output, req)
-                : TranslationValidator.validateNeToJa(source, output);
+                : TranslationValidator.validateNeToJa(source, output, req);
     }
 
     private String translateSegments(List<String> segments, String src, String tgt) throws Exception {

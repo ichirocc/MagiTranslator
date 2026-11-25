@@ -214,6 +214,10 @@ public class Translator extends NeuralNetworkApi {
                         glossary.load(r);
                     }
                 }
+                nie.translator.rtranslator.jane.NeJaGlossary neGlossary = new nie.translator.rtranslator.jane.NeJaGlossary();
+                try (java.io.Reader r = new java.io.InputStreamReader(global.getResources().openRawResource(R.raw.jane_dictionary_ne_ja), java.nio.charset.StandardCharsets.UTF_8)) {
+                    neGlossary.load(r);   //built-in Nepali -> Japanese dictionary
+                }
                 janeTranslator = new nie.translator.rtranslator.jane.JaNeTranslator(new nie.translator.rtranslator.jane.Backend() {
                     @Override
                     public String translate(String t, String src, String tgt) throws Exception {
@@ -224,7 +228,7 @@ public class Translator extends NeuralNetworkApi {
                     public List<String> translateNBest(String t, String src, String tgt, int n) throws Exception {
                         return silentTranslateNBest(t, src, tgt, janeBeamSize, n);
                     }
-                }, glossary);
+                }, glossary, neGlossary);
                 janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried
             }
             janeBeamSize = beamSize;

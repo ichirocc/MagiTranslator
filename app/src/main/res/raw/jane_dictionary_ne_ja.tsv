@@ -1,0 +1,129 @@
+# MagiTranslator built-in Nepali -> Japanese dictionary (jane NeJaGlossary)
+# Format: nepali<TAB>japanese, one entry per line; lines starting with # are comments.
+#
+# Every entry is injected into the Nepali input and its Japanese term becomes a REQUIRED term of the
+# translation (TranslationValidator TERM_MISSING is a hard error), so only add Nepali words that:
+#  - have one established Japanese equivalent (not ambiguous: नेपाली = Nepali language / person,
+#    सम्झौता = contract / compromise, बैठक = meeting / sitting room, कर = tax / insistence,
+#    पैसा = money / paisa (1/100 rupee) -> not listed);
+#  - are nouns. A term also matches with an attached plural or postposition (अस्पतालमा, साथीहरूलाई),
+#    never inside a longer word;
+#  - common spelling variants are listed separately (काठमाडौं / काठमाडौँ, आइतबार / आइतवार).
+# JaNeLibraryTest checks the format and the matching behaviour.
+# A native speaker should confirm new entries before they are added.
+
+# ---- countries and places
+नेपाल	ネパール
+जापान	日本
+टोकियो	東京
+ओसाका	大阪
+क्योटो	京都
+योकोहामा	横浜
+नागोया	名古屋
+कोबे	神戸
+फुकुओका	福岡
+ओकिनावा	沖縄
+होक्काइडो	北海道
+काठमाडौं	カトマンズ
+काठमाडौँ	カトマンズ
+पोखरा	ポカラ
+ललितपुर	ラリトプル
+भक्तपुर	バクタプル
+चितवन	チトワン
+विराटनगर	ビラトナガル
+लुम्बिनी	ルンビニ
+जनकपुर	ジャナクプル
+धरान	ダラン
+बुटवल	ブトワル
+नेपालगन्ज	ネパールガンジ
+हिमालय	ヒマラヤ
+सगरमाथा	エベレスト
+
+# ---- culture and religion
+दशैं	ダサイン
+दशैँ	ダサイン
+तिहार	ティハール
+होली	ホーリー
+दाल भात	ダルバート
+मःम	モモ
+हिन्दू धर्म	ヒンドゥー教
+बौद्ध धर्म	仏教
+
+# ---- days of the week
+सोमबार	月曜日
+सोमवार	月曜日
+मंगलबार	火曜日
+मङ्गलबार	火曜日
+मंगलवार	火曜日
+बुधबार	水曜日
+बुधवार	水曜日
+बिहिबार	木曜日
+बिहीबार	木曜日
+बिहीवार	木曜日
+शुक्रबार	金曜日
+शुक्रवार	金曜日
+शनिबार	土曜日
+शनिवार	土曜日
+आइतबार	日曜日
+आइतवार	日曜日
+
+# ---- money
+जापानी येन	日本円
+येन	円
+नेपाली रुपैयाँ	ネパールルピー
+रुपैयाँ	ルピー
+बैंक	銀行
+तलब	給料
+
+# ---- health
+अस्पताल	病院
+औषधि पसल	薬局
+डाक्टर	医者
+नर्स	看護師
+एम्बुलेन्स	救急車
+रोग	病気
+टाउको दुखाइ	頭痛
+पेट दुखाइ	腹痛
+ज्वरो	熱
+स्वास्थ्य बीमा	健康保険
+बीमा	保険
+
+# ---- offices, documents, procedures
+दूतावास	大使館
+नेपाली दूतावास	ネパール大使館
+हुलाक कार्यालय	郵便局
+प्रहरी	警察
+विमानस्थल	空港
+राहदानी	パスポート
+पासपोर्ट	パスポート
+भिसा	ビザ
+ठेगाना	住所
+फोन नम्बर	電話番号
+कागजात	書類
+आवेदन	申請
+बायोडाटा	履歴書
+
+# ---- work and school
+कम्पनी	会社
+कारखाना	工場
+ओभरटाइम	残業
+अन्तर्वार्ता	面接
+विद्यालय	学校
+विश्वविद्यालय	大学
+प्राथमिक विद्यालय	小学校
+
+# ---- family and life
+परिवार	家族
+साथी	友達
+जन्मदिन	誕生日
+विवाह	結婚
+बिहे	結婚
+
+# ---- emergencies
+भूकम्प	地震
+आगलागी	火事
+सडक दुर्घटना	交通事故
+
+# ---- government
+प्रधानमन्त्री	首相
+राष्ट्रपति	大統領

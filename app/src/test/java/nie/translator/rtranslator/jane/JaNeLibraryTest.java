@@ -229,9 +229,53 @@ public class JaNeLibraryTest {
 
         // built-in dictionary (res/raw/jane_dictionary.tsv): format, overlap rule, behaviour
         checkDictionary("app/src/main/res/raw/jane_dictionary.tsv");
+        checkNeJaDictionary("app/src/main/res/raw/jane_dictionary_ne_ja.tsv");
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
+    }
+
+    static void checkNeJaDictionary(String path) throws Exception {
+        java.util.List<String> lines = java.nio.file.Files.readAllLines(java.nio.file.Paths.get(path), java.nio.charset.StandardCharsets.UTF_8);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int entries = 0, bad = 0, dup = 0;
+        for (String line : lines) {
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String[] c = line.split("\t", -1);
+            boolean ok = c.length == 2 && c[0].matches("[\\u0900-\\u0963\\u0966-\\u097F]+( [\\u0900-\\u0963\\u0966-\\u097F]+)*")
+                    && c[0].equals(java.text.Normalizer.normalize(c[0], java.text.Normalizer.Form.NFC))
+                    && !c[1].isEmpty() && c[1].equals(c[1].trim()) && !c[1].matches(".*[\\u0900-\\u097F].*");
+            if (!ok) { bad++; System.out.println("     bad ne->ja line: " + line); }
+            if (c.length >= 1 && !seen.add(c[0])) { dup++; System.out.println("     duplicate key: " + c[0]); }
+            entries++;
+        }
+        eq(0, bad, "ne->ja dictionary: every line is devanagari(NFC)<TAB>japanese (" + entries + " entries)");
+        eq(0, dup, "ne->ja dictionary: no duplicate keys");
+
+        NeJaGlossary g = new NeJaGlossary();
+        try (java.io.Reader r = new java.io.InputStreamReader(new java.io.FileInputStream(path), java.nio.charset.StandardCharsets.UTF_8)) {
+            g.load(r);
+        }
+        eq("म 病院मा छु।", g.inject("म अस्पतालमा छु।").text, "ne->ja: postposition kept after the term");
+        eq("友達हरूलाई भन्नुहोस्।", g.inject("साथीहरूलाई भन्नुहोस्।").text, "ne->ja: plural + postposition");
+        eq("ネパール大使館मा जानुहोस्।", g.inject("नेपाली दूतावासमा जानुहोस्।").text, "ne->ja: two-word term wins over दूतावास");
+        eq("大学 र 学校", g.inject("विश्वविद्यालय र विद्यालय").text, "ne->ja: विश्वविद्यालय is not विद्यालय");
+        eq("नेपाली भाषा", g.inject("नेपाली भाषा").text, "ne->ja: नेपाल does not match inside नेपाली");
+        eq("मेरो घर करोडौं", g.inject("मेरो घर करोडौं").text, "ne->ja: no match inside a longer word");
+        eq("月曜日 र 日曜日", g.inject("सोमवार र आइतबार").text, "ne->ja: spelling variants");
+        eq("[日本, 東京]", new java.util.TreeSet<>(g.inject("जापानको टोकियोमा।").requiredTargets), "ne->ja: required Japanese terms");
+
+        // pipeline: the term-injected candidate keeps 病院; a plain one that loses it must not win
+        java.util.Map<String, String> f = new java.util.HashMap<>();
+        f.put("म भोलि 病院मा जान्छु।", "私は明日病院に行きます。");
+        f.put("म भोलि अस्पतालमा जान्छु।", "私は明日医院に行きます。");
+        java.util.Map<String, String> b = new java.util.HashMap<>();
+        b.put("私は明日病院に行きます。", "म भोलि अस्पताल जान्छु।");
+        b.put("私は明日医院に行きます。", "म भोलि अस्पतालमा जान्छु।");          // misleading perfect round trip
+        Backend fake = (text, s, t) -> ("ne".equals(s) ? f : b).getOrDefault(text, text);
+        JaNeTranslator.Result r = new JaNeTranslator(fake, Glossary.withDefaults(), g).translate("म भोलि अस्पतालमा जान्छु।", "ne", "ja");
+        for (JaNeTranslator.Candidate c : r.candidates) System.out.println("     " + c);
+        eq("私は明日病院に行きます。", r.text, "ne->ja: required term enforced in the ne->ja pipeline");
     }
 
     static void checkDictionary(String path) throws Exception {
