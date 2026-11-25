@@ -33,3 +33,15 @@
 
 ## E. 未定義型
 `ModelInitializationResult`, `ModelRuntimeStatus`, `RuntimeRequirements`, `ModelQualityProfile`, `ExecutionProvider`, `RuntimeCompatibility`, `ModelPrecision`, `QuantizationInfo`, `SpecialTokenSet`, `TokenizationWarning`, `TranslationConstraints`, `TermConstraint`, `StructuralHint`, `ModelTranslationOutput`, `DecodingStrategy`, `ModelArtifact`, `RuntimeInput/Output`, `RuntimeLoadResult`, `ModelLease`, `ResourceStatus`。§10.5 のエラーコードと第1部 `MagiError` の対応表が必要。
+
+## F. 続編（§15.1〜§24）の差分
+- **A6 §15 の重複・欠落**: 前半は「§15 長文翻訳（長文を単純な文字…）」で途切れ、続編の §15 は量子化。**長文翻訳（LongTextTranslationManager / ChunkPlanner / ContextPreserver）の本文が無い**。§13 と §15 も量子化が重複、§14 と §16 も ModelResourceManager / Lease が重複（§14.1 と §17.7 で同名インターフェースのシグネチャが別物）。推奨: 統合時に §13+§15 を「量子化」、§14+§16 を「メモリ・Lease」に一本化し、長文翻訳は原稿の再送を依頼。
+- **A7 部番号の再衝突**: §0.1 は 第4部＝候補統合・品質評価／第5部＝辞書 だが、§24 は「第4部では辞書・用語・翻訳メモリを統合」。**どちらを正とするか要決定**（目次は暫定で §0.1 に合わせ済み）。
+- **A8 INT4（§15.1.1-4）**: 「INT4 は INT8 でも足りない場合に限定」。現行 Madlad 3B は FP32≈12GB / INT8≈3GB / INT4≈1.7GB 級で、16GB 端末なら INT8 も候補。本仕様に従うなら **INT8 版の作成と FP32 基準との比較が必要**（PC での変換・評価は CPU/ディスク負荷大＝机上見積り先行）。
+- **A9 minSdk（§23.2）**: 「根拠なく強制しない」。現行の minSdk 36 は D5（ユーザー指示: Android 16+ 特化）が根拠＝適合。理由は SPEC v1 §4 D5 に記載済み。
+- **STRICT_LOCAL（§18.2/§22.5）**: 現行は D8 で online 未実装・既定 OFF＝実質常に STRICT_LOCAL。`PrivacyMode` enum の値として統合時に定義。
+- **ログ（§18.4）**: 現行 PrivacyLog（release で本文を出さない）と一致。記録項目の構造化（requestId 等）は未実装。
+- **Atomic Update / rollback（§17.4/17.6）**: 現行は単一ディレクトリに直接配置、revision 管理・previous.json なし＝未実装。
+- **キャンセル（§16.5）**: 未実装（第1部メモ E と同件）。
+- **TermConstraint（§24.3）**: 現行 `Glossary` の注入＋validator の TERM_MISSING が §24.4 の 3（入力前処理）＋4（候補後評価）に相当。`prohibitedTargets` は今回の CURRENCY/PLACE_ADDED 検査が部分的に近い。`isMandatory` 未達時の警告返却は未実装（現在は hard issue で候補を落とすのみ）。
+- **COMET/COMETKiwi（§19.3）**: 未導入。ネ語での適合性検証が前提。
