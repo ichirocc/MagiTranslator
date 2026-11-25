@@ -365,7 +365,9 @@ public class Recognizer extends NeuralNetworkApi {
                     float[] outputValues2 = null;
                     int batchSize = 1;
 
-                    if(data.languageCode2 != null){
+                    //with the fine-tuned Nepali model both rows would decode with identical settings (no mask, no
+                    //prompt), so the second row is pure waste: decode once
+                    if(data.languageCode2 != null && !useNeModel){
                         batchSize = 2;
                     }
 
@@ -533,6 +535,9 @@ public class Recognizer extends NeuralNetworkApi {
                         j++;
                     }
 
+                    if(batchSize == 1 && data.neDual && completeOutput.size() > 0) {
+                        outputProbability1 = outputProbability1 / completeOutput.size();   //same scale as the dual path's silence rule
+                    }
                     if(batchSize == 2) {
                         //we normalize the scores based on the number of tokens of the respective sequence
                         outputProbability1 = outputProbability1 / completeOutput.size();
@@ -555,7 +560,16 @@ public class Recognizer extends NeuralNetworkApi {
                         android.util.Log.i("score", "score: " + outputProbability1);
 
                         outputs.close();
-                        notifyResult(correctText(finalText), data.languageCode, outputProbability1, true);
+                        if (data.neDual) {
+                            //single-row Nepali decoding (fine-tuned model): same silence rule as the dual path
+                            boolean silent = noSpeechProb1 > NO_SPEECH_THRESHOLD && outputProbability1 < LOGPROB_THRESHOLD;
+                            String neText = correctText(finalText);
+                            //broken bytes (U+FFFD): report nothing rather than garbage
+                            if (!silent && nepaliHardScore(neText, execution1HitMaxLength) >= BROKEN_TEXT_PENALTY) neText = UNDEFINED_TEXT;
+                            emitNeResult(data, silent ? UNDEFINED_TEXT : neText, outputProbability1);
+                        } else {
+                            notifyResult(correctText(finalText), data.languageCode, outputProbability1, true);
+                        }
 
                     }else{
                         String firstText = UNDEFINED_TEXT;
@@ -784,6 +798,9 @@ public class Recognizer extends NeuralNetworkApi {
         }
     }
 
+    /** U+FFFD in a hypothesis means invalid UTF-8 from byte-level BPE pieces: never an acceptable transcript. */
+    private static final long BROKEN_TEXT_PENALTY = 10_000L;
+
     /** Hard violations of a Nepali hypothesis: looping, empty output, or letters outside Devanagari. */
     private static long nepaliHardScore(String text, boolean hitMaxLength) {
         if (hitMaxLength || text == null || text.isEmpty() || text.equals(UNDEFINED_TEXT)) return 1_000_000L;
@@ -791,7 +808,7 @@ public class Recognizer extends NeuralNetworkApi {
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (Character.isLetter(c) && (c < '\u0900' || c > '\u097F')) foreign++;
-            if (c == '\uFFFD') foreign++;   //broken byte sequence
+            if (c == '\uFFFD') foreign += BROKEN_TEXT_PENALTY;   //broken byte sequence: worse than any foreign letter
         }
         return foreign;
     }
