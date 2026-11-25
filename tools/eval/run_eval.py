@@ -26,8 +26,13 @@ import metrics as M  # noqa: E402
 DIRECTIONS = ("ja-ne", "ne-ja")
 
 
-def read_testset(path):
-    rows = []
+VERIFIED_STATUSES = ("NATIVE_VERIFIED", "ADJUDICATED")
+
+
+def read_testset(path, verified_only=False):
+    """Seed format (positional, optional 6th column = terms) or the full §3 format with a named header row
+    (docs/spec_v2/16_eval_dataset.md). Extra columns are kept in the row dict."""
+    rows, header = [], None
     with open(path, encoding="utf-8") as f:
         for ln, line in enumerate(f, 1):
             line = line.rstrip("\n").rstrip("\r")
@@ -35,14 +40,24 @@ def read_testset(path):
                 continue
             cols = line.split("\t")
             if cols[0] == "id":
+                header = cols
                 continue
             if len(cols) < 5:
                 raise ValueError(f"{path}:{ln}: expected >=5 columns, got {len(cols)}")
             if cols[1] not in DIRECTIONS:
                 raise ValueError(f"{path}:{ln}: bad direction {cols[1]!r}")
-            terms = [t for t in cols[5].split("|") if t] if len(cols) > 5 else []
-            rows.append(dict(id=cols[0], direction=cols[1], category=cols[2],
-                             source=cols[3], reference=cols[4], terms=terms))
+            if header and len(header) > 6:
+                named = dict(zip(header, cols + [""] * (len(header) - len(cols))))
+                terms = [t for t in named.get("terms", "").split("|") if t]
+            else:
+                named = {}
+                terms = [t for t in cols[5].split("|") if t] if len(cols) > 5 else []
+            row = dict(named)
+            row.update(id=cols[0], direction=cols[1], category=cols[2], source=cols[3], reference=cols[4], terms=terms)
+            row.setdefault("review_status", "")
+            if verified_only and row["review_status"] not in VERIFIED_STATUSES:
+                continue
+            rows.append(row)
     ids = [r["id"] for r in rows]
     dup = {i for i in ids if ids.count(i) > 1}
     if dup:
@@ -68,7 +83,7 @@ def _rate(num, den):
 
 def score_group(rows, outputs):
     hyps, refs = [], []
-    num_ok = num_n = neg_ok = term_hit = term_tot = left = 0
+    num_ok = num_n = neg_ok = term_hit = term_tot = left = crit = 0
     for r in rows:
         h = outputs[r["id"]]
         hyps.append(h)
@@ -82,6 +97,7 @@ def score_group(rows, outputs):
         term_hit += hit
         term_tot += tot
         left += int(M.leftover_source_script(h, r["direction"]))
+        crit += int(M.hard_count(M.validate(r["source"], h, r["direction"], r["terms"])) > 0)
     n = len(rows)
     return OrderedDict(
         n=n,
@@ -90,6 +106,7 @@ def score_group(rows, outputs):
         negation_consistency=_rate(neg_ok, n),
         term_accuracy=_rate(term_hit, term_tot), term_n=term_tot,
         leftover_source_script=_rate(left, n),
+        auto_critical_error_rate=_rate(crit, n),
     )
 
 
@@ -123,8 +140,8 @@ def to_markdown(result):
     lines = []
     for d in DIRECTIONS:
         lines.append(f"\n### {d}\n")
-        lines.append("| system | category | n | chrF++ | num.pres (n) | neg.cons | term.acc (n) | leftover src |")
-        lines.append("|---|---|---:|---:|---:|---:|---:|---:|")
+        lines.append("| system | category | n | chrF++ | num.pres (n) | neg.cons | term.acc (n) | leftover src | auto crit.err |")
+        lines.append("|---|---|---:|---:|---:|---:|---:|---:|---:|")
         for name, sr in result.items():
             dr = sr["directions"].get(d)
             if not dr:
@@ -135,7 +152,8 @@ def to_markdown(result):
                     f"{_fmt(g['number_preservation'], True)} ({g['number_n']}) | "
                     f"{_fmt(g['negation_consistency'], True)} | "
                     f"{_fmt(g['term_accuracy'], True)} ({g['term_n']}) | "
-                    f"{_fmt(g['leftover_source_script'], True)} |")
+                    f"{_fmt(g['leftover_source_script'], True)} | "
+                    f"{_fmt(g['auto_critical_error_rate'], True)} |")
     for name, sr in result.items():
         if sr["missing_ids"]:
             lines.append(f"\n**{name}**: {len(sr['missing_ids'])} missing outputs (excluded): "
@@ -154,9 +172,11 @@ def main(argv=None):
     repo = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
     ap.add_argument("--out-dir", default=os.path.join(repo, "docs", "eval"))
     ap.add_argument("--no-json", action="store_true")
+    ap.add_argument("--verified-only", action="store_true",
+                    help="use only rows with review_status NATIVE_VERIFIED / ADJUDICATED")
     a = ap.parse_args(argv)
 
-    testset = read_testset(a.testset)
+    testset = read_testset(a.testset, a.verified_only)
     systems = OrderedDict()
     for spec in a.system:
         name, _, path = spec.partition("=")
@@ -174,7 +194,9 @@ def main(argv=None):
         path = os.path.join(a.out_dir, f"{today}_{a.label}.json")
         doc = OrderedDict(date=today, label=a.label, commit=a.commit, model=a.model, notes=a.notes,
                           testset=os.path.basename(a.testset), testset_rows=len(testset),
-                          metrics_def="chrF++ (char6, word2, beta2; sacrebleu-compatible); rates are fractions",
+                          metrics_def="chrF++ (char6, word2, beta2; sacrebleu-compatible); rates are fractions; "
+                                      "auto_critical_error_rate = rows with >=1 hard validator issue",
+                          verified_only=a.verified_only,
                           systems=result)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(doc, f, ensure_ascii=False, indent=2)
