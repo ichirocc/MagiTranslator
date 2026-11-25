@@ -21,6 +21,7 @@
 | 11 | `11_android_perf_security.md` Android 性能・メモリ・安定性・セキュリティ | Claude 起草 |
 | 12 | `12_storage.md` データベース・履歴・設定・キャッシュ | Claude 起草 |
 | 13 | `13_integration_testing.md` 全体統合・テスト・品質評価 | Claude 起草 |
+| 15 | `15_research_integration.md` 2020年代研究知見の統合（ユーザー原稿 v1.0） | 原稿受領・整合性メモ付き |
 | 14 | `14_migration_acceptance.md` 既存コードからの移行・最終受入基準 | Claude 起草 |
 
 実装の正本は `SPEC_v2.md`。実測の記録は `docs/eval/`。`docs/SPEC.md`（v1）は superseded（決定 D1〜D10 は SPEC_v2 §1 に引き継ぎ）。
