@@ -44,14 +44,21 @@ public final class JaNeTranslator {
 
     private final Backend backend;
     private final Glossary glossary;
-    private int maxCandidates = 4;
+    private final TranslationMemory memory;
+    private int maxCandidates = 5;
     private int nBest = 3;
     private static final double MBR_WEIGHT = 0.3;
 
-    public JaNeTranslator(Backend backend, Glossary glossary) {
+    public JaNeTranslator(Backend backend, Glossary glossary) { this(backend, glossary, new TranslationMemory()); }
+
+    public JaNeTranslator(Backend backend, Glossary glossary, TranslationMemory memory) {
         this.backend = backend;
         this.glossary = glossary == null ? Glossary.withDefaults() : glossary;
+        this.memory = memory == null ? new TranslationMemory() : memory;
     }
+
+    /** Conversation memory of term / name renderings; clear it when the conversation ends. */
+    public TranslationMemory memory() { return memory; }
 
     public void setMaxCandidates(int n) { maxCandidates = Math.max(1, n); }
 
@@ -75,27 +82,51 @@ public final class JaNeTranslator {
         // candidate inputs (label -> list of segments translated independently and joined)
         Map<String, List<String>> inputs = new LinkedHashMap<>();
         Map<String, List<String>> required = new LinkedHashMap<>();
-        Glossary.Injection injWhole = glossary.inject(whole);
+        // known terms and names: glossary first, then renderings fixed earlier in this conversation
+        Map<String, String> mem = memory.snapshot();
+        Glossary.Injection injWhole = glossary.inject(whole, mem, false);
         // Required terms come from the source text, so every candidate must satisfy the same ones;
         // otherwise a candidate without injection (and without the terms) would be exempt and win.
         List<String> mustHave = injWhole.requiredTargets;
-        List<String> preferred = injWhole.preferredTargets;
-        if (injWhole.changed(whole)) {   // terminology first: it is the most constrained candidate
-            inputs.put("terms", Collections.singletonList(injWhole.text));
+        List<String> preferred = new ArrayList<>(injWhole.preferredTargets);
+        // unknown names: transliterate / keep katakana / common noun, chosen by the rerank (SPEC §10.2)
+        List<ProperNameResolver.Variant> nameVariants = ProperNameResolver.variants(injWhole.text, glossary, mem);
+        Map<String, Map<String, String>> labelNames = new LinkedHashMap<>();
+        List<String> unknown = ProperNameResolver.unknownNames(injWhole.text, glossary, mem);
+        String termsText = injWhole.text;
+        for (ProperNameResolver.Variant v : nameVariants)
+            if (v.mode == ProperNameResolver.Mode.TRANSLITERATE) {
+                termsText = v.text;
+                labelNames.put("terms", v.names);
+                for (String d : v.names.values()) if (!preferred.contains(d) && !mustHave.contains(d)) preferred.add(d);
+            }
+        if (!termsText.equals(whole)) {   // terminology first: it is the most constrained candidate
+            inputs.put("terms", Collections.singletonList(termsText));
             required.put("terms", mustHave);
         }
         inputs.put("whole", Collections.singletonList(whole));
         required.put("whole", mustHave);
         if (sentences.size() > 1) {
             List<String> segs = new ArrayList<>();
+            Map<String, String> names = new LinkedHashMap<>();
             boolean changed = false;
             for (String s : sentences) {
-                Glossary.Injection inj = glossary.inject(s);
+                Glossary.Injection inj = glossary.inject(s, mem, true);
                 segs.add(inj.text);
                 changed |= inj.changed(s);
+                for (Map.Entry<String, String> a : inj.applied.entrySet()) if (unknown.contains(a.getKey())) names.put(a.getKey(), a.getValue());
             }
-            inputs.put(changed ? "sentences+terms" : "sentences", segs);
-            required.put(changed ? "sentences+terms" : "sentences", mustHave);
+            String label = changed ? "sentences+terms" : "sentences";
+            inputs.put(label, segs);
+            required.put(label, mustHave);
+            labelNames.put(label, names);
+        }
+        for (ProperNameResolver.Variant v : nameVariants) {
+            if (v.mode == ProperNameResolver.Mode.TRANSLITERATE) continue;
+            if (v.text.equals(whole) || v.text.equals(termsText)) continue;
+            String label = v.mode == ProperNameResolver.Mode.KEEP ? "terms+name:keep" : "terms+name:noun";
+            inputs.put(label, Collections.singletonList(v.text));
+            required.put(label, mustHave);
         }
 
         List<Candidate> cands = new ArrayList<>();
@@ -119,7 +150,28 @@ public final class JaNeTranslator {
                 cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
             }
         }
-        return rerank(cands, whole, required, preferred, "ne", "ja");
+        Result res = rerank(cands, whole, required, preferred, "ne", "ja");
+        remember(res, injWhole.applied, labelNames);
+        return res;
+    }
+
+    /**
+     * Fixes the renderings used in the chosen translation for the rest of the conversation: known
+     * terms/names that were injected, and rule-transliterated names when the chosen candidate came from
+     * a transliterated input and actually contains that spelling.
+     */
+    private void remember(Result res, Map<String, String> applied, Map<String, Map<String, String>> labelNames) {
+        if (res.text == null || res.text.isEmpty()) return;
+        for (Map.Entry<String, String> a : applied.entrySet())
+            if (res.text.contains(a.getValue())) memory.remember(a.getKey(), a.getValue());
+        Candidate chosen = null;
+        for (Candidate c : res.candidates) if (c.output.equals(res.text)) { chosen = c; break; }
+        if (chosen == null) return;
+        int hash = chosen.label.indexOf('#');
+        Map<String, String> names = labelNames.get(hash < 0 ? chosen.label : chosen.label.substring(0, hash));
+        if (names == null) return;
+        for (Map.Entry<String, String> n : names.entrySet())
+            if (res.text.contains(n.getValue())) memory.remember(n.getKey(), n.getValue());
     }
 
     // ---------------- ne -> ja ----------------

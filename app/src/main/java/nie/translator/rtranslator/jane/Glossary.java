@@ -21,7 +21,7 @@ public final class Glossary {
     private final Map<String, String> terms = new LinkedHashMap<>();
     private static final String COMPOUND_SUFFIX = "語人製産風式的";
     // a katakana name, possibly with middle dots (ラム・バハドゥル), followed by an honorific
-    private static final Pattern KATAKANA_NAME = Pattern.compile("([\\u30A1-\\u30FAー][\\u30A1-\\u30FBー]*[\\u30A1-\\u30FAー])(さん|様|さま|くん|君|ちゃん|氏|先生)");
+    static final Pattern KATAKANA_NAME = Pattern.compile("([\\u30A1-\\u30FAー][\\u30A1-\\u30FBー]*[\\u30A1-\\u30FAー])(さん|様|さま|くん|君|ちゃん|氏|先生)");
 
     /** Only facts that are certain; users extend it with a TSV file (ja<TAB>ne per line). */
     public static Glossary withDefaults() {
@@ -69,13 +69,29 @@ public final class Glossary {
         public final String text;
         public final List<String> requiredTargets;
         public final List<String> preferredTargets;
+        /** ja source term/name -> target rendering actually injected (glossary, memory or rule) */
+        public final Map<String, String> applied;
         Injection(String text, List<String> requiredTargets, List<String> preferredTargets) {
-            this.text = text; this.requiredTargets = requiredTargets; this.preferredTargets = preferredTargets;
+            this(text, requiredTargets, preferredTargets, new LinkedHashMap<>());
+        }
+        Injection(String text, List<String> requiredTargets, List<String> preferredTargets, Map<String, String> applied) {
+            this.text = text; this.requiredTargets = requiredTargets; this.preferredTargets = preferredTargets; this.applied = applied;
         }
         public boolean changed(String original) { return !text.equals(original); }
     }
 
-    public Injection inject(String ja) {
+    public Injection inject(String ja) { return inject(ja, null, true); }
+
+    /** Whether {@code ja} is a known glossary entry. */
+    public boolean contains(String ja) { return ja != null && terms.containsKey(ja); }
+
+    /**
+     * @param memory conversation renderings (TranslationMemory); used after the glossary (glossary wins)
+     *               and required like glossary entries, so a term keeps the same rendering in a conversation
+     * @param transliterateUnknown false leaves unknown katakana names untouched (ProperNameResolver decides)
+     */
+    public Injection inject(String ja, Map<String, String> memory, boolean transliterateUnknown) {
+        Map<String, String> applied = new LinkedHashMap<>();
         List<String> required = new ArrayList<>();
         List<String> preferred = new ArrayList<>();
         String t = ja;
@@ -84,28 +100,35 @@ public final class Glossary {
         StringBuffer sb = new StringBuffer();
         while (m.find()) {
             String name = m.group(1);
-            boolean fromGlossary = terms.containsKey(name);
-            String dev = fromGlossary ? terms.get(name) : KanaDevanagari.transliterate(name);
+            boolean fromGlossary = terms.containsKey(name) || (memory != null && memory.containsKey(name));
+            if (!fromGlossary && !transliterateUnknown) { m.appendReplacement(sb, Matcher.quoteReplacement(m.group())); continue; }
+            String dev = terms.containsKey(name) ? terms.get(name)
+                    : fromGlossary ? memory.get(name) : KanaDevanagari.transliterate(name);
             if (dev == null) { m.appendReplacement(sb, Matcher.quoteReplacement(m.group())); continue; }
             List<String> into = fromGlossary ? required : preferred;
             if (!into.contains(dev)) into.add(dev);
+            applied.put(name, dev);
             m.appendReplacement(sb, Matcher.quoteReplacement(dev + m.group(2)));
         }
         m.appendTail(sb);
         t = sb.toString();
         // longest terms first so that "東京都" wins over "東京"
-        List<String> keys = new ArrayList<>(terms.keySet());
+        Map<String, String> all = new LinkedHashMap<>();
+        if (memory != null) all.putAll(memory);
+        all.putAll(terms);   // glossary wins over memory
+        List<String> keys = new ArrayList<>(all.keySet());
         keys.sort(Comparator.comparingInt(String::length).reversed());
         for (String k : keys) {
             // a term directly followed by a derivational suffix is only the head of another word
             // (日本語 = Japanese language, not "Japan" + 語); such occurrences are left to the model
             Matcher tm = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])").matcher(t);
             if (!tm.find()) continue;
-            String v = terms.get(k);
+            String v = all.get(k);
             t = tm.replaceAll(Matcher.quoteReplacement(v));
             if (!required.contains(v)) required.add(v);
+            applied.put(k, v);
         }
         preferred.removeAll(required);
-        return new Injection(t, required, preferred);
+        return new Injection(t, required, preferred, applied);
     }
 }

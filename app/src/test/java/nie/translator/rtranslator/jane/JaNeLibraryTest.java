@@ -227,6 +227,63 @@ public class JaNeLibraryTest {
         yes(!TranslationValidator.validateJaToNe("なぜですか。", "किन", none).toString().contains("QUESTION_LOST"), "किन (why) is a question");
         yes(TranslationValidator.validateJaToNe("行きますか。", "म कहिलेकाहीं जान्छु।", none).toString().contains("QUESTION_LOST"), "कहिलेकाहीं (sometimes) is not a question");
 
+        // TranslationMemory: bounded LRU, clearable
+        TranslationMemory tm = new TranslationMemory(2);
+        tm.remember("A", "a"); tm.remember("B", "b");
+        eq("a", tm.lookup("A"), "memory lookup");          // A becomes most recently used
+        tm.remember("C", "c");
+        eq(2, tm.size(), "memory bounded");
+        eq(null, tm.lookup("B"), "least recently used evicted");
+        eq("a", tm.lookup("A"), "recently used kept");
+        tm.remember(" ", "x"); tm.remember("D", null);
+        eq(2, tm.size(), "empty entries ignored");
+        tm.clear();
+        eq(0, tm.size(), "memory cleared");
+        eq(200, new TranslationMemory().capacity(), "default capacity");
+
+        // ProperNameResolver: candidates for an unknown name; known names are not candidates
+        java.util.List<ProperNameResolver.Variant> pv = ProperNameResolver.variants("ラジさんが来ます。", Glossary.withDefaults(), null);
+        eq("[TRANSLITERATE:राजिさんが来ます。, KEEP:ラジさんが来ます。, NOUN:ラジが来ます。]", pv.toString(), "three name candidates");
+        eq("राजि", pv.get(0).names.get("ラジ"), "transliteration recorded");
+        Glossary gk = Glossary.withDefaults();
+        gk.put("ラジ", "राजु");
+        eq("[]", ProperNameResolver.variants("ラジさんが来ます。", gk, null).toString(), "glossary name is not resolved again");
+        Map<String, String> mk = new HashMap<>();
+        mk.put("ラジ", "राजि");
+        eq("[]", ProperNameResolver.unknownNames("ラジさんが来ます。", null, mk).toString(), "memory name is known");
+        eq("[ラジ, サトウ]", ProperNameResolver.unknownNames("ラジさんとサトウ様とラジさん", null, null).toString(), "unknown names deduplicated");
+
+        // consistency across two translate() calls: the rendering chosen first is required afterwards
+        Map<String, String> f6 = new HashMap<>();
+        f6.put("तानाकाさんが来ます。", "तानाका जी आउनुहुन्छ।");
+        f6.put("タナカさんが来ます。", "धान आउँछ।");
+        f6.put("タナカが来ます。", "धान आयो।");
+        f6.put("तानाकाさんに電話します。", "म तानाका जीलाई फोन गर्छु।");
+        f6.put("タナカさんに電話します。", "म फोन गर्छु।");          // name dropped
+        Map<String, String> b6 = new HashMap<>();
+        b6.put("तानाका जी आउनुहुन्छ।", "タナカさんが来ます。");
+        b6.put("धान आउँछ।", "稲が来る。");
+        b6.put("म तानाका जीलाई फोन गर्छु।", "タナカさんに電話します。");
+        b6.put("म फोन गर्छु।", "タナカさんに電話します。");          // misleading perfect round trip
+        Backend fake6 = (text, s, t) -> ("ja".equals(s) ? f6 : b6).getOrDefault(text, text);
+        JaNeTranslator tr6 = new JaNeTranslator(fake6, Glossary.withDefaults());
+        JaNeTranslator.Result r6a = tr6.translate("タナカさんが来ます", "ja", "ne");
+        for (JaNeTranslator.Candidate c : r6a.candidates) System.out.println("     " + c);
+        eq("तानाका जी आउनुहुन्छ।", r6a.text, "first call picks transliterated name");
+        boolean noun = false;
+        for (JaNeTranslator.Candidate c : r6a.candidates) noun |= c.label.equals("terms+name:noun");
+        yes(noun, "common-noun candidate generated");
+        eq("तानाका", tr6.memory().lookup("タナカ"), "resolved name remembered");
+        JaNeTranslator.Result r6b = tr6.translate("タナカさんに電話します", "ja", "ne");
+        for (JaNeTranslator.Candidate c : r6b.candidates) System.out.println("     " + c);
+        eq("म तानाका जीलाई फोन गर्छु।", r6b.text, "second call keeps the same rendering");
+        for (JaNeTranslator.Candidate c : r6b.candidates) {
+            yes(!c.label.contains("name:"), "remembered name gets no new candidates: " + c.label);
+            if (c.label.equals("whole")) eq(1, c.hard(), "remembered name is required (TERM_MISSING)");
+        }
+        tr6.memory().clear();
+        eq(null, tr6.memory().lookup("タナカ"), "conversation memory cleared");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }
