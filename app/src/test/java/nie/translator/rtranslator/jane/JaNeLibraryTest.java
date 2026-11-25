@@ -227,7 +227,44 @@ public class JaNeLibraryTest {
         yes(!TranslationValidator.validateJaToNe("なぜですか。", "किन", none).toString().contains("QUESTION_LOST"), "किन (why) is a question");
         yes(TranslationValidator.validateJaToNe("行きますか。", "म कहिलेकाहीं जान्छु।", none).toString().contains("QUESTION_LOST"), "कहिलेकाहीं (sometimes) is not a question");
 
+        // built-in dictionary (res/raw/jane_dictionary.tsv): format, overlap rule, behaviour
+        checkDictionary("app/src/main/res/raw/jane_dictionary.tsv");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
+    }
+
+    static void checkDictionary(String path) throws Exception {
+        java.util.List<String> lines = java.nio.file.Files.readAllLines(java.nio.file.Paths.get(path), java.nio.charset.StandardCharsets.UTF_8);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int entries = 0, badFormat = 0, dup = 0;
+        for (String line : lines) {
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String[] c = line.split("\t", -1);
+            boolean ok = c.length == 2 && c[0].equals(c[0].trim()) && c[1].equals(c[1].trim())
+                    && c[0].codePointCount(0, c[0].length()) >= 2
+                    && c[1].matches("[\\u0900-\\u0963\\u0966-\\u097F]+( [\\u0900-\\u0963\\u0966-\\u097F]+)*");
+            if (!ok) { badFormat++; System.out.println("     bad dictionary line: " + line); }
+            if (c.length >= 1 && !seen.add(c[0])) { dup++; System.out.println("     duplicate key: " + c[0]); }
+            entries++;
+        }
+        eq(0, badFormat, "dictionary: every line is japanese<TAB>devanagari, key >= 2 chars (" + entries + " entries)");
+        eq(0, dup, "dictionary: no duplicate keys");
+
+        Glossary g = Glossary.withDefaults();
+        try (java.io.Reader r = new java.io.InputStreamReader(new java.io.FileInputStream(path), java.nio.charset.StandardCharsets.UTF_8)) {
+            g.load(r);
+        }
+        // real compounds that contain another entry must be replaced as a whole
+        for (String[] t : new String[][]{{"東京都", "टोकियो"}, {"小学校", "प्राथमिक विद्यालय"}, {"会社員", "कम्पनी कर्मचारी"},
+                {"保険証", "बीमा कार्ड"}, {"日本語学校", "जापानी भाषा विद्यालय"}, {"健康保険", "स्वास्थ्य बीमा"}, {"ネパール大使館", "नेपाली दूतावास"}}) {
+            eq(t[1], g.inject(t[0]).text, "dictionary: compound " + t[0] + " replaced as a whole");
+        }
+        eq("टोकियोのकम्पनीです。", g.inject("東京の会社です。").text, "dictionary: 東京 + 会社");
+        eq("टोकियो庁", g.inject("東京都庁").text, "dictionary: 東京都 wins over 京都");
+        eq("सोमबारにअस्पतालへ行きます。", g.inject("月曜日に病院へ行きます。").text, "dictionary: 月曜日 + 病院");
+        eq("प्राथमिक विद्यालयに通っています。", g.inject("小学校に通っています。").text, "dictionary: 小学校 is one term, not 小 + 学校");
+        eq("[नेपाली दूतावास, राहदानी]", g.inject("ネパール大使館でパスポートを申請します。").requiredTargets.subList(0, 2),
+                "dictionary: required terms in order of length");
     }
 }

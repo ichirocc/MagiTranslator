@@ -205,6 +205,10 @@ public class Translator extends NeuralNetworkApi {
             String stamp = user.exists() ? user.lastModified() + ":" + user.length() : "none";
             if (janeTranslator == null || !stamp.equals(janeGlossaryStamp)) {
                 nie.translator.rtranslator.jane.Glossary glossary = nie.translator.rtranslator.jane.Glossary.withDefaults();
+                //built-in dictionary (res/raw/jane_dictionary.tsv), then the user's own terms, which win on the same key
+                try (java.io.Reader r = new java.io.InputStreamReader(global.getResources().openRawResource(R.raw.jane_dictionary), java.nio.charset.StandardCharsets.UTF_8)) {
+                    glossary.load(r);
+                }
                 if (user.exists()) {
                     try (java.io.Reader r = new java.io.InputStreamReader(new java.io.FileInputStream(user), java.nio.charset.StandardCharsets.UTF_8)) {
                         glossary.load(r);

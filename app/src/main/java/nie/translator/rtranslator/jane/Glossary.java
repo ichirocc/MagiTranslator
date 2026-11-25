@@ -45,6 +45,9 @@ public final class Glossary {
 
     public int size() { return terms.size(); }
 
+    /** Japanese keys (read-only view), e.g. to check a dictionary for overlapping entries. */
+    public java.util.Set<String> keys() { return java.util.Collections.unmodifiableSet(terms.keySet()); }
+
     /** Reads "ja<TAB>ne" lines; lines starting with # are comments. */
     public void load(Reader reader) throws IOException {
         BufferedReader br = new BufferedReader(reader);

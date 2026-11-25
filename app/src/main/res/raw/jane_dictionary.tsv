@@ -1,0 +1,126 @@
+# MagiTranslator built-in Japanese -> Nepali dictionary (jane Glossary)
+# Format: japanese<TAB>nepali, one entry per line; lines starting with # are comments.
+#
+# Every entry is injected into the Japanese input and becomes a REQUIRED term of the translation
+# (TranslationValidator TERM_MISSING is a hard error), so only add words that:
+#  - have one established Nepali equivalent (no guesses, no rare synonyms);
+#  - are nouns written the same way in every sentence (no verbs, no inflecting words);
+#  - are at least 2 characters and not ambiguous as a substring (時間 is also a duration counter,
+#    先生 is also an honorific, 休み is also a verb stem -> not listed);
+#  - when a real compound contains another entry, list the compound too (東京都 so that 京都 is not
+#    replaced inside it; 小学校, 会社員, 保険証 ...). Longer keys are replaced first.
+# JaNeLibraryTest checks the format, duplicates and these compounds.
+# Entries are reviewed by hand; a native Nepali speaker should confirm new ones before they are added.
+
+# ---- Japan: places
+東京都	टोकियो
+京都	क्योटो
+横浜	योकोहामा
+名古屋	नागोया
+神戸	कोबे
+福岡	फुकुओका
+沖縄	ओकिनावा
+北海道	होक्काइडो
+
+# ---- Nepal: places
+ラリトプル	ललितपुर
+バクタプル	भक्तपुर
+チトワン	चितवन
+ビラトナガル	विराटनगर
+ルンビニ	लुम्बिनी
+ジャナクプル	जनकपुर
+ダラン	धरान
+ブトワル	बुटवल
+ネパールガンジ	नेपालगन्ज
+ヒマラヤ	हिमालय
+エベレスト	सगरमाथा
+
+# ---- Nepal: culture
+ダサイン	दशैं
+ティハール	तिहार
+ホーリー	होली
+ダルバート	दाल भात
+ヒンドゥー教	हिन्दू धर्म
+仏教	बौद्ध धर्म
+
+# ---- days of the week
+月曜日	सोमबार
+火曜日	मंगलबार
+水曜日	बुधबार
+木曜日	बिहिबार
+金曜日	शुक्रबार
+土曜日	शनिबार
+日曜日	आइतबार
+
+# ---- money
+日本円	जापानी येन
+ネパールルピー	नेपाली रुपैयाँ
+ルピー	रुपैयाँ
+お金	पैसा
+銀行	बैंक
+給料	तलब
+税金	कर
+
+# ---- health
+病院	अस्पताल
+薬局	औषधि पसल
+医者	डाक्टर
+看護師	नर्स
+救急車	एम्बुलेन्स
+病気	रोग
+頭痛	टाउको दुखाइ
+腹痛	पेट दुखाइ
+発熱	ज्वरो
+健康保険	स्वास्थ्य बीमा
+保険	बीमा
+保険証	बीमा कार्ड
+
+# ---- offices, documents, procedures
+大使館	दूतावास
+ネパール大使館	नेपाली दूतावास
+市役所	नगरपालिका कार्यालय
+郵便局	हुलाक कार्यालय
+警察	प्रहरी
+空港	विमानस्थल
+パスポート	राहदानी
+ビザ	भिसा
+住所	ठेगाना
+電話番号	फोन नम्बर
+書類	कागजात
+申請書	आवेदन फारम
+申請	आवेदन
+契約書	सम्झौता पत्र
+契約	सम्झौता
+履歴書	बायोडाटा
+外国人	विदेशी
+
+# ---- work and school
+会社	कम्पनी
+会社員	कम्पनी कर्मचारी
+工場	कारखाना
+残業	ओभरटाइम
+会議	बैठक
+面接	अन्तर्वार्ता
+学校	विद्यालय
+小学校	प्राथमिक विद्यालय
+中学校	माध्यमिक विद्यालय
+大学	विश्वविद्यालय
+日本語学校	जापानी भाषा विद्यालय
+
+# ---- family and life
+家族	परिवार
+友達	साथी
+子供	बच्चा
+子ども	बच्चा
+誕生日	जन्मदिन
+結婚式	विवाह समारोह
+結婚	विवाह
+
+# ---- emergencies
+地震	भूकम्प
+火事	आगलागी
+交通事故	सडक दुर्घटना
+
+# ---- government
+首相	प्रधानमन्त्री
+大統領	राष्ट्रपति
