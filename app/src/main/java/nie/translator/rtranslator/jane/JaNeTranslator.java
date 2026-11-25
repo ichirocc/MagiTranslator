@@ -124,9 +124,11 @@ public final class JaNeTranslator {
         for (ProperNameResolver.Variant v : nameVariants) {
             if (v.mode == ProperNameResolver.Mode.TRANSLITERATE) continue;
             if (v.text.equals(whole) || v.text.equals(termsText)) continue;
-            String label = v.mode == ProperNameResolver.Mode.KEEP ? "terms+name:keep" : "terms+name:noun";
+            String label = v.mode == ProperNameResolver.Mode.KEEP ? "terms+name:keep"
+                    : v.mode == ProperNameResolver.Mode.TRANSLITERATE_BARE ? "terms+name:bare" : "terms+name:noun";
             inputs.put(label, Collections.singletonList(v.text));
             required.put(label, mustHave);
+            if (v.mode == ProperNameResolver.Mode.TRANSLITERATE_BARE) labelNames.put(label, v.names);
         }
 
         List<Candidate> cands = new ArrayList<>();
@@ -138,14 +140,14 @@ public final class JaNeTranslator {
                 // one model call, several beam hypotheses: diversity at no extra encoder cost
                 List<String> hyps = backend.translateNBest(segs.get(0), "ja", "ne", nBest);
                 for (int k = 0; k < hyps.size(); k++) {
-                    String out = NePostEditor.edit(hyps.get(k));
+                    String out = finishNe(hyps.get(k), whole);
                     if (out.isEmpty()) continue;
                     String label = k == 0 ? e.getKey() : e.getKey() + "#" + (k + 1);
                     if (k > 0) required.put(label, required.getOrDefault(e.getKey(), Collections.emptyList()));
                     cands.add(new Candidate(label, segs.get(0), out, null, Double.NaN));
                 }
             } else {
-                String out = NePostEditor.edit(translateSegments(segs, "ja", "ne"));
+                String out = finishNe(translateSegments(segs, "ja", "ne"), whole);
                 if (out.isEmpty()) continue;
                 cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
             }
@@ -192,12 +194,25 @@ public final class JaNeTranslator {
         for (String s : t.split("(?<=[।?!])")) if (!s.trim().isEmpty()) sentences.add(s.trim());
         if (sentences.size() > 1) inputs.put("sentences", sentences);
         List<Candidate> cands = new ArrayList<>();
-        for (Map.Entry<String, List<String>> e : inputs.entrySet()) {
-            String out = translateSegments(e.getValue(), "ne", "ja").replaceAll("\\s+", "");
-            out = collapseJa(out);
-            if (out.isEmpty()) continue;
-            cands.add(new Candidate(e.getKey(), String.join(" ", e.getValue()), out, null, Double.NaN));
-            required.putIfAbsent(e.getKey(), Collections.emptyList());
+        // the names are in the source whatever the input variant: every candidate must render them
+        for (String k : inputs.keySet()) required.put(k, rev.requiredTargets);
+        for (Map.Entry<String, List<String>> e : new ArrayList<>(inputs.entrySet())) {
+            List<String> segs = e.getValue();
+            if (segs.size() == 1 && nBest > 1) {
+                // beam alternatives: the baseline turned १,००० रुपैयाँ into 「100万円」 with no other candidate
+                List<String> hyps = backend.translateNBest(segs.get(0), "ne", "ja", nBest);
+                for (int k = 0; k < hyps.size(); k++) {
+                    String out = finishJa(hyps.get(k));
+                    if (out.isEmpty()) continue;
+                    String label = k == 0 ? e.getKey() : e.getKey() + "#" + (k + 1);
+                    required.putIfAbsent(label, rev.requiredTargets);
+                    cands.add(new Candidate(label, segs.get(0), out, null, Double.NaN));
+                }
+            } else {
+                String out = finishJa(translateSegments(segs, "ne", "ja"));
+                if (out.isEmpty()) continue;
+                cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
+            }
         }
         return rerank(cands, t, required, Collections.emptyList(), "ja", "ne");
     }
@@ -278,6 +293,23 @@ public final class JaNeTranslator {
         int miss = 0;
         for (String n : a) if (!b.remove(n)) miss++;
         return miss;
+    }
+
+    /** Japanese output clean-up: no spaces, no leading list dash the model sometimes emits ("- こんにちは"). */
+    static String finishJa(String ja) {
+        if (ja == null) return "";
+        String t = ja.replaceAll("\\s+", "").replaceFirst("^[-‐‑–—・*]+", "");
+        return collapseJa(t);
+    }
+
+    /** Nepali output: add the danda when the source sentence ended and the model dropped the full stop. */
+    static String finishNe(String ne, String sourceJa) {
+        String t = NePostEditor.edit(ne);
+        if (t.isEmpty()) return t;
+        String src = sourceJa == null ? "" : sourceJa.trim();
+        boolean srcEnds = !src.isEmpty() && "。．.".indexOf(src.charAt(src.length() - 1)) >= 0;
+        if (srcEnds && "।?!॥".indexOf(t.charAt(t.length() - 1)) < 0) t = t + "।";
+        return t;
     }
 
     /** Collapse looped Japanese clauses ("ありがとう。ありがとう。"). */

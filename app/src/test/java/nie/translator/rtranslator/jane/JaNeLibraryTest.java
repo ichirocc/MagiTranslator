@@ -307,6 +307,24 @@ public class JaNeLibraryTest {
         for (JaNeTranslator.Candidate c : rr.candidates) System.out.println("     " + c);
         eq("私はカトマンズに住んでいます。", rr.text, "ne->ja: name annotation candidate wins over カタルーニャ");
 
+        // jane-vs-raw review (docs/eval/2026-11-25_madlad-vs-jane-seed)
+        eq("こんにちは", JaNeTranslator.finishJa("- こんにちは"), "leading dash removed");
+        eq("कृपया पर्खनुहोस्।", JaNeTranslator.finishNe("कृपया पर्खनुहोस्", "少々お待ちください。"), "danda added when source ended");
+        eq("के हो?", JaNeTranslator.finishNe("के हो?", "何ですか。"), "existing ? kept");
+        boolean hasBare = false;
+        for (ProperNameResolver.Variant v : ProperNameResolver.variants("ラムさんが来ました。", Glossary.withDefaults(), new java.util.HashMap<>()))
+            if (v.mode == ProperNameResolver.Mode.TRANSLITERATE_BARE) { hasBare = true; eq("रामさんが来ました。", v.text, "bare transliteration ラム -> राम"); }
+        yes(hasBare, "bare variant generated");
+        Backend nb2 = new Backend() {
+            public String translate(String text, String s, String t) { return text.contains("1000") || text.contains("1,000") ? "値段は1,000ルピーです。" : text; }
+            public java.util.List<String> translateNBest(String text, String s, String t, int n) {
+                return java.util.Arrays.asList("賞金は100万円。", "値段は1,000ルピーです。");
+            }
+        };
+        JaNeTranslator.Result rn2 = new JaNeTranslator(nb2, Glossary.withDefaults()).translate("यसको मूल्य १,००० रुपैयाँ हो।", "ne", "ja");
+        for (JaNeTranslator.Candidate c : rn2.candidates) System.out.println("     " + c);
+        eq("値段は1,000ルピーです。", rn2.text, "ne->ja n-best: candidate that keeps 1,000 beats 100万円");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

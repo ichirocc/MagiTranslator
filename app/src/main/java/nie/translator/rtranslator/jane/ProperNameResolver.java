@@ -16,7 +16,11 @@ import java.util.regex.Matcher;
  *  - NOUN: honorific dropped and nothing injected, so the model may treat the word as a common noun
  */
 public final class ProperNameResolver {
-    public enum Mode { TRANSLITERATE, KEEP, NOUN }
+    /**
+     * TRANSLITERATE_BARE: katakana writes foreign names with an extra u (ラム = Ram, クマル = Kumar);
+     * the bare variant drops a final u-sign after a consonant (रामु -> राम).
+     */
+    public enum Mode { TRANSLITERATE, TRANSLITERATE_BARE, KEEP, NOUN }
 
     public static final class Variant {
         public final Mode mode;
@@ -65,6 +69,19 @@ public final class ProperNameResolver {
         while (m.find()) m.appendReplacement(noun, Matcher.quoteReplacement(unknown.contains(m.group(1)) ? m.group(1) : m.group()));
         m.appendTail(noun);
         if (!names.isEmpty()) out.add(new Variant(Mode.TRANSLITERATE, tr.toString(), names));
+        Map<String, String> bare = new LinkedHashMap<>();
+        String bareText = tr.toString();
+        for (Map.Entry<String, String> e : names.entrySet()) {
+            String d = e.getValue();
+            if (d.length() >= 2 && d.charAt(d.length() - 1) == '\u0941' && d.charAt(d.length() - 2) >= '\u0915' && d.charAt(d.length() - 2) <= '\u0939') {
+                String b = d.substring(0, d.length() - 1);
+                bare.put(e.getKey(), b);
+                bareText = bareText.replace(d, b);
+            } else {
+                bare.put(e.getKey(), d);
+            }
+        }
+        if (!bareText.equals(tr.toString())) out.add(new Variant(Mode.TRANSLITERATE_BARE, bareText, bare));
         out.add(new Variant(Mode.KEEP, ja, new LinkedHashMap<>()));
         if (!noun.toString().equals(ja)) out.add(new Variant(Mode.NOUN, noun.toString(), new LinkedHashMap<>()));
         return out;
