@@ -325,6 +325,15 @@ public class JaNeLibraryTest {
         for (JaNeTranslator.Candidate c : rn2.candidates) System.out.println("     " + c);
         eq("値段は1,000ルピーです。", rn2.text, "ne->ja n-best: candidate that keeps 1,000 beats 100万円");
 
+        // v2 review
+        yes(TranslationValidator.containsTerm("राम काठमाडौँबाट आउनुभयो।", "काठमाडौं"), "candrabindu/anusvara variant counts as the term");
+        eq(1, TranslationValidator.hardCount(TranslationValidator.validateNeToJa("सीता नेपालबाट आएकी हुन्।", "ネパールネパールの首都ネパールシティ。")), "katakana repetition is hard");
+        Backend fb = new Backend() {
+            public String translate(String text, String s, String t) { return text.startsWith("यो") ? "これは何ですか。" : text; }
+            public java.util.List<String> translateNBest(String text, String s, String t, int n) { return java.util.Arrays.asList("これは何ですか。", "いくらですか？"); }
+        };
+        eq("これは何ですか。", new JaNeTranslator(fb, Glossary.withDefaults()).translate("यो के हो?", "ne", "ja").text, "ne->ja beam alternatives only as fallback");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

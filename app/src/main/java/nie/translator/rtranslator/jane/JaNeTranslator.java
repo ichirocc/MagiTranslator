@@ -165,7 +165,7 @@ public final class JaNeTranslator {
     private void remember(Result res, Map<String, String> applied, Map<String, Map<String, String>> labelNames) {
         if (res.text == null || res.text.isEmpty()) return;
         for (Map.Entry<String, String> a : applied.entrySet())
-            if (res.text.contains(a.getValue())) memory.remember(a.getKey(), a.getValue());
+            if (TranslationValidator.containsTerm(res.text, a.getValue())) memory.remember(a.getKey(), a.getValue());
         Candidate chosen = null;
         for (Candidate c : res.candidates) if (c.output.equals(res.text)) { chosen = c; break; }
         if (chosen == null) return;
@@ -173,7 +173,7 @@ public final class JaNeTranslator {
         Map<String, String> names = labelNames.get(hash < 0 ? chosen.label : chosen.label.substring(0, hash));
         if (names == null) return;
         for (Map.Entry<String, String> n : names.entrySet())
-            if (res.text.contains(n.getValue())) memory.remember(n.getKey(), n.getValue());
+            if (TranslationValidator.containsTerm(res.text, n.getValue())) memory.remember(n.getKey(), n.getValue());
     }
 
     // ---------------- ne -> ja ----------------
@@ -256,13 +256,21 @@ public final class JaNeTranslator {
             scored.add(sc);
             if (best == null || better(sc, best)) best = sc;
         }
+        if ("ja".equals(outLang)) {
+            // ne->ja: beam alternatives (label "#k") only as a fallback. Measured on the seed set, letting them
+            // compete changed meanings (これは何ですか -> いくらですか); they are needed only when every primary
+            // candidate has a hard problem (e.g. the number hallucination 1,000 rupees -> 100万円).
+            Candidate primary = null;
+            for (Candidate c : scored) if (!c.label.contains("#") && (primary == null || better(c, primary))) primary = c;
+            if (primary != null && primary.hard() == 0) best = primary;
+        }
         return new Result(best.output, scored, best.issues);
     }
 
     private static List<TranslationValidator.Issue> withRequiredTerms(List<TranslationValidator.Issue> issues, String output, List<String> req) {
         if (req == null || req.isEmpty()) return issues;
         List<TranslationValidator.Issue> all = new ArrayList<>(issues);
-        for (String t : req) if (!output.contains(t)) all.add(new TranslationValidator.Issue(TranslationValidator.Kind.TERM_MISSING, true, t));
+        for (String t : req) if (!TranslationValidator.containsTerm(output, t)) all.add(new TranslationValidator.Issue(TranslationValidator.Kind.TERM_MISSING, true, t));
         return all;
     }
 

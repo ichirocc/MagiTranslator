@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  */
 public final class TranslationValidator {
 
-    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST }
+    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION }
 
     public static final class Issue {
         public final Kind kind;
@@ -84,7 +84,7 @@ public final class TranslationValidator {
         boolean srcNeg = jaHasNegation(sourceJa), tgtNeg = neHasNegation(ne);
         if (srcNeg && !tgtNeg) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
         if (!srcNeg && tgtNeg) issues.add(new Issue(Kind.NEGATION_ADDED, false, null));   // soft: idioms like "大丈夫です" may surface as negated forms
-        if (requiredTargets != null) for (String t : requiredTargets) if (!ne.contains(t)) issues.add(new Issue(Kind.TERM_MISSING, true, t));
+        if (requiredTargets != null) for (String t : requiredTargets) if (!containsTerm(ne, t)) issues.add(new Issue(Kind.TERM_MISSING, true, t));
         if (JA_SCRIPT.matcher(ne).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
         if (JA_QUESTION.matcher(sourceJa.trim()).find() && !NE_QUESTION.matcher(ne).find()) issues.add(new Issue(Kind.QUESTION_LOST, false, null));
         return issues;
@@ -99,6 +99,7 @@ public final class TranslationValidator {
         if (srcNeg && !tgtNeg) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
         if (!srcNeg && tgtNeg) issues.add(new Issue(Kind.NEGATION_ADDED, false, null));
         if (Pattern.compile("[\\u0900-\\u097F]").matcher(ja).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
+        if (JA_KATAKANA_REPEAT.matcher(ja).find()) issues.add(new Issue(Kind.REPETITION, true, null));
         return issues;
     }
 
@@ -110,6 +111,22 @@ public final class TranslationValidator {
         }
         for (String n : rest) issues.add(new Issue(Kind.NUMBER_ADDED, false, n));
     }
+
+    /**
+     * Term containment that ignores spelling variants the model produces: NFC, candrabindu vs anusvara
+     * (काठमाडौँ / काठमाडौं), and full-width vs ASCII for Latin/digits.
+     */
+    public static boolean containsTerm(String text, String term) {
+        if (text == null || term == null) return false;
+        return canonTerm(text).contains(canonTerm(term));
+    }
+
+    static String canonTerm(String s) {
+        return Normalizer.normalize(s, Normalizer.Form.NFKC).replace('\u0901', '\u0902');
+    }
+
+    // a katakana word of 2+ chars immediately repeated (ネパールネパール): degenerate output
+    private static final Pattern JA_KATAKANA_REPEAT = Pattern.compile("([\\u30A1-\\u30FAー]{2,})\\1");
 
     public static int hardCount(List<Issue> issues) {
         int c = 0;

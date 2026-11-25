@@ -234,7 +234,10 @@ def negation_consistent(src, hyp, direction):
 def term_hits(hyp, terms):
     """(hits, total) of required target terms found verbatim (validateJaToNe uses contains)."""
     terms = [t for t in (terms or []) if t]
-    return sum(1 for t in terms if t in hyp), len(terms)
+    # same rule as TranslationValidator.containsTerm: NFKC, candrabindu == anusvara
+    canon = lambda x: unicodedata.normalize("NFKC", x).replace("\u0901", "\u0902")
+    h = canon(hyp)
+    return sum(1 for t in terms if canon(t) in h), len(terms)
 
 
 def leftover_source_script(hyp, direction):

@@ -114,7 +114,7 @@ public final class QualityScorer {
         List<String> srcNums = numbers(sourceJa), candNums = numbers(candidateNe);
         for (String n : srcNums) if (!candNums.remove(n)) s -= 0.15;
         // required terminology
-        for (String t : requiredTargets) if (!candidateNe.contains(t)) s -= 0.10;
+        for (String t : requiredTargets) if (!TranslationValidator.containsTerm(candidateNe, t)) s -= 0.10;
         // script purity
         s -= 0.5 * foreignLetterRatio(candidateNe, sourceJa);
         // register: a polite Japanese source (です/ます) must not become informal Nepali (तिमी / तँ forms)
