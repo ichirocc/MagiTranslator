@@ -18,7 +18,7 @@
 #include <string>
 #include <sstream>
 #include <android/log.h>
-#include "libs/fastText/src/fasttext.h"
+#include <fasttext.h>   // libs/fastText/src, a system include directory (fasttext/CMakeLists.txt)
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_nie_translator_rtranslator_voice_1translation_neural_1networks_translation_LanguageDetector_initFastText(JNIEnv* env, jobject /* this */) {

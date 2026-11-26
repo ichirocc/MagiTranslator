@@ -52,6 +52,7 @@ set(protobuf_SHARED_OR_STATIC STATIC) # Usually best to build as static for Andr
 # Include ONLY the lite library definition
 # This file defines the 'libprotobuf-lite' target and its source list
 include("${protobuf_cmake_dir}/libprotobuf-lite.cmake")
+set_property(TARGET libprotobuf-lite PROPERTY SYSTEM TRUE)   # its headers as system headers in DictionaryTranslator (vendored)
 
 
 target_include_directories(dictionary_translator_interface PRIVATE
@@ -91,6 +92,12 @@ function(magi_quiet_vendored dir)
         get_target_property(type ${t} TYPE)
         if(type MATCHES "^(STATIC_LIBRARY|SHARED_LIBRARY|MODULE_LIBRARY|OBJECT_LIBRARY|EXECUTABLE)$")
             target_compile_options(${t} PRIVATE -w)
+            # their headers also reach our wrappers (BergamotTranslator.cpp includes marian / yaml-cpp / pathie):
+            # consumers get the include directories of these targets as system ones (CMake 3.25+), so warnings
+            # inside vendored headers are not reported while our own code's warnings still are
+            if(NOT type STREQUAL "EXECUTABLE")
+                set_property(TARGET ${t} PROPERTY SYSTEM TRUE)
+            endif()
         endif()
     endforeach()
     get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)

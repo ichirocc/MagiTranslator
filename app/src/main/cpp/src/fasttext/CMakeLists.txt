@@ -15,6 +15,9 @@ add_library(
         ${FASTTEXT_SRC}
 )
 
+# fastText's headers as system headers: their warnings (vector.h, densematrix.h) are not reported in the wrapper
+target_include_directories(fasttext-lib SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libs/fastText/src)
+
 # Link standard Android logging
 target_link_libraries(fasttext-lib
         android
