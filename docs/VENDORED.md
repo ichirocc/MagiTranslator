@@ -9,6 +9,12 @@ Nothing is downloaded at build time any more.
 To update a library: replace the folder with the new upstream checkout (without `.git`), keep the
 `.gitattributes`, update this table, and review the diff.
 
+SQLite (`app/src/main/cpp/src/libs/sqlite/sqlite3.c`, `sqlite3.h`) is the official amalgamation
+3.54.1 from https://www.sqlite.org/2026/sqlite-amalgamation-3540100.zip (SHA3-256
+`92281c86e2957f9b9305890f9ac04204caa7b677cc868dc326d942689df28e30`, as listed on sqlite.org/download.html),
+unmodified; public domain. It replaced the prebuilt sqlite4java AAR, whose native libraries were not
+16 KB aligned. The Java side (Tatoeba) uses Android's own android.database.sqlite.
+
 | Path | Upstream | Commit |
 |---|---|---|
 | `app/src/main/cpp/src/bergamot_translator/libs/bergamot` | https://github.com/niedev/bergamot-translator | `2e059c32c4a4238811d3eb1b8ea3feec87b3faca` |
