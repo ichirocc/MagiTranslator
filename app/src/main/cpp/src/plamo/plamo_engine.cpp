@@ -50,6 +50,19 @@ Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeComplete(JNIEnv *env, jc
     return res;
 }
 
+JNIEXPORT jboolean JNICALL
+Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeSetAdapter(JNIEnv *env, jclass, jlong handle, jstring jpath, jfloat scale) {
+    auto *e = reinterpret_cast<plamo::Engine *>(handle);
+    if (!e) return JNI_FALSE;
+    std::string path;
+    if (jpath) {
+        const char *c = env->GetStringUTFChars(jpath, nullptr);
+        path = c;
+        env->ReleaseStringUTFChars(jpath, c);
+    }
+    return e->set_adapter(path, scale) ? JNI_TRUE : JNI_FALSE;
+}
+
 JNIEXPORT jlongArray JNICALL
 Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeLastStats(JNIEnv *env, jclass, jlong handle) {
     auto *e = reinterpret_cast<plamo::Engine *>(handle);

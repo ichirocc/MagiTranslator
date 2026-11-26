@@ -88,7 +88,24 @@ Engine *Engine::open(const std::string &path, int threads, int slot_ctx) {
 Engine::~Engine() {
     if (batch_) llama_batch_ext_free(batch_);
     if (ctx_) llama_free(ctx_);
+    if (adapter_) llama_adapter_lora_free(adapter_);   // before the model it belongs to
     if (model_) llama_model_free(model_);
+}
+
+bool Engine::set_adapter(const std::string &path, float scale) {
+    llama_adapter_lora *next = nullptr;
+    if (!path.empty()) {
+        next = llama_adapter_lora_init(model_, path.c_str());
+        if (!next) return false;
+    }
+    if (llama_set_adapters_lora(ctx_, next ? &next : nullptr, next ? 1 : 0, next ? &scale : nullptr) != 0) {
+        if (next) llama_adapter_lora_free(next);
+        return false;
+    }
+    if (adapter_) llama_adapter_lora_free(adapter_);
+    adapter_ = next;
+    for (int s = 0; s < SLOTS; s++) drop(s);
+    return true;
 }
 
 void Engine::drop(int slot) {

@@ -235,6 +235,8 @@ public class Translator extends NeuralNetworkApi {
     private nie.translator.rtranslator.plamo.PlamoEngine plamoEngine;
     @Nullable
     private java.io.File plamoModelFile;
+    @Nullable
+    private String plamoAdapterStamp;
     /** per slot: prompt + translation tokens (PFML3 header, history, glossary, text, output) */
     private static final int PLAMO_CONTEXT_TOKENS = 2048;
 
@@ -253,6 +255,19 @@ public class Translator extends NeuralNetworkApi {
                 plamoEngine = nie.translator.rtranslator.plamo.PlamoEngine.open(model, 0, PLAMO_CONTEXT_TOKENS);
                 plamoModelFile = model;
                 plamoTranslator = null;
+                plamoAdapterStamp = null;
+            }
+            //personal adapter (imported in Settings): applied when it appears or changes, removed when deleted
+            java.io.File adapter = nie.translator.rtranslator.plamo.PlamoModels.adapter(global.getFilesDir());
+            String stamp = adapter == null ? "none" : adapter.lastModified() + ":" + adapter.length();
+            if (!stamp.equals(plamoAdapterStamp)) {
+                boolean ok = plamoEngine.setAdapter(adapter, 1.0f);
+                if (!ok && adapter != null) {
+                    Log.w("plamo", "personal adapter does not fit this model: not used");
+                    plamoEngine.setAdapter(null, 0f);
+                }
+                plamoAdapterStamp = stamp;
+                plamoTranslator = null;   //history computed with the other weights
             }
             nie.translator.rtranslator.jane.PlamoTranslator pt = plamoTranslator;
             if (pt == null) {

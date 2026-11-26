@@ -89,6 +89,63 @@ public final class PlamoModels {
         return null;
     }
 
+    // ---- personal LoRA adapter (trained on the user's own dictionary, see tools/llama/finetune) ----
+    // Device-only like the user dictionaries: it is derived from the user's private material, so it is
+    // imported from a file the user picks and never downloaded, uploaded or bundled.
+    static final String ADAPTER_FILE = "personal_lora.gguf";
+    public static final long ADAPTER_MAX_BYTES = 256L << 20;
+
+    /** The imported adapter, or null. */
+    public static File adapter(File filesDir) {
+        File f = new File(dir(filesDir), ADAPTER_FILE);
+        return f.isFile() ? f : null;
+    }
+
+    /** True when the stream starts like a GGUF file (magic "GGUF"); the stream must support mark/reset. */
+    public static boolean looksLikeGguf(java.io.InputStream in) throws IOException {
+        in.mark(8);
+        byte[] m = new byte[4];
+        int n = 0, r;
+        while (n < 4 && (r = in.read(m, n, 4 - n)) > 0) n += r;
+        in.reset();
+        return n == 4 && m[0] == 'G' && m[1] == 'G' && m[2] == 'U' && m[3] == 'F';
+    }
+
+    /**
+     * Stores a LoRA adapter (GGUF) as the personal adapter: copied to a temporary file, then moved into place,
+     * so a failed copy never replaces a working adapter. Whether it fits the model is checked when the engine
+     * applies it (llama.cpp compares every tensor shape); an adapter that does not fit is not used.
+     * @return the size in bytes
+     */
+    public static long importAdapter(java.io.InputStream in, File filesDir) throws IOException {
+        if (!in.markSupported()) in = new java.io.BufferedInputStream(in);
+        if (!looksLikeGguf(in)) throw new IOException("not a GGUF file");
+        File d = dir(filesDir);
+        if (!d.isDirectory() && !d.mkdirs()) throw new IOException("cannot create " + d);
+        File tmp = new File(d, ADAPTER_FILE + ".part");
+        long total = 0;
+        try (FileOutputStream o = new FileOutputStream(tmp)) {
+            byte[] buf = new byte[1 << 16];
+            int r;
+            while ((r = in.read(buf)) > 0) {
+                total += r;
+                if (total > ADAPTER_MAX_BYTES) throw new IOException("adapter too large");
+                o.write(buf, 0, r);
+            }
+        } catch (IOException e) {
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+            throw e;
+        }
+        Files.move(tmp.toPath(), new File(d, ADAPTER_FILE).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        return total;
+    }
+
+    public static void deleteAdapter(File filesDir) {
+        //noinspection ResultOfMethodCallIgnored
+        new File(dir(filesDir), ADAPTER_FILE).delete();
+    }
+
     private static void write(File f, String text) throws IOException {
         File parent = f.getParentFile();
         if (parent != null && !parent.isDirectory() && !parent.mkdirs()) throw new IOException("cannot create " + parent);

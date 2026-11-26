@@ -217,7 +217,7 @@
     <string name="open_models_manager">モデル管理を開く</string>
     <string name="toast_ne_tts_unavailable">この端末ではネパール語の読み上げができません。翻訳は文字で表示されます。</string>
     <string name="preference_title_user_dictionary_import">辞書ファイルを読み込む</string>
-    <string name="preference_description_user_dictionary_import">自分の jane 辞書（#!jane ja-ne-terms / ne-ja-terms / phrases）。この端末内だけに保存し、送信・バックアップしません。</string>
+    <string name="preference_description_user_dictionary_import">自分の jane 辞書（#!jane ja-ne-terms / ne-ja-terms / phrases）、またはそれで学習したPLaMoアダプター（.gguf）。この端末内だけに保存し、送信・バックアップしません。</string>
     <string name="preference_title_user_dictionary_delete">読み込んだ辞書を削除する</string>
     <string name="user_dictionary_import_result">%1$s を読み込みました：%2$d 件（不正な行 %3$d、重複 %4$d を除外）。</string>
     <string name="user_dictionary_import_failed">jane 辞書ではないか、読み込めないファイルです。</string>
@@ -237,4 +237,5 @@
     <string name="plamo_license_message">このモデルは株式会社Preferred NetworksがPLaMoコミュニティライセンスで提供しています。ダウンロードすると、このライセンスに同意したことになります。主な条件:\n\n• モデルはこのアプリの翻訳画面からのみ使い、アプリの外へ取り出したり他のソフトで動かしたり、改変したりしないこと。\n• 翻訳結果を他のAIモデルの学習に使わないこと。\n• 翻訳は正しいとは限りません。医療・法律・金融などの重要な判断を翻訳だけに頼らないこと。\n• Preferred Networksはモデルと翻訳について保証も責任も負いません。\n\n全文: %1$s</string>
     <string name="plamo_license_accept">同意してダウンロード</string>
     <string name="plamo_license_decline">キャンセル</string>
+    <string name="plamo_adapter_imported">PLaMoの個人用アダプター（%1$d MB）を取り込みました。次の翻訳から日本語⇄ネパール語に使います。</string>
 </resources>
