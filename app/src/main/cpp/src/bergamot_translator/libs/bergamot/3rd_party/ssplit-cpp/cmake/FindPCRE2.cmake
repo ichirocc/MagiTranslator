@@ -9,6 +9,12 @@
 
 if(SSPLIT_USE_INTERNAL_PCRE2)
   include(ExternalProject)
+  # MagiTranslator: under CMake 4 CMAKE_INSTALL_LIBDIR is not defined here, so the library path below
+  # became "<build>//libpcre2-8.a" and linking failed. GNUInstallDirs defines it.
+  include(GNUInstallDirs)
+  if(NOT CMAKE_INSTALL_LIBDIR)
+    set(CMAKE_INSTALL_LIBDIR lib)
+  endif()
 
   set(PCRE2_VERSION "10.39")
   set(PCRE2_FILENAME "pcre2-${PCRE2_VERSION}")
@@ -51,6 +57,7 @@ if(SSPLIT_USE_INTERNAL_PCRE2)
     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE} # Necessary for proper MacOS compilation
     -DCMAKE_CROSSCOMPILING_EMULATOR=${CMAKE_CROSSCOMPILING_EMULATOR_WITH_SEMICOLON} # Necessary for proper MacOS compilation
     -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true # Added for pybind11
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 # MagiTranslator: pcre2 10.39 asks for CMake < 3.5, rejected by CMake 4
     )
 
   # Android platform needs to be explicitly passed given this is an external project.

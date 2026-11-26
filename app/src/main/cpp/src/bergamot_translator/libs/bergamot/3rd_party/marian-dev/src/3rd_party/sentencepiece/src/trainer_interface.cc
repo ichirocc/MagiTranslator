@@ -208,7 +208,9 @@ bool TrainerInterface::IsValidSentencePiece(
     return false;
   }
 
-  constexpr unicode_script::ScriptType kAnyType =
+  // MagiTranslator: was constexpr; clang 21 (NDK r30) rejects -1 as outside the enum's range in a
+  // constant expression. Only used as a "no script yet" sentinel compared at run time.
+  const unicode_script::ScriptType kAnyType =
       static_cast<unicode_script::ScriptType>(-1);
 
   auto is_number = [](char32 c) { return (c >= 0x30 && c <= 0x39); };
