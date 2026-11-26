@@ -31,8 +31,8 @@ android {
         applicationId "com.magi.translator"
         targetSdk 36
         compileSdk 36
-        versionName '3.0.0-magi.11'
-        versionCode 38
+        versionName '3.0.0-magi.12'
+        versionCode 39
         minSdk 36   //MagiTranslator: Android 16+ only
         externalNativeBuild {
             cmake {
