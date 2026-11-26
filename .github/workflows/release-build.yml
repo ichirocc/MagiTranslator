@@ -89,6 +89,7 @@ jobs:
         run: |
           chmod +x gradlew
           set -o pipefail
+          ./gradlew checkJetifier --stacktrace 2>&1 | tee jetifier.log; ./gradlew :app:dependencies --configuration releaseRuntimeClasspath | grep -E "com.android.support|worker8|PRDownloader|amitshekh" || true
           ./gradlew assembleRelease --stacktrace --warning-mode all 2>&1 | tee build.log   # list each deprecated Gradle feature, not just a count
 
       - name: Error summary
