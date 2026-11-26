@@ -577,6 +577,22 @@ public class JaNeLibraryTest {
         eq("यो कति हो?", NePunctuation.restore("यो कति हो?"), "already a question: unchanged");
         eq("hello", NePunctuation.restore("hello"), "non-Devanagari untouched");
         eq("म कहिलेकाहीं पौडी खेल्छु।", NePunctuation.restore("म कहिलेकाहीं पौडी खेल्छु"), "कहिलेकाहीं is not कहिले");
+        // chrF fast path (n-grams packed into longs) == reference implementation, on random text with Japanese,
+        // Devanagari, spaces/punctuation and characters outside the BMP (those take the reference path)
+        java.util.Random rnd = new java.util.Random(42);
+        String[] alphabet = {"あ", "い", "介", "護", "ー", "क", "ा", "्", "न", "ं", " ", "。", "।", "😀", "𠮷", "A", "1"};
+        boolean same = true;
+        for (int k = 0; k < 5000 && same; k++) {
+            StringBuilder x = new StringBuilder(), y = new StringBuilder();
+            for (int i = rnd.nextInt(12); i > 0; i--) x.append(alphabet[rnd.nextInt(k % 2 == 0 ? 13 : alphabet.length)]);
+            for (int i = rnd.nextInt(12); i > 0; i--) y.append(alphabet[rnd.nextInt(k % 2 == 0 ? 13 : alphabet.length)]);
+            String hx = QualityScorer.strip(x.toString()), hy = QualityScorer.strip(y.toString());
+            double fast = QualityScorer.chrF(x.toString(), y.toString());
+            double ref = hx.isEmpty() || hy.isEmpty() ? 0 : QualityScorer.chrFSlow(hx, hy);
+            if (fast != ref) { same = false; System.out.println("     chrF differs: [" + x + "] [" + y + "] " + fast + " vs " + ref); }
+        }
+        yes(same, "packed chrF identical to the reference on 5000 random pairs");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

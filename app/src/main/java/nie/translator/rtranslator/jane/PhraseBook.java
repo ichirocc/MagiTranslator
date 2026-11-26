@@ -34,15 +34,21 @@ public final class PhraseBook {
 
     public String lookupNeJa(String ne) { return ne == null ? null : neJa.get(keyNe(ne)); }
 
+    // compiled once (keys are built for every lookup and every loaded line)
+    private static final java.util.regex.Pattern JA_SPACES = java.util.regex.Pattern.compile("[\\s　]+");
+    private static final java.util.regex.Pattern JA_END_PUNCT = java.util.regex.Pattern.compile("[。．.！!？?、,…]+$");
+    private static final java.util.regex.Pattern SPACES = java.util.regex.Pattern.compile("\\s+");
+    private static final java.util.regex.Pattern NE_END_PUNCT = java.util.regex.Pattern.compile("[\\s।॥.?!,]+$");
+
     static String keyJa(String s) {
         String t = JaNormalizer.normalize(s);
-        t = t.replaceAll("[\\s　]+", "");
-        return t.replaceAll("[。．.！!？?、,…]+$", "");
+        t = JA_SPACES.matcher(t).replaceAll("");
+        return JA_END_PUNCT.matcher(t).replaceAll("");
     }
 
     static String keyNe(String s) {
         String t = Normalizer.normalize(s, Normalizer.Form.NFC).replace('|', '।').replace('ँ', 'ं');
-        t = t.replaceAll("\\s+", " ").trim();
-        return t.replaceAll("[\\s।॥.?!,]+$", "");
+        t = SPACES.matcher(t).replaceAll(" ").trim();
+        return NE_END_PUNCT.matcher(t).replaceAll("");
     }
 }

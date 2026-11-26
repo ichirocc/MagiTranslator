@@ -20,7 +20,7 @@
 #include <unordered_map>
 #include "protobuf/dictionary_data.pb.h"
 #include <memory>
-#include "libs/sqlite4java/include/sqlite3.h"
+#include "libs/sqlite/sqlite3.h"   //SQLite compiled into this library (official amalgamation)
 
 
 struct DictionaryContainer{

@@ -1,15 +1,24 @@
 package nie.translator.rtranslator.databases.tatoeba;
 
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.niedev.sqlite4java.SQLiteConnection;
-import com.niedev.sqlite4java.SQLiteException;
-import com.niedev.sqlite4java.SQLiteStatement;
-
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Read-only access to the Tatoeba database with Android's built-in SQLite (android.database.sqlite).
+ *
+ * It replaces sqlite4java, whose native libraries (libsqlite4java.so and its own libc++_shared.so) are
+ * aligned to 4 KB pages and cannot be loaded as they are on devices with 16 KB pages (Android 15+).
+ * sqlite4java was used to stream the large "links" BLOB without Android's CursorWindow, which only holds
+ * about 2 MB per row: {@link BlobInputStream} reads the BLOB in slices with SQL substr() instead, so no
+ * single row returned by a cursor is larger than {@link BlobInputStream#CHUNK}.
+ */
 public class TatoebaDbWrapper {
     File dbFile;
 
@@ -17,24 +26,21 @@ public class TatoebaDbWrapper {
         dbFile = new File(dbPath);
     }
 
+    private SQLiteDatabase open() {
+        return SQLiteDatabase.openDatabase(dbFile.getPath(), null,
+                SQLiteDatabase.OPEN_READONLY | SQLiteDatabase.NO_LOCALIZED_COLLATORS);
+    }
+
     @Nullable
     public String getSentence(int id) {
         String out = null;
-        SQLiteStatement st = null;
-        SQLiteConnection database = new SQLiteConnection(dbFile);
-        try {
-            database.openReadonly();
-            st = database.prepare("SELECT text FROM sentences WHERE id = ?");
-            st.bind(1, id);
-
-            if (st.step()) {
-                out = st.columnString(0); // first column = "text"
+        try (SQLiteDatabase database = open();
+             Cursor c = database.rawQuery("SELECT text FROM sentences WHERE id = " + id, null)) {   //an int: safe to inline
+            if (c.moveToFirst()) {
+                out = c.getString(0); // first column = "text"
             }
-        } catch (SQLiteException e) {
+        } catch (RuntimeException e) {   //android.database.SQLException and friends are unchecked
             e.printStackTrace();
-        } finally {
-            if (st != null) st.dispose();
-            database.dispose();
         }
         return out;
     }
@@ -44,101 +50,97 @@ public class TatoebaDbWrapper {
         String[] out = new String[ids.length];
         if (ids.length == 0) return out;
 
-        StringBuilder ph = new StringBuilder();
+        // ints are inlined (safe, and compared as integers whatever the column affinity)
+        StringBuilder list = new StringBuilder();
         for (int i = 0; i < ids.length; i++) {
-            if (i > 0) ph.append(",");
-            ph.append("?");
+            if (i > 0) list.append(",");
+            list.append(ids[i]);
         }
+        String sql = "SELECT id, text FROM sentences WHERE id IN (" + list + ")";
 
-        String sql = "SELECT id, text FROM sentences WHERE id IN (" + ph + ")";
-
-        SQLiteStatement st = null;
-        SQLiteConnection database = new SQLiteConnection(dbFile);
-        try {
-            database.openReadonly();
-            st = database.prepare(sql);
-
-            // bind is 1-based
-            for (int i = 0; i < ids.length; i++) {
-                st.bind(i + 1, ids[i]);
-            }
-
-            // IMPORTANT: IN(...) order is not guaranteed.
-            // If you need to preserve input order, map id -> text then reorder.
+        try (SQLiteDatabase database = open();
+             Cursor c = database.rawQuery(sql, null)) {
+            // IN(...) order is not guaranteed: map id -> text, then reorder like the input
             java.util.HashMap<Integer, String> byId = new java.util.HashMap<>();
-            while (st.step()) {
-                int id = st.columnInt(0);
-                String text = st.columnString(1);
-                byId.put(id, text);
+            while (c.moveToNext()) {
+                byId.put(c.getInt(0), c.getString(1));
             }
-
             for (int i = 0; i < ids.length; i++) {
                 out[i] = byId.get(ids[i]); // null if missing
             }
-        } catch (SQLiteException e) {
+        } catch (RuntimeException e) {
             e.printStackTrace();
             out = new String[0];
-        } finally {
-            if (st != null) st.dispose();
-            database.dispose();
         }
         return out;
     }
 
     @Nullable
-    public LinksData.DataMap getLinkData(String srcLang,
-                                         String tgtLang) {
-        LinksData.DataMap result = null;
-        SQLiteConnection database = new SQLiteConnection(dbFile);
-        SQLiteStatement st = null;
-        try {
-            database.openReadonly();
-            st = database.prepare(
-                    "SELECT data FROM links WHERE srcLang = ? AND tgtLang = ? LIMIT 1"
-            );
-            st.bind(1, srcLang);
-            st.bind(2, tgtLang);
-
-            if (st.step()) {
-                // Key point: stream the BLOB (no CursorWindow)
-                try (InputStream in = st.columnStream(0)) {
-                    result = LinksData.DataMap.parseFrom(in);
+    public LinksData.DataMap getLinkData(String srcLang, String tgtLang) {
+        try (SQLiteDatabase database = open()) {
+            long rowid = -1, length = 0;
+            try (Cursor c = database.rawQuery("SELECT rowid, length(data) FROM links WHERE srcLang = ? AND tgtLang = ? LIMIT 1",
+                    new String[]{srcLang, tgtLang})) {
+                if (c.moveToFirst()) {
+                    rowid = c.getLong(0);
+                    length = c.getLong(1);
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (st != null) st.dispose();
-            database.dispose();
-        }
-        return result;
-    }
-}
-
-    /*public void close(){
-        database.dispose();
-    }*/
-
-    /*try {
-            long rowid;
-            SQLiteStatement st = database.prepare("SELECT rowid FROM links WHERE srcLang = ? AND tgtLang = ? LIMIT 1");
-            try {
-                st.bind(1, srcLang);
-                st.bind(2, tgtLang);
-                if (!st.step()) return null;
-                rowid = st.columnLong(0);
-            } finally {
-                st.dispose();
-            }
-
-            // Incremental BLOB I/O: no CursorWindow involved
-            SQLiteBlob blob = database.blob("main", "links", "data", rowid, false);
-            try (InputStream in = blob.getInputStream()) {
+            if (rowid < 0) return null;
+            // Key point: stream the BLOB in slices (no row bigger than the CursorWindow)
+            try (InputStream in = new BlobInputStream(database, rowid, length)) {
                 return LinksData.DataMap.parseFrom(in);
-            } finally {
-                blob.dispose();
             }
         } catch (Exception e) {
             e.printStackTrace();
             return null;
-        }*/
+        }
+    }
+
+    /** The "data" BLOB of one row of "links", read lazily in slices of {@link #CHUNK} bytes with substr(). */
+    static final class BlobInputStream extends InputStream {
+        static final int CHUNK = 1 << 20;   // 1 MB: well below the ~2 MB CursorWindow
+        private final SQLiteDatabase db;
+        private final long rowid, length;
+        private long next = 0;              // offset (0-based) of the next slice to fetch
+        private byte[] buf = new byte[0];
+        private int pos = 0;
+
+        BlobInputStream(SQLiteDatabase db, long rowid, long length) {
+            this.db = db; this.rowid = rowid; this.length = length;
+        }
+
+        private boolean fill() throws IOException {
+            if (pos < buf.length) return true;
+            if (next >= length) return false;
+            int n = (int) Math.min(CHUNK, length - next);
+            // substr() on a BLOB counts bytes and is 1-based
+            try (Cursor c = db.rawQuery("SELECT substr(data, " + (next + 1) + ", " + n + ") FROM links WHERE rowid = " + rowid, null)) {
+                if (!c.moveToFirst()) throw new IOException("links row " + rowid + " disappeared");
+                byte[] b = c.getBlob(0);
+                if (b == null || b.length != n) throw new IOException("short read at " + next + ": " + (b == null ? 0 : b.length) + " of " + n);
+                buf = b; pos = 0; next += n;
+                return true;
+            } catch (RuntimeException e) {
+                throw new IOException(e);
+            }
+        }
+
+        @Override public int read() throws IOException {
+            return fill() ? (buf[pos++] & 0xFF) : -1;
+        }
+
+        @Override public int read(byte[] b, int off, int len) throws IOException {
+            if (len == 0) return 0;
+            if (!fill()) return -1;
+            int k = Math.min(len, buf.length - pos);
+            System.arraycopy(buf, pos, b, off, k);
+            pos += k;
+            return k;
+        }
+
+        @Override public int available() {
+            return buf.length - pos;
+        }
+    }
+}

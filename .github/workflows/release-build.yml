@@ -49,8 +49,11 @@ jobs:
             app/src/main/java/nie/translator/rtranslator/downloader/ManifestSignature.java \
             app/src/test/java/nie/translator/rtranslator/downloader/ModelStoreTest.java \
             app/src/main/java/nie/translator/rtranslator/plamo/*.java \
-            app/src/test/java/nie/translator/rtranslator/plamo/PlamoTest.java
+            app/src/test/java/nie/translator/rtranslator/plamo/PlamoTest.java \
+            app/src/main/java/nie/translator/rtranslator/tools/nn/Utils.java \
+            app/src/test/java/nie/translator/rtranslator/tools/nn/UtilsTest.java
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.jane.JaNeLibraryTest
+          java -cp /tmp/jt nie.translator.rtranslator.tools.nn.UtilsTest   # beam search top-k == the old repeated scans
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.plamo.PlamoTest   # PLaMo prompts, glossary, history, license gate
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ModelSourcesTest   # pinned model hashes, no upstream URL
@@ -62,6 +65,7 @@ jobs:
           java -cp /tmp/jt nie.translator.rtranslator.jane.ValidatorParityDump tools/eval/testset_seed.tsv \
             --testset tools/eval/testsets/test_v1_candidates.tsv docs/eval/outputs/*.tsv > /tmp/validator_dump.tsv
           python3 -I tools/eval/check_validator_parity.py /tmp/validator_dump.tsv
+          python3 -I tools/dict/test_textbook_terms.py   # textbook vocabulary tool
 
       - name: Restore release keystore from secrets (optional)
         shell: bash
