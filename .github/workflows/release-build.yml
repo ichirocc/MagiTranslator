@@ -32,7 +32,7 @@ jobs:
       - name: Install SDK / NDK / CMake
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;28.0.12674087" "cmake;3.22.1"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.31.6"
 
       - name: Pure-Java tests (jane library, zip safety)
         shell: bash
