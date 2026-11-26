@@ -227,6 +227,14 @@ public class JaNeLibraryTest {
         yes(!TranslationValidator.validateJaToNe("なぜですか。", "किन", none).toString().contains("QUESTION_LOST"), "किन (why) is a question");
         yes(TranslationValidator.validateJaToNe("行きますか。", "म कहिलेकाहीं जान्छु।", none).toString().contains("QUESTION_LOST"), "कहिलेकाहीं (sometimes) is not a question");
 
+        // speed: chrF with n-grams packed into longs gives exactly the reference score
+        // (chrFSlow takes already stripped text: no spaces or punctuation in these pairs)
+        for (String[] p : new String[][]{{"मभोलिअस्पतालजान्छु", "भोलिमअस्पतालमाजान्छु"}, {"明日病院に行きます", "明日は病院へ行きます"},
+                {"ああああ", "あああ"}, {"￿耀ab", "耀ab￿"}, {"x", "xy"}}) {
+            eq(QualityScorer.chrFSlow(p[0], p[1]), QualityScorer.chrF(p[0], p[1]), "speed: packed chrF == reference (" + p[0] + ")");
+        }
+        eq(QualityScorer.chrFSlow("🙂ok日本", "日本ok"), QualityScorer.chrF("🙂ok日本", "日本ok"), "speed: chrF with a non-BMP character uses the reference path");
+
         // speed: memoised model calls / results, and no round trip for candidates that cannot win
         {
             java.util.Map<String, String> spMap = new java.util.HashMap<>();

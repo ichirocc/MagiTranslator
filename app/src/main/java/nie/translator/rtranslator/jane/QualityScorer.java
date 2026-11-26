@@ -24,7 +24,8 @@ public final class QualityScorer {
         String[] v = {"1", "2", "3", "4", "5", "7", "8", "9", "10", "10"};
         for (int i = 0; i < w.length; i++) NE_NUMBER_VALUE.put(w[i], v[i]);
     }
-    private static final int CHRF_N = 4;   // characters; good for both Japanese and Devanagari
+    private static final int CHRF_N = 4;   // characters; good for both Japanese and Devanagari (also the packing limit: 4 x 16 bits)
+    private static final Pattern STRIP = Pattern.compile("[\\s。、！？!?,.।]");
     private static final double BETA = 2.0;
 
     private QualityScorer() {}
@@ -32,6 +33,61 @@ public final class QualityScorer {
     public static double chrF(String hypothesis, String reference) {
         String h = strip(hypothesis), r = strip(reference);
         if (h.isEmpty() || r.isEmpty()) return 0;
+        // Fast path (bit packing): when every character is a single 16-bit code unit (always the case for
+        // Japanese and Devanagari), an n-gram of up to 4 characters fits exactly in one 64-bit long
+        // (4 x 16 bits). The n-grams are then counted by sorting two long arrays and merging them: no
+        // substring objects, no hashing. The counts, and so the score, are identical to chrFSlow.
+        if (h.length() == h.codePointCount(0, h.length()) && r.length() == r.codePointCount(0, r.length())) {
+            return chrFPacked(h, r);
+        }
+        return chrFSlow(h, r);
+    }
+
+    private static double chrFPacked(String h, String r) {
+        double precSum = 0, recSum = 0;
+        int orders = 0;
+        for (int n = 1; n <= CHRF_N; n++) {
+            long[] hg = packedNgrams(h, n), rg = packedNgrams(r, n);
+            int ht = hg.length, rt = rg.length;
+            if (ht == 0 || rt == 0) continue;
+            int match = 0;
+            for (int i = 0, j = 0; i < ht && j < rt; ) {
+                if (hg[i] < rg[j]) { i++; continue; }
+                if (hg[i] > rg[j]) { j++; continue; }
+                long g = hg[i];
+                int ci = 0, cj = 0;
+                while (i < ht && hg[i] == g) { i++; ci++; }
+                while (j < rt && rg[j] == g) { j++; cj++; }
+                match += Math.min(ci, cj);
+            }
+            precSum += (double) match / ht;
+            recSum += (double) match / rt;
+            orders++;
+        }
+        if (orders == 0) return 0;
+        double p = precSum / orders, rcl = recSum / orders;
+        if (p + rcl == 0) return 0;
+        double b2 = BETA * BETA;
+        return (1 + b2) * p * rcl / (b2 * p + rcl);
+    }
+
+    /** All n-grams of s (n <= 4 chars, 16 bits each) packed into longs, sorted. */
+    private static long[] packedNgrams(String s, int n) {
+        int count = s.length() - n + 1;
+        if (count <= 0) return new long[0];
+        long[] out = new long[count];
+        long mask = n == 4 ? -1L : (1L << (16 * n)) - 1;
+        long g = 0;
+        for (int i = 0; i < s.length(); i++) {
+            g = ((g << 16) | s.charAt(i)) & mask;   //slide the window by one character
+            if (i >= n - 1) out[i - n + 1] = g;
+        }
+        java.util.Arrays.sort(out);
+        return out;
+    }
+
+    /** Reference implementation (any code point, string n-grams in hash maps); h and r already stripped. */
+    static double chrFSlow(String h, String r) {
         double precSum = 0, recSum = 0;
         int orders = 0;
         for (int n = 1; n <= CHRF_N; n++) {
@@ -135,7 +191,7 @@ public final class QualityScorer {
     private static String strip(String s) {
         if (s == null) return "";
         s = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFC);
-        return s.replaceAll("[\\s。、！？!?,.।]", "");
+        return STRIP.matcher(s).replaceAll("");
     }
 
     private static Map<String, Integer> ngrams(String s, int n) {
