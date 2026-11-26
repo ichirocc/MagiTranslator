@@ -15,7 +15,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       TAG: models-v1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Create the release if it does not exist
         run: |
