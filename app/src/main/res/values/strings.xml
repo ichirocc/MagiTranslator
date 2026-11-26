@@ -265,4 +265,8 @@
     <string name="preference_description_exit_app">Stop translation and voice modes and close the app (frees memory).</string>
     <string name="exit_app_confirm">Exit MagiTranslator? Running translations and voice modes stop.</string>
     <string name="exit_app_ok">Exit</string>
+    <string name="preference_title_delete_all_data">Delete all downloaded data</string>
+    <string name="preference_description_delete_all_data">Delete AI models, dictionaries and other downloaded files (re-download needed)</string>
+    <string name="delete_all_data_confirm">Delete all downloaded AI models and dictionaries (%1$s)? The app will close, and the models must be downloaded again before translating.</string>
+    <string name="delete_all_data_ok">Delete and close</string>
 </resources>

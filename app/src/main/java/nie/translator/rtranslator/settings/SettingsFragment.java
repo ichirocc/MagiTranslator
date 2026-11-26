@@ -230,6 +230,31 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             });
         }
 
+        Preference deleteAllData = findPreference("deleteAllData");
+        if (deleteAllData != null) {
+            deleteAllData.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    final java.io.File files = activity.getFilesDir(), cache = activity.getCacheDir();
+                    long size = nie.translator.rtranslator.tools.DataReset.sizeOf(files) + nie.translator.rtranslator.tools.DataReset.sizeOf(cache);
+                    new AlertDialog.Builder(activity)
+                            .setMessage(getString(R.string.delete_all_data_confirm, nie.translator.rtranslator.tools.DataReset.human(size)))
+                            .setPositiveButton(R.string.delete_all_data_ok, new DialogInterface.OnClickListener() {
+                                @Override public void onClick(DialogInterface dialog, int which) {
+                                    try { activity.stopService(new Intent(activity, nie.translator.rtranslator.downloader.DownloaderService.class)); } catch (Exception ignored) {}
+                                    nie.translator.rtranslator.tools.DataReset.clear(files, cache);
+                                    // the loaded models are now unlinked; end the process so nothing keeps using them.
+                                    // On the next start the app asks to download the models again.
+                                    nie.translator.rtranslator.tools.AppExit.exit(activity);
+                                }
+                            })
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show();
+                    return true;
+                }
+            });
+        }
+
         Preference userDictionaryDelete = findPreference("userDictionaryDelete");
         if (userDictionaryDelete != null) {
             userDictionaryDelete.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {

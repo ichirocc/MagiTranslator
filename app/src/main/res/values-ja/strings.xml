@@ -226,4 +226,8 @@
     <string name="preference_description_exit_app">翻訳・音声モードを止めてアプリを閉じます（メモリを解放）</string>
     <string name="exit_app_confirm">MagiTranslator を終了しますか？実行中の翻訳と音声モードは止まります。</string>
     <string name="exit_app_ok">終了</string>
+    <string name="preference_title_delete_all_data">ダウンロードしたデータをすべて削除</string>
+    <string name="preference_description_delete_all_data">AIモデル・辞書などのダウンロードしたファイルを削除（再ダウンロードが必要）</string>
+    <string name="delete_all_data_confirm">ダウンロードしたAIモデルと辞書をすべて削除しますか（%1$s）？アプリは閉じます。翻訳するには再度モデルのダウンロードが必要です。</string>
+    <string name="delete_all_data_ok">削除して閉じる</string>
 </resources>
