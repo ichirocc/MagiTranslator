@@ -89,7 +89,7 @@ jobs:
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
+          ./gradlew assembleRelease --stacktrace --warning-mode all 2>&1 | tee build.log   # list each deprecated Gradle feature, not just a count
 
       - name: Error summary
         if: failure()
