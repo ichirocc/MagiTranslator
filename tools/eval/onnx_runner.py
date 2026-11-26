@@ -269,6 +269,10 @@ class MadladRunner:
             opts = ort.SessionOptions()
             # Java: EXTENDED_OPT, arena + mem pattern on (Translator.java:413-419)
             opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
+            threads = int(os.environ.get("MAGI_ORT_THREADS", "0"))   # 0 = ORT default (all cores)
+            if threads > 0:
+                opts.intra_op_num_threads = threads   # set when several runners share the CPU
+                opts.inter_op_num_threads = 1
             sessions = {k: ort.InferenceSession(files[k], opts, providers=["CPUExecutionProvider"])
                         for k in ("encoder", "decoder", "cache_initializer", "embed")}
             sp = spm.SentencePieceProcessor(model_file=files["vocab"])
