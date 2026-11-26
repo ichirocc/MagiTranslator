@@ -549,6 +549,26 @@ public class JaNeLibraryTest {
             tw.setDiversify(false);
             yes(tw.translate("明日の夕方、何時に会社へ行きますか？", "ja", "ne").needsReview(), "without the extra round it stays hard");
         }
+        // ne->ja repair candidates (nj12 currency, nj17 repetition)
+        eq("価格は1000ルピー。", JaRepair.currency("यसको मूल्य १,००० रुपैयाँ हो।", "価格は1000円。"), "currency repair: 円 next to the number -> ルピー");
+        eq("価格は1,000 ルピーです", JaRepair.currency("मूल्य रु. १००० हो", "価格は1,000 円です"), "currency repair: रु. and spaced 円");
+        yes(JaRepair.currency("यसको मूल्य १,००० येन हो।", "価格は1000円。") == null, "no repair when the source says yen");
+        yes(JaRepair.currency("यसको मूल्य १,००० रुपैयाँ हो।", "価格は1000ルピー。") == null, "no repair when ルピー is already there");
+        yes(JaRepair.currency("उनी परिवारसँग रमाइलो गर्छिन्।", "円満に暮らす。") == null, "no repair without rupees / 円満 untouched");
+        eq("ネパールの首都ネパールシティ。", JaRepair.collapseRepeat("ネパールネパールの首都ネパールシティ。"), "repeat repair collapses ネパールネパール");
+        yes(JaRepair.collapseRepeat("ネパールから来ました。") == null, "no repeat, no repair");
+        {
+            Backend cb = new Backend() {
+                public String translate(String text, String s, String t) { return "価格は1000円。"; }
+                public java.util.List<String> translateNBest(String text, String s, String t, int n) { return java.util.Arrays.asList("価格は1000円。", "賞金は100万ルピー。"); }
+            };
+            JaNeTranslator tc = new JaNeTranslator(cb, Glossary.withDefaults());
+            JaNeTranslator.Result rc = tc.translate("यसको मूल्य १,००० रुपैयाँ हो।", "ne", "ja");
+            eq("価格は1000ルピー。", rc.text, "nj12: currency repair wins over 円 and 100万");
+            yes(!rc.needsReview(), "nj12 repaired result has no hard issue");
+            tc.setDiversify(false);
+            yes(tc.translate("यसको मूल्य १,००० रुपैयाँ हो।", "ne", "ja").needsReview(), "without the extra round nj12 stays hard");
+        }
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }

@@ -297,6 +297,25 @@ public final class JaNeTranslator {
                 addHyps(more, required, rev.requiredTargets, "para", para, backend.translateNBest(para, "ne", "ja", nBest), false, null);
             if (more.size() > cands.size()) res = rerank(more, t, required, neToJaPreferred, "ja", "ne");
         }
+        if (diversify && TranslationValidator.hardCount(res.issues) > 0) {
+            // deterministic repairs of the scored candidates; validated and ranked like any other candidate
+            List<Candidate> pool = new ArrayList<>();
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            for (Candidate c : res.candidates) { pool.add(new Candidate(c.label, c.input, c.output, null, Double.NaN)); seen.add(c.output); }
+            int before = pool.size();
+            for (Candidate c : res.candidates) {
+                if (c.hard() == 0) continue;
+                boolean numberOk = true;
+                for (TranslationValidator.Issue i : c.issues)
+                    if (i.hard && i.kind == TranslationValidator.Kind.NUMBER_LOST) numberOk = false;
+                String cur = numberOk ? JaRepair.currency(t, c.output) : null;
+                if (cur != null && seen.add(cur)) { pool.add(new Candidate("repair:currency", c.input, cur, null, Double.NaN)); required.put("repair:currency", rev.requiredTargets); }
+                // No repetition repair here on purpose: collapsing nj17 「ネパールネパールの首都ネパールシティ」 gives
+                // 「ネパールの首都ネパールシティ」, which passes every check yet is still a hallucination. The repetition
+                // is the only signal that keeps the 要確認 marker on it, so the collapsed form must not replace it.
+            }
+            if (pool.size() > before) res = rerank(pool, t, required, neToJaPreferred, "ja", "ne");
+        }
         return res;
     }
 
