@@ -40,3 +40,12 @@ To update a library: replace the folder with the new upstream checkout (without 
 - `bergamot_translator/libs/bergamot/3rd_party/marian-dev/src/CMakeLists.txt`: the git-revision header was generated
   from `../.git`, which does not exist in a vendored tree (CMake configure failed). When `.git` is absent a fixed
   `common/git_revision.h` (`GIT_REVISION "vendored"`) is written and `marian_version` is an empty target.
+- `bergamot_translator/libs/bergamot/3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake` (CMake 4): `include(GNUInstallDirs)` with a
+  `lib` default for `CMAKE_INSTALL_LIBDIR` (it was empty, so the library path became `<build>//libpcre2-8.a` and linking
+  failed), and `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` passed to the pcre2 10.39 ExternalProject (its `cmake_minimum_required`
+  is below 3.5, which CMake 4 rejects).
+- `bergamot_translator/libs/bergamot/3rd_party/marian-dev/src/3rd_party/sentencepiece/src/trainer_interface.cc` (NDK r30,
+  clang 21): `kAnyType` changed from `constexpr` to `const`; `static_cast<ScriptType>(-1)` is outside the enum range and is
+  no longer accepted in a constant expression. It is only a run-time sentinel.
+- The top-level CMake arguments in `app/build.gradle` add `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` for the other vendored
+  projects whose `cmake_minimum_required` is below 3.5.

@@ -13,8 +13,8 @@
 | JDK（CI） | 17 | **21** | Gradle 9 / AGP 9 は 17 以上。ローカル検証も 21 |
 | compileSdk / targetSdk / minSdk | 36 / 36 / 36 | 36 / 36 / 36 | minSdk は D5（Android 16+）のため据え置き |
 | build-tools（CI） | 35.0.0 | **36.0.0** | |
-| NDK | 28.0.12674087（**rc2**） | **28.2.13676358**（r28 の最新安定版） | r30（30.0.16248370）は vendored sentencepiece が新 clang でコンパイル不可（`constexpr variable 'kAnyType' must be initialized by a constant expression`） |
-| CMake | 3.22.1 | **3.31.6**（3.x の最新） | 4.x は vendored の `cmake_minimum_required(<3.5)` を拒否。`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` で通しても ssplit-cpp の PCRE2 ExternalProject のパスが空になり失敗 |
+| NDK | 28.0.12674087（**rc2**） | **30.0.16248370**（r30。当初 28.2.13676358、vendored 修正後に r30 へ） | r30（30.0.16248370）は vendored sentencepiece が新 clang でコンパイル不可（`constexpr variable 'kAnyType' must be initialized by a constant expression`） |
+| CMake | 3.22.1 | **4.1.2**（当初 3.31.6、vendored 修正後に 4.x へ） | 4.x は vendored の `cmake_minimum_required(<3.5)` を拒否。`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` で通しても ssplit-cpp の PCRE2 ExternalProject のパスが空になり失敗 |
 
 ## ライブラリ
 
@@ -64,9 +64,9 @@
 | 30.0.16248370 | 3.22.1 | 失敗：marian 同梱 sentencepiece が新 clang で `constexpr ... must be initialized by a constant expression` |
 | **28.2.13676358** | **3.31.6** | **成功**（8分31秒） |
 
-→ NDK r30 / CMake 4 への移行は vendored C++（marian-dev / sentencepiece / ssplit-cpp）の修正が前提。別作業とする。
+→ **解決済み**：vendored の修正（docs/VENDORED.md「Local patches」）で NDK r30 / CMake 4.1.2 のネイティブビルドが通る（`:app:externalNativeBuildRelease` 成功、生成 .so の LOAD 整列 0x4000。同梱の `libsqlite4java.so`（AAR 由来のビルド済み）は 0x1000 のまま）。
 NDK r28 の対応 API は 35 まで（minSdk 36 のネイティブ部分は 35 として扱われる旨の警告。CMake 引数は従来どおり `android-28`）。
 
 ## 今後（AGP 10 で削除予定の警告）
-- `android.nonFinalResIds=false`（既定は true）
-- `android.enableJetifier=true`（既定は false。JitPack の古い依存が support ライブラリを参照していないか確認後に外す）
+- ~~`android.nonFinalResIds=false`~~ → 削除済み（R の id を switch / アノテーション / static final に使う箇所なし）
+- `android.enableJetifier=true` → **維持**：`com.github.worker8:RadioGroupPlus:1.0.1` の POM が `com.android.support:appcompat-v7` に依存（AGP 10 で Jetifier が無くなる前に RadioGroupPlus の置き換えが必要）
