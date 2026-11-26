@@ -398,7 +398,28 @@ public class Global extends Application implements DefaultLifecycleObserver {
         });
     }
 
+    /**
+     * Madlad (needed for Nepali). New downloads use Madlad-v2.zip: the same 4-bit encoder / decoder, with
+     * the embedding table in 4-bit blocks instead of 8 bits (tools/models/build_madlad_v2.py).
+     * Use {@link #isMadladDownloaded} to know whether Madlad can be used: an older installation from
+     * Madlad.zip ({@link #getLegacyMadladDownloadInfo}) keeps working without a new download.
+     */
     public DownloadGroupInfo getMadladDownloadInfo(){
+        String downloadFolder = getFilesDir().getAbsolutePath();
+        return new DownloadGroupInfo(new DownloadInfo[]{
+                new DownloadInfo(
+                        "Madlad-v2.zip",
+                        nie.translator.rtranslator.downloader.ModelSources.url("Madlad-v2.zip"),
+                        downloadFolder + "/Translation/",
+                        1320000,
+                        true,
+                        true)
+
+        });
+    }
+
+    /** The Madlad download before Madlad-v2.zip (8-bit embedding table); only used to recognise old installations. */
+    public DownloadGroupInfo getLegacyMadladDownloadInfo(){
         String downloadFolder = getFilesDir().getAbsolutePath();
         return new DownloadGroupInfo(new DownloadInfo[]{
                 new DownloadInfo(
@@ -410,6 +431,12 @@ public class Global extends Application implements DefaultLifecycleObserver {
                         true)
 
         });
+    }
+
+    /** True when Madlad is installed, from Madlad-v2.zip or from the older Madlad.zip. */
+    public boolean isMadladDownloaded(nie.translator.rtranslator.downloader.DownloadManager downloadManager){
+        return downloadManager.checkDownloadCompleted(getMadladDownloadInfo())
+                || downloadManager.checkDownloadCompleted(getLegacyMadladDownloadInfo());
     }
 
     public DownloadGroupInfo getTatoebaDownloadInfo(){

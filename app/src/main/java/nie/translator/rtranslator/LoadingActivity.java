@@ -280,7 +280,7 @@ public class LoadingActivity extends GeneralActivity {
                 }
                 break;
             case Translator.MADLAD_CACHE:
-                if(!downloadManager.checkDownloadCompleted(global.getMadladDownloadInfo())){
+                if(!global.isMadladDownloaded(downloadManager)){
                     return false;
                 }
                 break;
@@ -320,7 +320,7 @@ public class LoadingActivity extends GeneralActivity {
         if(downloadManager.checkDownloadCompleted(global.getHyMtDownloadInfo())){
             availableModels.add(Translator.HY_MT);
         }
-        if(downloadManager.checkDownloadCompleted(global.getMadladDownloadInfo())){
+        if(global.isMadladDownloaded(downloadManager)){
             availableModels.add(Translator.MADLAD_CACHE);
         }
         if(!availableModels.contains(translationMode)){

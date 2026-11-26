@@ -1,4 +1,6 @@
 # name	sha256	size_bytes	upstream_url (copied once into the models-v1 release by .github/workflows/mirror-models.yml)
+# An upstream_url "build:<script>" is not downloaded: the workflow builds the file with that script (from files
+# listed above it) and uploads it only if its SHA-256 is the one pinned here.
 Whisper_initializer.onnx	dbf3281f2399b46527afbf0401a91174596222b79fa4e6646b0f2d49fb397d85	71378	https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_initializer.onnx
 Whisper_encoder.onnx	0171be36c908738326f70c8a7f58049ba4786a07d7ea79c0e0f9e26550cdfb50	92487048	https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_encoder.onnx
 Whisper_decoder.onnx	704de24c96a812779f3d0d7ed2a47a37b070f44abb0d92ca5e19d31c727718df	181741988	https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_decoder.onnx
@@ -14,4 +16,5 @@ Tatoeba.zip	6bb6f6054ee4870c8f6bc9de43fedfe7b62a7e368c50dc765f0a7a28512f9dd5	625
 Mozilla_ja.zip	7dc89da8423afde983f101e01d14c9739b81dc73bd7750f33ea71ee375cd7e9f	84873778	https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/Mozilla_ja.zip
 Mozilla_vi.zip	c6c2dc34448337c3ee61e5d0d10140771323a812b8bc7ea161619c221f3b751f	42060193	https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/Mozilla_vi.zip
 Madlad.zip	ec3183e6106182938fe095d8e48057e2412ded278b560c2dc818c72cfedd682d	1482639037	https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/Madlad.zip
+Madlad-v2.zip	a6de6b4d45ab1c22acebd334227620df98fc98c5219d4879d6ce6b0dd94746c0	1445060006	build:tools/models/build_madlad_v2.py
 HY-MT.zip	15d5dd9b0634fa0daac27fd50a06ec46c940eaadac2409d51361d3aa0ce3aff8	1926506894	https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/HY-MT.zip

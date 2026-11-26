@@ -307,7 +307,7 @@ public class Translator extends NeuralNetworkApi {
     }
 
     private boolean isMadladDownloaded() {
-        return new nie.translator.rtranslator.downloader.DownloadManager(global).checkDownloadCompleted(global.getMadladDownloadInfo());
+        return global.isMadladDownloaded(new nie.translator.rtranslator.downloader.DownloadManager(global));   //Madlad-v2.zip or the older Madlad.zip
     }
 
     private boolean isHyMtDownloaded() {
@@ -395,7 +395,10 @@ public class Translator extends NeuralNetworkApi {
                 encoderPath = basePath + "/Int4Acc4/madlad_encoder_4bit.onnx";
                 decoderPath = basePath + "/Int4Acc4/madlad_decoder_4bit.onnx";
                 vocabPath = basePath + "/spiece.model";
-                embedAndLmHeadPath = basePath + "/madlad_embed_8bit.onnx";
+                //Madlad-v2.zip ships the embedding table in 4-bit blocks (GatherBlockQuantized, -94 MB of RAM);
+                //an installation from the older Madlad.zip only has the 8-bit table, which still works
+                File embed4 = new File(basePath + "/madlad_embed_4bit.onnx");
+                embedAndLmHeadPath = embed4.exists() ? embed4.getPath() : basePath + "/madlad_embed_8bit.onnx";
                 cacheInitializerPath = basePath + "/Int4Acc4/madlad_cache_initializer_4bit.onnx";
             }
         }else {  //hy-mt

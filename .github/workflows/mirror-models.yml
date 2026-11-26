@@ -24,6 +24,13 @@ jobs:
               --notes "Model files downloaded by the app. SHA-256 of each file: models/models.tsv. Do not delete or replace files: installed apps check these hashes."
           fi
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Tools for built models (pinned versions: the output must be byte-identical)
+        run: pip install -r tools/models/requirements.txt
+
       - name: Copy, verify and upload each file
         shell: bash
         run: |
@@ -34,7 +41,19 @@ jobs:
             [[ -z "$name" || "$name" == \#* ]] && continue
             if grep -qx "$name" <<< "$have"; then echo "skip $name (already in the release)"; continue; fi
             echo "== $name ($size bytes)"
-            curl -fL --retry 5 --retry-delay 10 -o "/tmp/m/$name" "$url"
+            if [[ "$url" == build:* ]]; then
+              # derived file (e.g. Madlad-v2.zip): built from Madlad.zip of this release, then the same hash check
+              curl -fL --retry 5 --retry-delay 10 -o /tmp/m/Madlad.zip "https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Madlad.zip"
+              python3 -I "${url#build:}" /tmp/m/Madlad.zip "/tmp/m/$name"
+              rm -f /tmp/m/Madlad.zip
+              got=$(sha256sum "/tmp/m/$name" | cut -d' ' -f1)
+              if [[ "$got" != "$sha" ]]; then
+                echo "::error::$name built with sha256 $got, pinned $sha (different numpy/onnx/zlib?). Not uploaded."
+                exit 1
+              fi
+            else
+              curl -fL --retry 5 --retry-delay 10 -o "/tmp/m/$name" "$url"
+            fi
             echo "$sha  /tmp/m/$name" | sha256sum -c -
             gh release upload "$TAG" "/tmp/m/$name"
             rm -f "/tmp/m/$name"

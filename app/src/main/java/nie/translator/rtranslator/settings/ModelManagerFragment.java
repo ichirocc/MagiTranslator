@@ -126,7 +126,10 @@ public class ModelManagerFragment extends Fragment {
         //initialize download manager
         downloadManager = new DownloadManager(global);
         resourceManagers.put("hyManager", new ResourceManager(activity, global.getHyMtDownloadInfo(), hyManagerView, downloadManager));
-        resourceManagers.put("madladManager", new ResourceManager(activity, global.getMadladDownloadInfo(), madladManagerView, downloadManager));
+        //an installation from the older Madlad.zip is shown as installed (it works) instead of offering a new download
+        boolean legacyMadladOnly = !downloadManager.checkDownloadCompleted(global.getMadladDownloadInfo())
+                && downloadManager.checkDownloadCompleted(global.getLegacyMadladDownloadInfo());
+        resourceManagers.put("madladManager", new ResourceManager(activity, legacyMadladOnly ? global.getLegacyMadladDownloadInfo() : global.getMadladDownloadInfo(), madladManagerView, downloadManager));
         resourceManagers.put("tatoebaManager", new ResourceManager(activity, global.getTatoebaDownloadInfo(), tatoebaManagerView, downloadManager));
 
         // initialize GUI based on shared preferences

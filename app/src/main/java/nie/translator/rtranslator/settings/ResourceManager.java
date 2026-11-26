@@ -64,7 +64,8 @@ public class ResourceManager implements MozillaLanguagesAdapter.ResourceManagerI
         public void onDeletePressed() {
             DownloadGroupInfo hyMtDownloadInfo = ((Global) activity.getApplication()).getHyMtDownloadInfo();
             DownloadGroupInfo madladDownloadInfo = ((Global) activity.getApplication()).getMadladDownloadInfo();
-            if(isMozillaDownload(downloadInfo) || downloadInfo.equals(hyMtDownloadInfo) || downloadInfo.equals(madladDownloadInfo)) {
+            DownloadGroupInfo legacyMadladDownloadInfo = ((Global) activity.getApplication()).getLegacyMadladDownloadInfo();
+            if(isMozillaDownload(downloadInfo) || downloadInfo.equals(hyMtDownloadInfo) || downloadInfo.equals(madladDownloadInfo) || downloadInfo.equals(legacyMadladDownloadInfo)) {
                 //this is to prevent the user from deleting all the translation models
                 int numberOfModelsAvailable = 0;
                 for (DownloadGroupInfo downloadGroupInfo : downloadManager.getSavedDownloadStatus()) {
@@ -78,7 +79,7 @@ public class ResourceManager implements MozillaLanguagesAdapter.ResourceManagerI
                 if (downloadManager.checkDownloadCompleted(hyMtDownloadInfo)) {
                     numberOfModelsAvailable++;
                 }
-                if (downloadManager.checkDownloadCompleted(madladDownloadInfo)) {
+                if (((Global) activity.getApplication()).isMadladDownloaded(downloadManager)) {   //Madlad-v2.zip or the older Madlad.zip
                     numberOfModelsAvailable++;
                 }
                 if (numberOfModelsAvailable <= 1) {

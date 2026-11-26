@@ -1,0 +1,4 @@
+# exact versions: build_madlad_v2.py must produce byte-identical files (the SHA-256 is pinned in models/models.tsv)
+numpy==2.5.3
+onnx==1.23.2
+protobuf==7.36.1
