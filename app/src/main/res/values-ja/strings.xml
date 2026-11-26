@@ -222,4 +222,8 @@
     <string name="user_dictionary_import_result">%1$s を読み込みました：%2$d 件（不正な行 %3$d、重複 %4$d を除外）。</string>
     <string name="user_dictionary_import_failed">jane 辞書ではないか、読み込めないファイルです。</string>
     <string name="user_dictionary_deleted">読み込んだ辞書を削除しました。</string>
+    <string name="preference_title_exit_app">アプリを終了</string>
+    <string name="preference_description_exit_app">翻訳・音声モードを止めてアプリを閉じます（メモリを解放）</string>
+    <string name="exit_app_confirm">MagiTranslator を終了しますか？実行中の翻訳と音声モードは止まります。</string>
+    <string name="exit_app_ok">終了</string>
 </resources>

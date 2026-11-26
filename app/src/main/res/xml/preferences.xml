@@ -20,6 +20,12 @@
     android:divider="?attr/colorTextLevel6"
     android:dividerHeight="1dp">
 
+    <androidx.preference.Preference
+        android:key="exitApp"
+        android:title="@string/preference_title_exit_app"
+        android:summary="@string/preference_description_exit_app"
+        app:iconSpaceReserved="false" />
+
     <nie.translator.rtranslator.settings.UserImagePreference
         android:key="userImage"
         android:layout="@layout/preference_user_image"

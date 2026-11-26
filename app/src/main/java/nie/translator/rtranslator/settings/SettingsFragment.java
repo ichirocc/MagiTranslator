@@ -213,6 +213,23 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 }
             });
         }
+        Preference exitApp = findPreference("exitApp");
+        if (exitApp != null) {
+            exitApp.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    new AlertDialog.Builder(activity)
+                            .setMessage(R.string.exit_app_confirm)
+                            .setPositiveButton(R.string.exit_app_ok, new DialogInterface.OnClickListener() {
+                                @Override public void onClick(DialogInterface dialog, int which) { nie.translator.rtranslator.tools.AppExit.exit(activity); }
+                            })
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show();
+                    return true;
+                }
+            });
+        }
+
         Preference userDictionaryDelete = findPreference("userDictionaryDelete");
         if (userDictionaryDelete != null) {
             userDictionaryDelete.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {

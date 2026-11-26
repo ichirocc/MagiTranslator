@@ -261,4 +261,8 @@
     <string name="user_dictionary_import_result">Loaded %1$s: %2$d entries (%3$d lines rejected, %4$d duplicates skipped).</string>
     <string name="user_dictionary_import_failed">This file is not a jane dictionary or could not be read.</string>
     <string name="user_dictionary_deleted">Loaded dictionaries were deleted.</string>
+    <string name="preference_title_exit_app">Exit app</string>
+    <string name="preference_description_exit_app">Stop translation and voice modes and close the app (frees memory).</string>
+    <string name="exit_app_confirm">Exit MagiTranslator? Running translations and voice modes stop.</string>
+    <string name="exit_app_ok">Exit</string>
 </resources>
