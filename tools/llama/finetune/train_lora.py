@@ -33,7 +33,8 @@ order = sorted(range(len(examples)), key=lambda i: len(examples[i][0]))
 batches = [order[i:i + B] for i in range(0, len(order), B)]
 steps_per_epoch = math.ceil(len(batches) / ACC)
 total = max_steps or int(steps_per_epoch * epochs)
-opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=2e-4, weight_decay=0.0)
+LR = float(os.environ.get('LR', '2e-4'))   # lower for a second stage on top of an adapter (RESUME=dir:0)
+opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=LR, weight_decay=0.0)
 warm = 30
 sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min(1.0, (s + 1) / warm) * 0.5 * (1 + math.cos(math.pi * min(1.0, s / max(1, total)))))
 print(f'{len(examples)} examples, {len(batches)} batches, {steps_per_epoch} steps/epoch, training {total} steps', flush=True)
