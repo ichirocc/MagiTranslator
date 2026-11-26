@@ -1,5 +1,5 @@
 // Command-line check of the app's PLaMo engine (plamo_core.cpp), e.g. on a phone in Termux or under QEMU.
-//   plamo_cli model.gguf [threads] < input.tsv      input: lang<TAB>text per line (ja or ne)
+//   plamo_cli model.gguf [threads] [lora.gguf] < input.tsv      input: lang<TAB>text per line (ja or ne)
 // Prints the translation, the prompt/generated token counts and the speed. The prompt is the same PFML3
 // prompt the app sends without glossary or history (see PlamoPrompt.java).
 #include <cstdio>
@@ -11,11 +11,12 @@
 #include "../../app/src/main/cpp/src/plamo/plamo_core.h"
 
 int main(int argc, char **argv) {
-    if (argc < 2) { fprintf(stderr, "usage: %s model.gguf [threads] < lang<TAB>text lines\n", argv[0]); return 2; }
+    if (argc < 2) { fprintf(stderr, "usage: %s model.gguf [threads] [lora.gguf] < lang<TAB>text lines\n", argv[0]); return 2; }
     int threads = argc > 2 ? atoi(argv[2]) : plamo::Engine::performance_cores();
     plamo::Engine *e = plamo::Engine::open(argv[1], threads, 1024);
     if (!e) { fprintf(stderr, "cannot load %s\n", argv[1]); return 1; }
-    fprintf(stderr, "threads %d\n", threads);
+    if (argc > 3 && !e->set_adapter(argv[3], 1.0f)) { fprintf(stderr, "cannot apply the adapter %s\n", argv[3]); return 1; }
+    fprintf(stderr, "threads %d%s\n", threads, argc > 3 ? ", with adapter" : "");
     const std::vector<std::string> stops = {"<|plamo:tag|>", "<|plamo:bos|>"};
     std::string line;
     long long gen = 0, gen_us = 0, prompt_us = 0;

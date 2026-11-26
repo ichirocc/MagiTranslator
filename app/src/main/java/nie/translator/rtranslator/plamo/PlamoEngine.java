@@ -72,6 +72,15 @@ public final class PlamoEngine implements TextCompletion, Closeable {
         return new String(out, StandardCharsets.UTF_8);
     }
 
+    /**
+     * Applies a LoRA adapter trained for this model (GGUF), or removes it with {@code null}. The prefix
+     * caches are dropped. False when the file is not an adapter for this model.
+     */
+    public synchronized boolean setAdapter(File adapter, float scale) throws IOException {
+        if (handle == 0) throw new IOException("engine closed");
+        return nativeSetAdapter(handle, adapter == null ? null : adapter.getAbsolutePath(), scale);
+    }
+
     /** prompt tokens, of which reused from the cache, generated tokens, prompt microseconds, generation microseconds */
     public synchronized long[] lastStats() {
         return handle == 0 ? new long[5] : nativeLastStats(handle);
@@ -86,5 +95,6 @@ public final class PlamoEngine implements TextCompletion, Closeable {
     private static native long nativeLoad(String path, int threads, int contextTokens);
     private static native byte[] nativeComplete(long handle, int slot, byte[] prompt, int maxTokens, byte[][] stops);
     private static native long[] nativeLastStats(long handle);
+    private static native boolean nativeSetAdapter(long handle, String path, float scale);
     private static native void nativeFree(long handle);
 }

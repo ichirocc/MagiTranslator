@@ -256,7 +256,7 @@
     <string name="open_models_manager">Open Models Manager</string>
     <string name="toast_ne_tts_unavailable">Nepali speech output is not available on this device. Translations are shown as text.</string>
     <string name="preference_title_user_dictionary_import">Load a dictionary file</string>
-    <string name="preference_description_user_dictionary_import">Your own jane dictionary (#!jane ja-ne-terms / ne-ja-terms / phrases). Kept only on this device; never uploaded or backed up.</string>
+    <string name="preference_description_user_dictionary_import">Your own jane dictionary (#!jane ja-ne-terms / ne-ja-terms / phrases), or a PLaMo adapter trained on it (.gguf). Kept only on this device; never uploaded or backed up.</string>
     <string name="preference_title_user_dictionary_delete">Delete loaded dictionaries</string>
     <string name="user_dictionary_import_result">Loaded %1$s: %2$d entries (%3$d lines rejected, %4$d duplicates skipped).</string>
     <string name="user_dictionary_import_failed">This file is not a jane dictionary or could not be read.</string>
@@ -272,4 +272,5 @@
     <string name="plamo_license_message">This model is provided by Preferred Networks, Inc. under the PLaMo Community License. By downloading it you agree to that license. In particular:\n\n• Use the model only through this app\'s translation screens, do not copy it out of the app or run it in other software, and do not modify it.\n• Do not use translations to train other AI models.\n• Translations are not guaranteed to be correct: do not rely on them alone for medical, legal, financial or other important decisions.\n• Preferred Networks gives no warranty and has no liability for the model or its translations.\n\nFull text: %1$s</string>
     <string name="plamo_license_accept">Accept and download</string>
     <string name="plamo_license_decline">Cancel</string>
+    <string name="plamo_adapter_imported">Personal PLaMo adapter imported (%1$d MB). It is used for Japanese ⇄ Nepali from the next translation.</string>
 </resources>

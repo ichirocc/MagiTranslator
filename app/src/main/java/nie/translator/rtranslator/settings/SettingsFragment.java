@@ -236,6 +236,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 @Override
                 public boolean onPreferenceClick(Preference preference) {
                     nie.translator.rtranslator.jane.UserDictionary.deleteAll(new java.io.File(activity.getFilesDir(), nie.translator.rtranslator.jane.UserDictionary.DIR_NAME));
+                    nie.translator.rtranslator.plamo.PlamoModels.deleteAdapter(activity.getFilesDir());   //trained on the same private data
                     new AlertDialog.Builder(activity).setMessage(R.string.user_dictionary_deleted).setPositiveButton(android.R.string.ok, null).show();
                     return true;
                 }
@@ -284,10 +285,17 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             @Override
             public void run() {
                 String message;
-                try (java.io.InputStream in = a.getContentResolver().openInputStream(uri)) {
-                    if (in == null) throw new java.io.IOException("no stream");
-                    nie.translator.rtranslator.jane.UserDictionary.Parsed p = nie.translator.rtranslator.jane.UserDictionary.importStream(in, dir);
-                    message = a.getString(R.string.user_dictionary_import_result, p.kind.header, p.accepted(), p.rejected, p.duplicates);
+                try (java.io.InputStream raw = a.getContentResolver().openInputStream(uri)) {
+                    if (raw == null) throw new java.io.IOException("no stream");
+                    java.io.InputStream in = new java.io.BufferedInputStream(raw);
+                    if (nie.translator.rtranslator.plamo.PlamoModels.looksLikeGguf(in)) {
+                        //a PLaMo LoRA adapter trained on the user's own dictionary (tools/llama/finetune): device-only
+                        long bytes = nie.translator.rtranslator.plamo.PlamoModels.importAdapter(in, a.getFilesDir());
+                        message = a.getString(R.string.plamo_adapter_imported, bytes / (1024 * 1024));
+                    } else {
+                        nie.translator.rtranslator.jane.UserDictionary.Parsed p = nie.translator.rtranslator.jane.UserDictionary.importStream(in, dir);
+                        message = a.getString(R.string.user_dictionary_import_result, p.kind.header, p.accepted(), p.rejected, p.duplicates);
+                    }
                 } catch (java.io.IOException | IllegalArgumentException | SecurityException e) {
                     message = a.getString(R.string.user_dictionary_import_failed);
                 }

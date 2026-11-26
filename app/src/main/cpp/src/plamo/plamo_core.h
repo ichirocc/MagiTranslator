@@ -9,6 +9,7 @@ struct llama_model;
 struct llama_context;
 struct llama_batch_ext;
 struct llama_vocab;
+struct llama_adapter_lora;
 
 namespace plamo {
 
@@ -30,6 +31,10 @@ public:
     // (prompt longer than the slot, decode failure); the slot's cache is then dropped.
     bool complete(int slot, const std::string &prompt, int max_tokens, const std::vector<std::string> &stops, std::string *out);
 
+    // Applies a LoRA adapter (GGUF, made for this model) with the given scale; an empty path removes it.
+    // Both slots' caches are dropped (their keys/values were computed with the previous weights).
+    bool set_adapter(const std::string &path, float scale);
+
     // last call: prompt tokens, of which reused from the cache, generated tokens, prompt us, generation us
     const long long *stats() const { return stats_; }
 
@@ -45,6 +50,7 @@ private:
     ::llama_context *ctx_ = nullptr;
     ::llama_batch_ext *batch_ = nullptr;
     const ::llama_vocab *vocab_ = nullptr;
+    struct ::llama_adapter_lora *adapter_ = nullptr;
     std::vector<int> cached_[SLOTS];   // per slot: tokens whose keys/values are in the cache, in order
     int slot_ctx_ = 0, n_batch_ = 0;
     long long stats_[5] = {0, 0, 0, 0, 0};

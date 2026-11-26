@@ -1,0 +1,6 @@
+# PC side only (the phone never trains). Versions used for the measured adapter.
+torch==2.15.0
+transformers==5.24.1
+peft==0.22.0
+safetensors
+numba            # imported by PLaMo's modeling_plamo.py

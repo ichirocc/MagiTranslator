@@ -148,6 +148,19 @@ public class PlamoTest {
         check(PlamoModels.usable(dir) == null, "revoked: not usable");
         check(small.delete(), "cleanup");
 
+        // personal adapter import: GGUF only, atomic, removable
+        check(PlamoModels.adapter(dir) == null, "no adapter at first");
+        byte[] fake = new byte[1000];
+        fake[0] = 'G'; fake[1] = 'G'; fake[2] = 'U'; fake[3] = 'F';
+        check(PlamoModels.importAdapter(new java.io.ByteArrayInputStream(fake), dir) == 1000 && PlamoModels.adapter(dir) != null, "GGUF adapter imported");
+        boolean refused = false;
+        try { PlamoModels.importAdapter(new java.io.ByteArrayInputStream("#!jane phrases\n".getBytes()), dir); } catch (java.io.IOException e) { refused = true; }
+        check(refused && PlamoModels.adapter(dir).length() == 1000, "a dictionary file is not an adapter, the old adapter is kept");
+        java.io.BufferedInputStream peek = new java.io.BufferedInputStream(new java.io.ByteArrayInputStream("#!jane phrases".getBytes()));
+        check(!PlamoModels.looksLikeGguf(peek) && peek.read() == '#', "peeking does not consume the stream");
+        PlamoModels.deleteAdapter(dir);
+        check(PlamoModels.adapter(dir) == null, "adapter deleted");
+
         // pinned publisher download, not mirrored
         for (PlamoModels.Variant v : PlamoModels.Variant.values()) {
             String url = ModelSources.directUrl(v.fileName);
