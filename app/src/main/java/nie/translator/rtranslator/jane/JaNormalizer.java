@@ -11,6 +11,7 @@ public final class JaNormalizer {
             "(?:^|(?<=[、。！？\\s]))(?:えーっと|ええっと|えっと|えーと|ええと|えー|あのー|あのう|あの|そのー|まあ|うーん|んー)[、,\\s]+");
     private static final Pattern LONG_MARKS = Pattern.compile("[ー〜~]{2,}");
     private static final Pattern SPACES = Pattern.compile("[\\s\\u3000]+");
+    private static final Pattern ONLY_PUNCT = Pattern.compile("[、。！？,.\\s]");
 
     private JaNormalizer() {}
 
@@ -26,7 +27,7 @@ public final class JaNormalizer {
         t = KanjiNumber.toDigits(t);
         // Only fillers / punctuation: there is nothing to translate. Returning the raw input here would
         // feed the filler itself to the NMT, so an empty string is returned instead.
-        return t.replaceAll("[、。！？,.\\s]", "").isEmpty() ? "" : t;
+        return ONLY_PUNCT.matcher(t).replaceAll("").isEmpty() ? "" : t;
     }
 
     /** Adds an explicit sentence end; Madlad translates complete sentences more faithfully. */

@@ -131,6 +131,50 @@ public class Utils {
         return largestIndex; // position of the largest found
     }
 
+    /**
+     * The k largest values of {@code array} in one pass (instead of k full scans with
+     * {@link #getIndexOfLargest(float[], ArrayList)}, each also boxing indexes for the "avoid" list).
+     * Same result as k successive calls of getIndexOfLargest(array, alreadyChosen): descending order,
+     * ties broken by the lowest index, only values greater than -Float.MAX_VALUE (NaN never chosen), and
+     * index 0 for the slots that no value fills.
+     * @param out receives the indexes (length >= k)
+     * @return the number of slots filled by a real value (the others are 0)
+     */
+    public static int topK(float[] array, int k, int[] out){
+        float[] vals = new float[k];
+        int count = 0;
+        for (int i = 0; i < array.length; i++) {
+            float v = array[i];
+            if (!(v > -Float.MAX_VALUE)) continue;
+            if (count == k && !(v > vals[k - 1])) continue;
+            int pos = count < k ? count : k - 1;
+            //move smaller values down; an equal value stays before (lower index wins ties)
+            while (pos > 0 && v > vals[pos - 1]) {
+                vals[pos] = vals[pos - 1];
+                out[pos] = out[pos - 1];
+                pos--;
+            }
+            vals[pos] = v;
+            out[pos] = i;
+            if (count < k) count++;
+        }
+        for (int j = count; j < k; j++) out[j] = 0;
+        return count;
+    }
+
+    /** {@link #logSumExpFast(float[])} when the maximum is already known (saves one pass over the vocabulary). */
+    public static double logSumExpFast(float[] neuronValues, double max){
+        double threshold = 20.0;
+        double sum = 0.0;
+        for (double v : neuronValues) {
+            double diff = v - max;
+            if (diff > -threshold) {
+                sum += Math.exp(diff);
+            }
+        }
+        return max + Math.log(sum);
+    }
+
     public static int getIndexOfLargest(double[] array, ArrayList<Integer> indexesToAvoid){
         //long time = System.currentTimeMillis();
         if (array == null || array.length == 0){

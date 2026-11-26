@@ -2010,16 +2010,17 @@ public class Translator extends NeuralNetworkApi {
     private void initBeamSearchData(float [][][] logits, int beamSize, int[] max, ArrayList<Integer>[] completeBeamOutput, double[] beamsOutputsProbabilities){
         //the "beamSize" words with highest probability are inserted into max and added to completeBeamOutput
         int seqLen = logits[0].length;
-        ArrayList<Integer> indexesToAvoid = new ArrayList<>();
+        float[] last = logits[0][seqLen-1];
+        //one pass for the top beamSize words (same result as beamSize argmax scans), one for logSumExp
+        int found = Utils.topK(last, beamSize, max);
         for (int i = 0; i < beamSize; i++) {
-            max[i] = Utils.getIndexOfLargest(logits[0][seqLen-1], indexesToAvoid);
-            indexesToAvoid.add(max[i]);
             completeBeamOutput[i].add(max[i]);
         }
         //we insert the initial probabilities of the "beamSize" output strings into beamsOutputsProbabilities
+        double logSumExp = found > 0 ? Utils.logSumExpFast(last, last[max[0]]) : Utils.logSumExpFast(last);   //the same for every beam: computed once
         for (int i = 0; i < beamSize; i++) {
-            float maxLogit = logits[0][seqLen-1][max[i]];
-            beamsOutputsProbabilities[i] = maxLogit - Utils.logSumExpFast(logits[0][seqLen-1]);
+            float maxLogit = last[max[i]];
+            beamsOutputsProbabilities[i] = maxLogit - logSumExp;
         }
     }
 
@@ -2029,22 +2030,24 @@ public class Translator extends NeuralNetworkApi {
             ArrayList<int[]> finishedBeamSentences, ArrayList<Double> finishedBeamSentencesProbabilities
     ){
         //for each of the "beamSize" decoder outputs, the "beamSize" words with the highest probability are inserted into beamMax
-        for(int k=0; k < beamSize; k++) {
-            ArrayList<Integer> indexesToAvoid = new ArrayList<>();
-            for (int i = 0; i < beamSize; i++) {
-                int seqLen = logits[k].length;
-                beamMax[k][i] = Utils.getIndexOfLargest(logits[k][seqLen-1], indexesToAvoid);
-                indexesToAvoid.add(beamMax[k][i]);
-            }
-        }
+        // Speed (same results): per beam, one pass for the top beamSize words instead of beamSize argmax
+        // scans of the whole vocabulary, and logSumExp reuses the maximum found by topK. The beams are
+        // independent, so they run in parallel on the CPU cores (the model is idle meanwhile); each beam's
+        // sum is computed in the same order as before, so the probabilities are bit-identical.
+        long timeSoftmax = System.currentTimeMillis();
+        double[] logSumExps = new double[beamSize];
+        java.util.stream.IntStream.range(0, beamSize).parallel().forEach(k -> {
+            float[] last = logits[k][logits[k].length - 1];
+            int found = Utils.topK(last, beamSize, beamMax[k]);
+            logSumExps[k] = found > 0 ? Utils.logSumExpFast(last, last[beamMax[k][0]]) : Utils.logSumExpFast(last);
+        });
         //Now beamMax will contain for each decoder output ("beamSize" outputs) the "beamSize" words with highest probability,
         // so for each output we calculate its overall probability for each of its "beamSize" words with highest probability
-        long timeSoftmax = System.currentTimeMillis();
         double[] beamsOutputsProbabilitiesTemp = new double[beamSize*beamSize];
         for(int k=0; k < beamSize; k++) {
             //new version of probability calculation (logSumExp)
             int seqLen = logits[k].length;
-            double logSumExp = Utils.logSumExpFast(logits[k][seqLen-1]);
+            double logSumExp = logSumExps[k];
             for (int i = 0; i < beamSize; i++) {
                 float maxLogit = logits[k][seqLen-1][beamMax[k][i]];
                 beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilities[k] + maxLogit - logSumExp;

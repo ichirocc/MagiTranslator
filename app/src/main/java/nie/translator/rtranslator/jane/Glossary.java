@@ -73,7 +73,8 @@ public final class Glossary {
         keys.sort(Comparator.comparingInt(String::length).reversed());
         for (String k : keys) {
             if (terms.containsKey(k)) continue;   // built-in glossary entries are handled by inject()
-            Matcher m = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])").matcher(work);
+            if (work.indexOf(k) < 0) continue;   // the pattern needs the literal term: cheap test first
+            Matcher m = jaTerm(k).matcher(work);
             if (!m.find()) continue;
             String v = userTerms.get(k);
             if (!out.contains(v)) out.add(v);
@@ -94,13 +95,8 @@ public final class Glossary {
         keys.sort(Comparator.comparingInt(String::length).reversed());
         for (String neTerm : keys) {
             String jaTerm = userReverse.get(neTerm);
-            StringBuilder rx = new StringBuilder("(?<![\\u0900-\\u0963\\u0966-\\u097F])");
-            for (char c : neTerm.toCharArray()) {
-                if (c == '\u0901' || c == '\u0902') rx.append("[\\u0901\\u0902]");
-                else rx.append(Pattern.quote(String.valueOf(c)));
-            }
-            rx.append("(?=$|[^\\u0900-\\u0963\\u0966-\\u097F]|").append(NE_CASE_MARKERS).append(")");
-            Matcher m = Pattern.compile(rx.toString()).matcher(t);
+            if (!mayContainNe(t, neTerm)) continue;   // cheap test first (ँ/ं folded like the pattern)
+            Matcher m = nepaliWord(neTerm).matcher(t);
             if (!m.find()) continue;
             t = m.replaceAll(Matcher.quoteReplacement(jaTerm));
             if (!preferred.contains(jaTerm)) preferred.add(jaTerm);
@@ -163,15 +159,10 @@ public final class Glossary {
             if (neTerm.isEmpty() || !neTerm.chars().anyMatch(c -> c >= 0x0900 && c <= 0x097F)) continue;
             // demonyms are ambiguous in Nepali (नेपाली = Nepali person / language / adjective): not reversed
             if (jaTerm.endsWith("人")) continue;
-            StringBuilder rx = new StringBuilder("(?<![\\u0900-\\u0963\\u0966-\\u097F])");
-            for (char c : neTerm.toCharArray()) {
-                if (c == '\u0901' || c == '\u0902') rx.append("[\\u0901\\u0902]");
-                else rx.append(Pattern.quote(String.valueOf(c)));
-            }
             // the term must end the word or be followed by a case marker / plural (काठमाडौंमा, नेपालबाट);
-            // नेपाल must not match inside नेपाली
-            rx.append("(?=$|[^\\u0900-\\u0963\\u0966-\\u097F]|").append(NE_CASE_MARKERS).append(")");
-            Matcher m = Pattern.compile(rx.toString()).matcher(t);
+            // नेपाल must not match inside नेपाली (nepaliWord)
+            if (!mayContainNe(t, neTerm)) continue;   // cheap test first (ँ/ं folded like the pattern)
+            Matcher m = nepaliWord(neTerm).matcher(t);
             if (!m.find()) continue;
             t = m.replaceAll(Matcher.quoteReplacement(jaTerm));
             if (!required.contains(jaTerm)) required.add(jaTerm);
@@ -210,7 +201,7 @@ public final class Glossary {
         List<int[]> at = new ArrayList<>();
         for (String k : keys) {
             if (ja.indexOf(k) < 0) continue;   // cheap test before the regex
-            Matcher m = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])").matcher(work);
+            Matcher m = jaTerm(k).matcher(work);
             if (!m.find()) continue;
             at.add(new int[]{m.start(), out.size()});
             out.add(new Term(k, all.get(k), req.get(k)));
@@ -259,6 +250,20 @@ public final class Glossary {
     private static final Map<String, Pattern> NE_WORD_CACHE = java.util.Collections.synchronizedMap(new LinkedHashMap<String, Pattern>(64, 0.75f, true) {
         @Override protected boolean removeEldestEntry(Map.Entry<String, Pattern> e) { return size() > 4096; }
     });
+
+    private static final Map<String, Pattern> JA_TERM_CACHE = java.util.Collections.synchronizedMap(new LinkedHashMap<String, Pattern>(64, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, Pattern> e) { return size() > 8192; }
+    });
+
+    /** A Japanese term not followed by a derivational suffix (日本語 is not 日本); compiled once per term. */
+    static Pattern jaTerm(String k) {
+        Pattern p = JA_TERM_CACHE.get(k);
+        if (p == null) {
+            p = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])");
+            JA_TERM_CACHE.put(k, p);
+        }
+        return p;
+    }
 
     /** A Nepali term at the start of a word, ending the word or followed by a case marker / plural. */
     static Pattern nepaliWord(String neTerm) {
@@ -326,7 +331,8 @@ public final class Glossary {
         for (String k : keys) {
             // a term directly followed by a derivational suffix is only the head of another word
             // (日本語 = Japanese language, not "Japan" + 語); such occurrences are left to the model
-            Matcher tm = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])").matcher(t);
+            if (t.indexOf(k) < 0) continue;   // the pattern needs the literal term: cheap test first
+            Matcher tm = jaTerm(k).matcher(t);
             if (!tm.find()) continue;
             String v = all.get(k);
             t = tm.replaceAll(Matcher.quoteReplacement(v));

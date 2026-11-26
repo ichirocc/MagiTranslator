@@ -13,11 +13,15 @@ public final class NePostEditor {
         String t = Normalizer.normalize(ne, Normalizer.Form.NFC);
         t = t.replace('|', '।');
         t = periodToDanda(t);
-        t = t.replaceAll("\\s+([।?!,])", "$1");                         // no space before punctuation
-        t = t.replaceAll("।{2,}", "।");
-        t = collapseRepeats(t.trim().split("\\s+"));
+        t = SPACE_BEFORE_PUNCT.matcher(t).replaceAll("$1");             // no space before punctuation
+        t = DANDAS.matcher(t).replaceAll("।");
+        t = collapseRepeats(SPACES.split(t.trim()));
         return t.trim();
     }
+
+    private static final java.util.regex.Pattern SPACE_BEFORE_PUNCT = java.util.regex.Pattern.compile("\\s+([।?!,])");
+    private static final java.util.regex.Pattern DANDAS = java.util.regex.Pattern.compile("।{2,}");
+    private static final java.util.regex.Pattern SPACES = java.util.regex.Pattern.compile("\\s+");
 
     // Nepali abbreviations written with a Latin period: रु. 100 (Rs.), डा. (Dr.), प्रा. (Prof.), नं. (No.),
     // वि.सं. / ई.सं. (calendar eras), कि.मि. (km) ... Turning their period into a danda split the sentence.
