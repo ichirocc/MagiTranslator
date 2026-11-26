@@ -26,6 +26,7 @@
 | 17 | `17_francophone_research.md` フランス語圏の最新研究（Kyutai Hibiki 等）の取り込み検討 | Claude 起草 |
 | 18 | `18_japanese_research.md` 日本語圏の最新研究（NAIST 同時通訳・local agreement 等）の取り込み検討 | Claude 起草 |
 | 19 | `19_english_research.md` 英語圏の最新研究（WMT25・SASST・SimulS2S-LLM 等）の取り込み検討 | Claude 起草 |
+| 20 | `20_nepali_research.md` ネパール語圏の最新研究（ASR 句読点補完・ローマ字ネ語 等）の取り込み検討 | Claude 起草 |
 | 14 | `14_migration_acceptance.md` 既存コードからの移行・最終受入基準 | Claude 起草 |
 
 実装の正本は `SPEC_v2.md`。実測の記録は `docs/eval/`。`docs/SPEC.md`（v1）は superseded（決定 D1〜D10 は SPEC_v2 §1 に引き継ぎ）。
