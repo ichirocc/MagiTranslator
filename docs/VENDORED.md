@@ -35,6 +35,7 @@ To update a library: replace the folder with the new upstream checkout (without 
 | `app/src/main/cpp/src/fasttext/libs/fastText` | https://github.com/niedev/fastText | `1142dc4c4ecbc19cc16eee5cdd28472e689267e6` |
 | `app/src/main/cpp/src/libs/protobuf-lite` | https://github.com/niedev/protobuf | `31fef64d9d9d86aba94192b8e1152f1fe1968793` |
 | `app/src/main/cpp/src/libs/sentencepiece` | https://github.com/niedev/sentencepiece | `d4fd0d230394f9ba3a6544fdcf61aef08c08d716` |
+| `app/src/main/cpp/src/libs/llama.cpp` (library + CPU backend only, MIT) | https://github.com/ggml-org/llama.cpp, as shipped in the PyPI sdist `llama_cpp_python-0.3.38.tar.gz` (sha256 `0570c973…1e23f`), reproduced by `tools/llama/vendor_llama_cpp.sh` | `f5e6915c2` |
 
 ## Local patches to vendored code
 - `bergamot_translator/libs/bergamot/3rd_party/marian-dev/src/CMakeLists.txt`: the git-revision header was generated
@@ -49,3 +50,5 @@ To update a library: replace the folder with the new upstream checkout (without 
   no longer accepted in a constant expression. It is only a run-time sentinel.
 - The top-level CMake arguments in `app/build.gradle` add `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` for the other vendored
   projects whose `cmake_minimum_required` is below 3.5.
+- `libs/llama.cpp/CMakeLists.txt`: `add_subdirectory(vendor)` is commented out (the `vendor/` directory, HTTP/JSON/image/audio
+  helpers for llama.cpp's tools, is not copied). `tools/llama/vendor_llama_cpp.sh` applies this and checks it.
