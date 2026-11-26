@@ -69,15 +69,19 @@ public final class PhraseBook {
 
     // Japanese: same normalisation as the pipeline input, then no punctuation and no spaces at all
     // (speech recognition output has none, typed text may have some)
+    private static final java.util.regex.Pattern JA_KEY_DROP = java.util.regex.Pattern.compile("[\\s、。，．,.！？!?…「」『』（）()]");
+    private static final java.util.regex.Pattern NE_KEY_PUNCT = java.util.regex.Pattern.compile("[।॥,.!?？！‘’'\"“”]");
+    private static final java.util.regex.Pattern SPACES = java.util.regex.Pattern.compile("\\s+");
+
     static String keyJa(String s) {
         String t = JaNormalizer.normalize(s);
-        return t.replaceAll("[\\s、。，．,.！？!?…「」『』（）()]", "");
+        return JA_KEY_DROP.matcher(t).replaceAll("");
     }
 
     // Nepali: NFC, danda/punctuation removed, spaces collapsed
     static String keyNe(String s) {
         String t = Normalizer.normalize(s, Normalizer.Form.NFC).replace('|', '।');
-        t = t.replaceAll("[।॥,.!?？！‘’'\"“”]", " ");
-        return t.replaceAll("\\s+", " ").trim();
+        t = NE_KEY_PUNCT.matcher(t).replaceAll(" ");
+        return SPACES.matcher(t).replaceAll(" ").trim();
     }
 }

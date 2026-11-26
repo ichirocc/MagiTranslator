@@ -47,6 +47,9 @@ public final class JaNeTranslator {
     private int maxCandidates = 4;
     private int nBest = 3;
     private static final double MBR_WEIGHT = 0.3;
+    private static final java.util.regex.Pattern NE_SENTENCE_END = java.util.regex.Pattern.compile("(?<=[।?!])");
+    private static final java.util.regex.Pattern JA_CLAUSE_END = java.util.regex.Pattern.compile("(?<=[。！？、])");
+    private static final java.util.regex.Pattern SPACES = java.util.regex.Pattern.compile("\\s+");
 
     private final NeJaGlossary neGlossary;
     private PhraseBook phrases = new PhraseBook();
@@ -70,11 +73,54 @@ public final class JaNeTranslator {
     /** Beam hypotheses taken per single-segment input (1 = only the best). */
     public void setNBest(int n) { nBest = Math.max(1, n); }
 
-    public Result translate(String text, String src, String tgt) throws Exception {
-        if ("ja".equals(src) && "ne".equals(tgt)) return jaToNe(text);
-        if ("ne".equals(src) && "ja".equals(tgt)) return neToJa(text);
+    // ---------------- speed: memoisation ----------------
+    // Beam search is deterministic, so the same input always gives the same model output. One utterance
+    // makes several model calls (candidates + back-translations) and a conversation repeats sentences
+    // ("はい、わかりました。"), so model calls and whole results are memoised (small LRU caches).
+    // The owner must call clearCache() when anything that changes the model output changes (beam size,
+    // model); dictionaries are fixed for the lifetime of a JaNeTranslator (a new one is built on change).
+    private static final int MODEL_CACHE_SIZE = 256, RESULT_CACHE_SIZE = 64;
+    private final Map<String, Object> modelCache = lru(MODEL_CACHE_SIZE);
+    private final Map<String, Result> resultCache = lru(RESULT_CACHE_SIZE);
+
+    private static <V> Map<String, V> lru(int max) {
+        return Collections.synchronizedMap(new LinkedHashMap<String, V>(16, 0.75f, true) {
+            @Override protected boolean removeEldestEntry(Map.Entry<String, V> e) { return size() > max; }
+        });
+    }
+
+    /** Forgets memoised model outputs and results (call when the beam size or the model changes). */
+    public void clearCache() { modelCache.clear(); resultCache.clear(); }
+
+    private String modelTranslate(String text, String src, String tgt) throws Exception {
+        String key = "1\u0000" + src + "\u0000" + tgt + "\u0000" + text;
+        Object hit = modelCache.get(key);
+        if (hit instanceof String) return (String) hit;
         String out = backend.translate(text, src, tgt);
-        return new Result(out, Collections.emptyList());
+        if (out != null) modelCache.put(key, out);
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> modelTranslateNBest(String text, String src, String tgt, int n) throws Exception {
+        String key = "N" + n + "\u0000" + src + "\u0000" + tgt + "\u0000" + text;
+        Object hit = modelCache.get(key);
+        if (hit instanceof List) return (List<String>) hit;
+        List<String> out = backend.translateNBest(text, src, tgt, n);
+        if (out != null) modelCache.put(key, Collections.unmodifiableList(new ArrayList<>(out)));
+        return out;
+    }
+
+    public Result translate(String text, String src, String tgt) throws Exception {
+        String key = src + "\u0000" + tgt + "\u0000" + maxCandidates + "\u0000" + nBest + "\u0000" + text;
+        Result hit = resultCache.get(key);
+        if (hit != null) return hit;
+        Result r;
+        if ("ja".equals(src) && "ne".equals(tgt)) r = jaToNe(text);
+        else if ("ne".equals(src) && "ja".equals(tgt)) r = neToJa(text);
+        else r = new Result(modelTranslate(text, src, tgt), Collections.emptyList());
+        if (r.text != null && !r.text.isEmpty()) resultCache.put(key, r);   //an empty result may be a transient failure
+        return r;
     }
 
     // ---------------- ja -> ne ----------------
@@ -120,7 +166,7 @@ public final class JaNeTranslator {
             List<String> segs = e.getValue();
             if (segs.size() == 1 && nBest > 1) {
                 // one model call, several beam hypotheses: diversity at no extra encoder cost
-                List<String> hyps = backend.translateNBest(segs.get(0), "ja", "ne", nBest);
+                List<String> hyps = modelTranslateNBest(segs.get(0), "ja", "ne", nBest);
                 for (int k = 0; k < hyps.size(); k++) {
                     String out = NePostEditor.edit(hyps.get(k));
                     if (out.isEmpty()) continue;
@@ -150,7 +196,7 @@ public final class JaNeTranslator {
         if (inj.changed(t)) inputs.put("terms", Collections.singletonList(inj.text));
         inputs.put("whole", Collections.singletonList(t));
         List<String> sentences = new ArrayList<>();
-        for (String s : t.split("(?<=[।?!])")) if (!s.trim().isEmpty()) sentences.add(s.trim());
+        for (String s : NE_SENTENCE_END.split(t)) if (!s.trim().isEmpty()) sentences.add(s.trim());
         if (sentences.size() > 1) {
             List<String> segs = new ArrayList<>();
             boolean changed = false;
@@ -165,7 +211,7 @@ public final class JaNeTranslator {
         List<Candidate> cands = new ArrayList<>();
         Map<String, List<String>> required = new LinkedHashMap<>();
         for (Map.Entry<String, List<String>> e : inputs.entrySet()) {
-            String out = translateSegments(e.getValue(), "ne", "ja").replaceAll("\\s+", "");
+            String out = SPACES.matcher(translateSegments(e.getValue(), "ne", "ja")).replaceAll("");
             out = collapseJa(out);
             if (out.isEmpty()) continue;
             cands.add(new Candidate(e.getKey(), String.join(" ", e.getValue()), out, null, Double.NaN));
@@ -193,11 +239,32 @@ public final class JaNeTranslator {
             Candidate v = new Candidate(c.label, c.input, c.output, null, Double.NaN, iss);
             return new Result(v.output, Collections.singletonList(v), iss);
         }
+        // Speed: the validator is cheap and the selection is lexicographic (hard issues first), so a
+        // candidate with more hard issues than the best one can never be chosen whatever its score:
+        // only the candidates tied on the fewest hard issues are back-translated (one model call each).
+        // When a single candidate is left, no back-translation is needed at all.
+        List<List<TranslationValidator.Issue>> issues = new ArrayList<>();
+        int minHard = Integer.MAX_VALUE;
+        for (Candidate c : unique) {
+            List<TranslationValidator.Issue> iss = validate(source, c.output, required.getOrDefault(c.label, Collections.emptyList()), outLang);
+            issues.add(iss);
+            minHard = Math.min(minHard, TranslationValidator.hardCount(iss));
+        }
+        int contenders = 0;
+        for (List<TranslationValidator.Issue> iss : issues) if (TranslationValidator.hardCount(iss) == minHard) contenders++;
         List<Candidate> scored = new ArrayList<>();
         Candidate best = null;
-        for (Candidate c : unique) {
+        for (int ci = 0; ci < unique.size(); ci++) {
+            Candidate c = unique.get(ci);
             List<String> req = required.getOrDefault(c.label, Collections.emptyList());
-            String back = backend.translate(c.output, outLang, srcLang);
+            if (TranslationValidator.hardCount(issues.get(ci)) > minHard || contenders == 1) {
+                //cannot lose (sole contender) or cannot win (more hard issues): no round trip, no score
+                Candidate sc = new Candidate(c.label, c.input, c.output, null, Double.NaN, issues.get(ci));
+                scored.add(sc);
+                if (best == null || better(sc, best)) best = sc;
+                continue;
+            }
+            String back = modelTranslate(c.output, outLang, srcLang);
             List<String> scoredTerms = new ArrayList<>(req);
             for (String p : preferred) if (!scoredTerms.contains(p)) scoredTerms.add(p);
             double s = "ne".equals(outLang)
@@ -209,7 +276,7 @@ public final class JaNeTranslator {
                 for (Candidate o : unique) if (o != c) agree += QualityScorer.chrF(c.output, o.output);
                 s += MBR_WEIGHT * agree / (unique.size() - 1);
             }
-            Candidate sc = new Candidate(c.label, c.input, c.output, back, s, validate(source, c.output, req, outLang));
+            Candidate sc = new Candidate(c.label, c.input, c.output, back, s, issues.get(ci));
             scored.add(sc);
             if (best == null || better(sc, best)) best = sc;
         }
@@ -236,7 +303,7 @@ public final class JaNeTranslator {
         StringBuilder sb = new StringBuilder();
         for (String s : segments) {
             String fixed = phrases.lookup(s, src, tgt);   //a whole sentence that is a set phrase
-            String o = fixed != null ? fixed : backend.translate(s, src, tgt);
+            String o = fixed != null ? fixed : modelTranslate(s, src, tgt);
             if (o == null) continue;
             if (sb.length() > 0) sb.append(' ');
             sb.append(o.trim());
@@ -253,7 +320,7 @@ public final class JaNeTranslator {
 
     /** Collapse looped Japanese clauses ("ありがとう。ありがとう。"). */
     static String collapseJa(String ja) {
-        String[] parts = ja.split("(?<=[。！？、])");
+        String[] parts = JA_CLAUSE_END.split(ja);
         List<String> out = new ArrayList<>();
         for (String p : parts) {
             if (!out.isEmpty() && out.get(out.size() - 1).equals(p)) continue;

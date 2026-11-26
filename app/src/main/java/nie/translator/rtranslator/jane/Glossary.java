@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,8 +40,36 @@ public final class Glossary {
         return g;
     }
 
-    public void put(String ja, String ne) {
-        if (ja != null && ne != null && !ja.trim().isEmpty() && !ne.trim().isEmpty()) terms.put(ja.trim(), ne.trim());
+    // Speed: the keys sorted longest first and one compiled pattern per key are built once, not on every
+    // inject call (with a few thousand terms that was thousands of regex compilations per sentence);
+    // put() invalidates them.
+    private List<String> sortedKeys;
+    private final Map<String, Pattern> patterns = new java.util.HashMap<>();
+
+    public synchronized void put(String ja, String ne) {
+        if (ja != null && ne != null && !ja.trim().isEmpty() && !ne.trim().isEmpty()) {
+            terms.put(ja.trim(), ne.trim());
+            sortedKeys = null;
+            patterns.clear();
+        }
+    }
+
+    private synchronized List<String> sortedKeys() {
+        if (sortedKeys == null) {
+            List<String> keys = new ArrayList<>(terms.keySet());
+            keys.sort(Comparator.comparingInt(String::length).reversed());   //stable sort: same order as before
+            sortedKeys = Collections.unmodifiableList(keys);
+        }
+        return sortedKeys;
+    }
+
+    private synchronized Pattern pattern(String k) {
+        Pattern p = patterns.get(k);
+        if (p == null) {
+            p = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])");
+            patterns.put(k, p);
+        }
+        return p;
     }
 
     public int size() { return terms.size(); }
@@ -97,12 +126,12 @@ public final class Glossary {
         m.appendTail(sb);
         t = sb.toString();
         // longest terms first so that "東京都" wins over "東京"
-        List<String> keys = new ArrayList<>(terms.keySet());
-        keys.sort(Comparator.comparingInt(String::length).reversed());
-        for (String k : keys) {
+        for (String k : sortedKeys()) {
+            // cheap test first: the pattern can only match where the term itself occurs
+            if (t.indexOf(k) < 0) continue;
             // a term directly followed by a derivational suffix is only the head of another word
             // (日本語 = Japanese language, not "Japan" + 語); such occurrences are left to the model
-            Matcher tm = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])").matcher(t);
+            Matcher tm = pattern(k).matcher(t);
             if (!tm.find()) continue;
             String v = terms.get(k);
             t = tm.replaceAll(Matcher.quoteReplacement(v));

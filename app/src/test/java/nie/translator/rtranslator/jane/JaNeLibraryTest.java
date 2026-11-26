@@ -227,6 +227,44 @@ public class JaNeLibraryTest {
         yes(!TranslationValidator.validateJaToNe("なぜですか。", "किन", none).toString().contains("QUESTION_LOST"), "किन (why) is a question");
         yes(TranslationValidator.validateJaToNe("行きますか。", "म कहिलेकाहीं जान्छु।", none).toString().contains("QUESTION_LOST"), "कहिलेकाहीं (sometimes) is not a question");
 
+        // speed: memoised model calls / results, and no round trip for candidates that cannot win
+        {
+            java.util.Map<String, String> spMap = new java.util.HashMap<>();
+            spMap.put("明日は行きません。病院です。", "म भोलि जान्छु। अस्पताल हो।");   //whole: negation lost (hard issue)
+            spMap.put("明日は行きません。", "म भोलि जाँदिनँ।");
+            spMap.put("病院です。", "अस्पताल हो।");
+            java.util.concurrent.atomic.AtomicInteger spFwd = new java.util.concurrent.atomic.AtomicInteger(), spBwd = new java.util.concurrent.atomic.AtomicInteger();
+            Backend counted = (text, s, t) -> {
+                if ("ja".equals(s)) { spFwd.incrementAndGet(); return spMap.getOrDefault(text, text); }
+                spBwd.incrementAndGet(); return "x";
+            };
+            JaNeTranslator sp = new JaNeTranslator(counted, Glossary.withDefaults(), new NeJaGlossary());
+            sp.setNBest(1);
+            JaNeTranslator.Result a = sp.translate("明日は行きません。病院です。", "ja", "ne");
+            eq("म भोलि जाँदिनँ। अस्पताल हो।", a.text, "speed: the candidate without hard issues wins");
+            eq(0, spBwd.get(), "speed: no back-translation when only one candidate can win");
+            int calls1 = spFwd.get();
+            JaNeTranslator.Result b = sp.translate("明日は行きません。病院です。", "ja", "ne");
+            eq(a.text, b.text, "speed: memoised result is the same");
+            eq(calls1, spFwd.get(), "speed: a repeated utterance does not call the model again");
+            sp.clearCache();
+            sp.translate("明日は行きません。病院です。", "ja", "ne");
+            eq(2 * calls1, spFwd.get(), "speed: clearCache() forgets memoised model outputs");
+
+            // two candidates without hard issues: both are back-translated and scored (unchanged behaviour)
+            java.util.Map<String, String> fw2 = new java.util.HashMap<>();
+            fw2.put("明日行きます。病院です。", "म भोलि जान्छु। अस्पताल हो।");
+            fw2.put("明日行きます。", "भोलि जान्छु।");
+            fw2.put("病院です。", "अस्पताल हो।");
+            java.util.concurrent.atomic.AtomicInteger bwd2 = new java.util.concurrent.atomic.AtomicInteger();
+            Backend counted2 = (text, s, t) -> { if ("ja".equals(s)) return fw2.getOrDefault(text, text); bwd2.incrementAndGet(); return "明日行きます。病院です。"; };
+            JaNeTranslator sp2 = new JaNeTranslator(counted2, Glossary.withDefaults(), new NeJaGlossary());
+            sp2.setNBest(1);
+            JaNeTranslator.Result c2 = sp2.translate("明日行きます。病院です。", "ja", "ne");
+            eq(2, bwd2.get(), "speed: tied candidates are still back-translated");
+            for (JaNeTranslator.Candidate c : c2.candidates) yes(c.backTranslation != null, "speed: contender " + c.label + " has a round trip");
+        }
+
         // dictionaries (dictionaries/*.tsv, outside the APK): format, compounds, behaviour
         checkDictionary("dictionaries/ja_ne_terms.tsv");
         checkNeJaDictionary("dictionaries/ne_ja_terms.tsv");

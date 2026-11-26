@@ -32,11 +32,49 @@ public final class NeJaGlossary {
     // endings written attached to a noun: optional plural, then one postposition / particle
     private static final String ENDING = "(?:हरू|हरु)?(?:मा|को|का|की|लाई|ले|बाट|सँग|संग|देखि|सम्म|भन्दा|तिर|मै|नै|लगायत)?";
 
-    public void put(String ne, String ja) {
+    // Speed: keys sorted longest first and one compiled pattern per key, built once instead of on every
+    // inject call; put() invalidates them.
+    private List<String> sortedKeys;
+    private final Map<String, Pattern> patterns = new java.util.HashMap<>();
+    private final Map<String, String[]> words = new java.util.HashMap<>();
+
+    public synchronized void put(String ne, String ja) {
         if (ne == null || ja == null) return;
         String k = Normalizer.normalize(ne.trim(), Normalizer.Form.NFC);
         String v = ja.trim();
-        if (!k.isEmpty() && !v.isEmpty()) terms.put(k, v);
+        if (!k.isEmpty() && !v.isEmpty()) {
+            terms.put(k, v);
+            sortedKeys = null;
+            patterns.clear();
+            words.clear();
+        }
+    }
+
+    private synchronized List<String> sortedKeys() {
+        if (sortedKeys == null) {
+            List<String> keys = new ArrayList<>(terms.keySet());
+            keys.sort(Comparator.comparingInt(String::length).reversed());   //stable sort: same order as before
+            sortedKeys = Collections.unmodifiableList(keys);
+        }
+        return sortedKeys;
+    }
+
+    private synchronized Pattern pattern(String k) {
+        Pattern p = patterns.get(k);
+        if (p == null) {
+            String w = Pattern.quote(k).replace(" ", "\\E\\s+\\Q");
+            p = Pattern.compile("(?<![" + NE_LETTER + "])" + w + "(" + ENDING + ")(?![" + NE_LETTER + "])");
+            patterns.put(k, p);
+        }
+        return p;
+    }
+
+    /** The pattern can only match when every word of the term occurs in the text (cheap pre-test). */
+    private synchronized boolean mayMatch(String k, String t) {
+        String[] ws = words.get(k);
+        if (ws == null) { ws = k.split(" "); words.put(k, ws); }
+        for (String w : ws) if (!w.isEmpty() && t.indexOf(w) < 0) return false;
+        return true;
     }
 
     public int size() { return terms.size(); }
@@ -59,12 +97,9 @@ public final class NeJaGlossary {
         String t = Normalizer.normalize(ne == null ? "" : ne, Normalizer.Form.NFC);
         List<String> required = new ArrayList<>();
         // longest first: नेपाली दूतावास before दूतावास, विश्वविद्यालय is a different word from विद्यालय
-        List<String> keys = new ArrayList<>(terms.keySet());
-        keys.sort(Comparator.comparingInt(String::length).reversed());
-        for (String k : keys) {
-            String words = Pattern.quote(k).replace(" ", "\\E\\s+\\Q");
-            Pattern p = Pattern.compile("(?<![" + NE_LETTER + "])" + words + "(" + ENDING + ")(?![" + NE_LETTER + "])");
-            Matcher m = p.matcher(t);
+        for (String k : sortedKeys()) {
+            if (!mayMatch(k, t)) continue;
+            Matcher m = pattern(k).matcher(t);
             if (!m.find()) continue;
             String v = terms.get(k);
             StringBuffer sb = new StringBuffer();
