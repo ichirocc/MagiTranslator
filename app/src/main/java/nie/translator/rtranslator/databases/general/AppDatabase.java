@@ -21,7 +21,8 @@ import nie.translator.rtranslator.databases.general.dao.MyDao;
 import nie.translator.rtranslator.databases.general.entities.RecentPeerEntity;
 
 
-@androidx.room.Database(version = 1, entities = {RecentPeerEntity.class})
+// version 1 and no migrations yet: no schema history to export (was a Room warning on every build)
+@androidx.room.Database(version = 1, entities = {RecentPeerEntity.class}, exportSchema = false)
 abstract public class AppDatabase extends RoomDatabase {
     abstract public MyDao myDao();
 }

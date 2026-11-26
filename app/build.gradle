@@ -37,7 +37,10 @@ android {
         externalNativeBuild {
             cmake {
                 arguments '-DSPM_ENABLE_SHARED=OFF',
-                        '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',   //CMake 4 dropped compatibility with cmake_minimum_required < 3.5 (vendored libs)  //sentencepiece flags
+                        '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',   //CMake 4 dropped compatibility with cmake_minimum_required < 3.5 (vendored libs)
+                        '-DCMAKE_WARN_DEPRECATED=OFF',   //only hides "compatibility with CMake < 3.10" of vendored projects; their policies stay as they are
+                        '-DCMAKE_POLICY_DEFAULT_CMP0135=NEW',   //ExternalProject (ssplit's pcre2): extracted files get the extraction time, so rebuilds are detected
+                        //sentencepiece flags
                         '-DSPM_BUILD_TEST=OFF',
                         '-DSPM_ENABLE_TCMALLOC=OFF',
                         //bergamot flags
