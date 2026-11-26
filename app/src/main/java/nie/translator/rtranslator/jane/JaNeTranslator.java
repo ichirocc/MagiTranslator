@@ -44,7 +44,9 @@ public final class JaNeTranslator {
 
     private final Backend backend;
     private final Glossary glossary;
-    private int maxCandidates = 4;
+    private int maxCandidates = 5;
+    /** label of the candidate translated through English (ja -> en -> ne) */
+    static final String PIVOT = "pivot-en";
     private int nBest = 3;
     private static final double MBR_WEIGHT = 0.3;
     private static final java.util.regex.Pattern NE_SENTENCE_END = java.util.regex.Pattern.compile("(?<=[।?!])");
@@ -69,6 +71,11 @@ public final class JaNeTranslator {
     }
 
     public void setMaxCandidates(int n) { maxCandidates = Math.max(1, n); }
+
+    private boolean pivot = true;
+
+    /** Also translate ja -> en -> ne as a candidate (default true; 2 more model calls). */
+    public void setPivot(boolean on) { pivot = on; }
 
     /** Beam hypotheses taken per single-segment input (1 = only the best). */
     public void setNBest(int n) { nBest = Math.max(1, n); }
@@ -112,7 +119,7 @@ public final class JaNeTranslator {
     }
 
     public Result translate(String text, String src, String tgt) throws Exception {
-        String key = src + "\u0000" + tgt + "\u0000" + maxCandidates + "\u0000" + nBest + "\u0000" + text;
+        String key = src + "\u0000" + tgt + "\u0000" + maxCandidates + "\u0000" + nBest + "\u0000" + pivot + "\u0000" + text;
         Result hit = resultCache.get(key);
         if (hit != null) return hit;
         Result r;
@@ -146,6 +153,20 @@ public final class JaNeTranslator {
         }
         inputs.put("whole", Collections.singletonList(whole));
         required.put("whole", mustHave);
+        // Measured on the device model (4-bit Madlad): the forced "。" or an injected name can make it write
+        // an unrelated Nepali sentence ("this magazine was edited by ..."), and so can each variant on other
+        // sentences. The variants fail on different sentences (40 test sentences: 2-6 off-topic each, 1 in
+        // all three), so they are all candidates and the round trip chooses:
+        //  - "plain": the text without the added "。";
+        //  - "pivot-en": ja -> en -> ne (Madlad's Japanese -> English is reliable).
+        if (!norm.equals(whole)) {
+            inputs.put("plain", Collections.singletonList(norm));
+            required.put("plain", mustHave);
+        }
+        if (pivot) {
+            inputs.put(PIVOT, Collections.singletonList(whole));
+            required.put(PIVOT, mustHave);
+        }
         if (sentences.size() > 1) {
             List<String> segs = new ArrayList<>();
             boolean changed = false;
@@ -164,6 +185,13 @@ public final class JaNeTranslator {
         for (Map.Entry<String, List<String>> e : inputs.entrySet()) {
             if (i++ >= maxCandidates) break;
             List<String> segs = e.getValue();
+            if (PIVOT.equals(e.getKey())) {
+                String en = modelTranslate(segs.get(0), "ja", "en");
+                if (en == null || en.trim().isEmpty()) continue;
+                String out = NePostEditor.edit(modelTranslate(en.trim(), "en", "ne"));
+                if (!out.isEmpty()) cands.add(new Candidate(PIVOT, en.trim(), out, null, Double.NaN));
+                continue;
+            }
             if (segs.size() == 1 && nBest > 1) {
                 // one model call, several beam hypotheses: diversity at no extra encoder cost
                 List<String> hyps = modelTranslateNBest(segs.get(0), "ja", "ne", nBest);

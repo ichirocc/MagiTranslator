@@ -123,10 +123,40 @@ public class JaNeLibraryTest {
                 return java.util.Arrays.asList("म भोलि जान्छु।", "म भोलि जाँदिनँ।");
             }
         };
-        JaNeTranslator.Result rn = new JaNeTranslator(nb, Glossary.withDefaults()).translate("明日は行きません", "ja", "ne");
+        JaNeTranslator nbTr = new JaNeTranslator(nb, Glossary.withDefaults());
+        nbTr.setPivot(false);   //this test is about the beam hypotheses only
+        JaNeTranslator.Result rn = nbTr.translate("明日は行きません", "ja", "ne");
         for (JaNeTranslator.Candidate c : rn.candidates) System.out.println("     " + c);
         eq("म भोलि जाँदिनँ।", rn.text, "n-best hypothesis with negation selected");
         eq(2, rn.candidates.size(), "two beam candidates");
+
+        // device model failure (screenshot): with "。" the direct translation is an unrelated sentence; without
+        // it, or through English, it is right. All are candidates and the round trip picks a faithful one.
+        {
+            String src = "田中さんをベッドから車椅子に移動します";
+            String wrong = "यो पत्रिकाको सम्पादन कार्य घनश्याम ढकालद्वारा भएको छ।";   //"this magazine was edited by ..."
+            String right = "तानाका जीलाई बेडबाट व्हीलचेयरमा सार्छु।";
+            java.util.Map<String, String> devBack = new java.util.HashMap<>();
+            devBack.put(wrong, "この雑誌の編集はガナシャム・ダカルが行った。");
+            devBack.put(right, "田中さんをベッドから車椅子に移します。");
+            String viaEn = "म तानाका जीलाई बेडबाट व्हीलचेयरमा लैजान्छु।";
+            devBack.put(viaEn, "田中さんをベッドから車椅子へ連れて行きます。");
+            Backend dev = new Backend() {
+                public String translate(String text, String s, String t) {
+                    if ("ja".equals(s) && "en".equals(t)) return "I will move Mr. Tanaka from the bed to the wheelchair.";
+                    if ("en".equals(s) && "ne".equals(t)) return viaEn;
+                    if ("ne".equals(s)) return devBack.getOrDefault(text, "");
+                    return text.endsWith("。") ? wrong : right;   //the "。" triggers the hallucination
+                }
+            };
+            JaNeTranslator dt = new JaNeTranslator(dev, Glossary.withDefaults());
+            dt.setNBest(1);
+            JaNeTranslator.Result dr = dt.translate(src, "ja", "ne");
+            for (JaNeTranslator.Candidate c : dr.candidates) System.out.println("     " + c);
+            yes(dr.text.equals(right) || dr.text.equals(viaEn), "hallucinated direct translation is not chosen (plain / pivot candidate wins)");
+            yes(dr.candidates.stream().anyMatch(c -> c.label.equals("pivot-en")), "English pivot is a candidate");
+            yes(dr.candidates.stream().anyMatch(c -> c.label.equals("plain")), "text without the added 。 is a candidate");
+        }
 
         // review fixes (critical): idioms / meaningful words must not be rewritten
         eq("十分です。", JaNormalizer.normalize("十分です。"), "十分 = enough, not 10分");
@@ -247,7 +277,7 @@ public class JaNeLibraryTest {
                 spBwd.incrementAndGet(); return "x";
             };
             JaNeTranslator sp = new JaNeTranslator(counted, Glossary.withDefaults(), new NeJaGlossary());
-            sp.setNBest(1);
+            sp.setNBest(1); sp.setPivot(false);   //exact call counts: no English pivot
             JaNeTranslator.Result a = sp.translate("明日は行きません。病院です。", "ja", "ne");
             eq("म भोलि जाँदिनँ। अस्पताल हो।", a.text, "speed: the candidate without hard issues wins");
             eq(0, spBwd.get(), "speed: no back-translation when only one candidate can win");
@@ -267,7 +297,7 @@ public class JaNeLibraryTest {
             java.util.concurrent.atomic.AtomicInteger bwd2 = new java.util.concurrent.atomic.AtomicInteger();
             Backend counted2 = (text, s, t) -> { if ("ja".equals(s)) return fw2.getOrDefault(text, text); bwd2.incrementAndGet(); return "明日行きます。病院です。"; };
             JaNeTranslator sp2 = new JaNeTranslator(counted2, Glossary.withDefaults(), new NeJaGlossary());
-            sp2.setNBest(1);
+            sp2.setNBest(1); sp2.setPivot(false);
             JaNeTranslator.Result c2 = sp2.translate("明日行きます。病院です。", "ja", "ne");
             eq(2, bwd2.get(), "speed: tied candidates are still back-translated");
             for (JaNeTranslator.Candidate c : c2.candidates) yes(c.backTranslation != null, "speed: contender " + c.label + " has a round trip");
