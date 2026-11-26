@@ -29,7 +29,8 @@
 
 ## 開発
 
-- 仕様：[docs/SPEC.md](docs/SPEC.md)
+- 仕様：[docs/spec_v2/SPEC_v2.md](docs/spec_v2/SPEC_v2.md)（正本。旧版 [docs/SPEC.md](docs/SPEC.md) は履歴）
+- 評価記録：[docs/eval/](docs/eval/)、依存ライブラリ：[docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)、ユーザー辞書：[dictionaries/](dictionaries/)
 - 日本語⇄ネパール語の処理：[app/src/main/java/nie/translator/rtranslator/jane/README.md](app/src/main/java/nie/translator/rtranslator/jane/README.md)
 - 翻訳の評価ツール：[tools/eval/](tools/eval/)、ネパール語 Whisper の書き出し：[tools/whisper_ne/](tools/whisper_ne/)
 

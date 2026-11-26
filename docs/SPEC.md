@@ -1,4 +1,4 @@
-> **Superseded:** この v1 仕様は `docs/spec_v2/SPEC_v2.md`（v2 統合版）で置き換えられた。履歴として残す。
+> **Superseded:** この v1 仕様は `docs/spec_v2/SPEC_v2.md`（v2 統合版、magi.12 時点の状態表あり）で置き換えられた。履歴として残す。
 
 # MagiTranslator 総合詳細機能実装仕様書
 ## 日本語 ⇔ ネパール語 特化型・高精度ハイブリッド翻訳システム

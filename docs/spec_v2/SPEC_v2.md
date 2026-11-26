@@ -73,7 +73,7 @@
 | V5 | 言語解析は段階制（Stage1 規則ベース IR → 日本語形態素 → 係り受け・SRL）。IR はまず検証と候補選択に使う | 02 notes A1/A2 |
 | V6 | 正規化：原文は NFC で保持。照合キーだけ寛容正規化 | 02 notes C1 |
 | V7 | 部番号：第4部＝辞書・用語・翻訳メモリ、第5部＝候補統合・品質評価・誤訳検出 | 04/05 notes A1 |
-| V8 | 量子化：INT8 版を作り FP32 基準と比較（机上見積り先行） | 03 notes A3/A8 |
+| V8 | ~~量子化：INT8 版を作り FP32 基準と比較~~（V19 で置換） | 03 notes A3/A8 |
 | V9 | モデル manifest 署名は Ed25519（公開鍵を埋め込み、秘密鍵は CI secret） | 03 notes A5 |
 | V10 | 全候補が hard のときは結果に「要確認」を付けて表示する | 05 notes A3, 05b §13 |
 | V11 | Bluetooth・位置情報の権限は会話モードで使うため維持 | 11 §5.4 |
@@ -84,6 +84,11 @@
 | V16 | 新しい発話で古い発話の翻訳を取り消さない（発話を落とさない） | 09 §5 |
 | V17 | 会話履歴の保存はオプトイン・暗号化・期限付き・既定 OFF | 12 §5 |
 | V18 | 細かい CPU 測定は事前に机上検証する（ユーザーの恒久ルール） | — |
+| V19 | Madlad のアプリ形式 INT8 は自作しない（PC 資源がぎりぎりのため）。INT4 を継続。V8 を置き換える | 00_README（2026-11-26）、`docs/eval/2026-11-26_madlad-int4-vs-int8-raw-seed.md` |
+| V20 | ユーザー作成辞書（`dictionaries/`）を公開リポジトリに置く（所有者の判断、2026-11-25） | `dictionaries/README.md` |
+| V21 | ネイティブによる参照訳の作成・確認は保留（評価文の選定までは実施） | 16_eval_dataset、`tools/eval/testsets/test_v1_*` |
+| V22 | 繰り返し（REPETITION）の自動修正候補は入れない（作り話から「要確認」だけが消えるため） | `docs/eval/2026-11-26_jane-v6-repair-seed.md` |
+| V23 | ライブラリは最新の安定版に上げる（公開14日未満・プレリリースは除外） | `docs/DEPENDENCIES.md` |
 
 ---
 
@@ -392,7 +397,7 @@ enum class IndependenceAssessment { INDEPENDENT, PARTIALLY_DEPENDENT, SAME_MODEL
 
 | 方向 | モデル | 形式 | 状態 |
 |---|---|---|---|
-| ja→ne, ne→ja | Madlad-400 3B | ONNX int4、encoder＋KV キャッシュ付き decoder（`MADLAD_CACHE`） | 実装済。**int4 の品質は FP32/INT8 と未比較**（V8 で比較予定） |
+| ja→ne, ne→ja | Madlad-400 3B | ONNX int4、encoder＋KV キャッシュ付き decoder（`MADLAD_CACHE`） | 実装済。CT2 INT8 代理と比較して劣化は見られず、INT4 継続（V19） |
 | ja⇔vi | HY-MT 1.8B | ONNX int8 | 実装済 |
 
 モデル選択は `Translator.resolveModeForPair` の固定規則（§10.2 で方針表化）。
@@ -709,32 +714,53 @@ CPU 負荷の大きい測定は事前に机上検証する（V18）。
 
 ---
 
-# 19. 実装状態の一覧
+# 19. 実装状態の一覧（magi.12 時点、2026-11-26）
 
 | 部 | 主な項目 | 状態 | 根拠（コード） |
 |---|---|---|---|
 | 1 | 入口集約・直列化・キャンセル・エラー分類・PrivacyLog | 部分（共通型・TranslationEngine は未実装） | `Translator`、`TranslationCancellation`、`TranslationEngineErrorCode`、`PrivacyLog` |
-| 2 | Stage1 IR（ja/ne 分離） | 実装済（Stage2/3 未実装） | `jane/ir/*` |
-| 3 | Madlad/HY-MT 推論・KV・beam N-best | 実装済 | `Translator` |
-| 3 | manifest（ハッシュ固定）・原子的置換・署名の枠 | 部分 | `ModelSources`、`ModelStore`、`ManifestSignature` |
-| 3 | 量子化比較・Lease・メモリ推定・長文の高度化 | 未実装 | — |
+| 2 | Stage1 IR（ja/ne 分離、葉パッケージ `jane.text` で循環依存を解消） | 実装済（Stage2/3 未実装） | `jane/ir/*`、`jane/text/*` |
+| 3 | Madlad/HY-MT 推論・KV・beam N-best、ORT 1.31.1 | 実装済 | `Translator` |
+| 3 | manifest（ハッシュ固定）・原子的置換・署名の枠 | 部分（鍵未設定＝ハッシュのみ） | `ModelSources`、`ModelStore`、`ManifestSignature` |
+| 3 | 量子化比較 | 部分（CT2 INT8 代理で INT4 と比較、アプリ形式 INT8 は作らない＝V19） | `tools/eval/ct2_runner.py` |
+| 3 | 空きメモリ確認・メモリ逼迫時の解放 | 実装済（Lease は未実装） | `MemoryGuard`、`Global.onTrimMemory`、`Translator.releaseIdleModel` |
+| 3 | 長文の高度化 | 未実装 | — |
 | 4 | 用語注入・逆注入・固有名詞方針・会話 TM（用語） | 部分 | `Glossary`、`ProperNameResolver`、`TranslationMemory` |
-| 4 | 辞書データ・SQLite・文単位 TM・強度別制約 | 未実装 | — |
-| 5 | 候補生成・IR hard 検査・辞書式選択・同点崩し | 実装済 | `JaNeTranslator`、`TranslationValidator`、`QualityScorer` |
-| 5 | 要確認表示・EvaluationStatus・確信度段階・融合 | 未実装 | — |
+| 4 | ユーザー辞書の読み込み（ja-ne/ne-ja 用語＝PREFERRED、会話集＝検査付き候補）・設定画面から取込/削除 | 実装済 | `UserDictionary`、`PhraseBook`、`SettingsFragment` |
+| 4 | 公開辞書データの構築・SQLite・文単位 TM | 未実装 | — |
+| 5 | 候補生成・IR hard 検査・辞書式選択・重み付き同点崩し | 実装済 | `JaNeTranslator`、`TranslationValidator`、`QualityScorer` |
+| 5 | 全候補 hard 時の追加1回（ビーム拡大・節分割・言い換え）・通貨修正候補 | 実装済 | `JaParaphrase`、`NeParaphrase`、`JaRepair` |
+| 5 | 要確認表示（表示専用、ja⇔ne のみ） | 実装済 | `ReviewMarks`、`MessagesAdapter`、`TranslationFragment` |
+| 5 | EvaluationStatus・確信度段階・融合 | 未実装 | — |
 | 6 | ローカル方針・Madlad 未導入案内 | 実装済 | `resolveModeForPair`、`showMissingMadladDialog` |
 | 6 | オンライン Provider・PrivacyGuard・同意 UI | 未実装 | — |
-| 7 | Whisper・VAD・無音ゲート・ne keep-best・調整済み ne モデル | 実装済（課題4件） | `Recognizer` |
+| 7 | Whisper・VAD・無音ゲート・ne keep-best・調整済み ne モデル（制限・プロンプトなしで1回デコード）・マスク再生成（689トークン）・U+FFFD を hard | 実装済（効果の再測定は未） | `Recognizer`、`tools/whisper_ne/*` |
 | 8 | 標準 TTS | 部分（音声有無の判定・案内なし） | — |
 | 9 | WalkieTalkie/Conversation・発話を落とさない・触覚/通知 | 実装済（滞留表示は未実装） | `WalkieTalkieService` ほか |
 | 10 | staging/検証/rename・ZipSafety・missing-model ダイアログ | 実装済 | `Downloader`、`ZipSafety` |
 | 10 | パック選択 UI・容量見積り・ライセンス画面・zip の staging 展開 | 未実装 | — |
-| 11 | 16KB ページ・予測型戻る・release ログ保護 | 実装済 | `app/build.gradle`、`GeneralActivity` |
-| 11 | onTrimMemory・発熱監視・鍵差し替え | 未実装 | — |
-| 12 | 設定・RecentPeer | 実装済 | Room v1、SharedPreferences |
+| 11 | 16KB ページ・予測型戻る・release ログ保護・アプリ終了（設定画面） | 実装済 | `app/build.gradle`、`GeneralActivity`、`AppExit` |
+| 11 | ビルド基盤：Gradle 9.9.1・AGP 9.5.1・JDK 21・NDK 28.2・CMake 3.31.6・AndroidX/Room 2.8 | 実装済（CI ビルド成功、実機未確認） | `docs/DEPENDENCIES.md` |
+| 11 | 発熱監視・鍵差し替え | 未実装 | — |
+| 12 | 設定・RecentPeer | 実装済 | Room 2.8、SharedPreferences |
 | 12 | 履歴保存（オプトイン）・辞書/TM テーブル | 未実装 | — |
-| 13 | 純 Java テスト・パリティ・PC 評価・ASR ミニ評価 | 実装済 | `.github/workflows/release-build.yml`、`tools/eval`、`tools/whisper_ne` |
-| 13 | 実機試験・ネイティブ評価・v4 再測定 | 未実施 | — |
+| 13 | 純 Java テスト・Java/Python 判定パリティ（13,798件）・PC 評価・ASR ミニ評価 | 実装済 | `.github/workflows/release-build.yml`、`tools/eval`、`tools/whisper_ne` |
+| 13 | 評価データ構築ツール（候補抽出・参照訳/確認/盲検シート・κ・確認済みのみ集計・自動重大誤り率）・test_v1 選定（各方向99文） | 実装済（参照訳は保留＝V21） | `tools/eval/build_candidates.py`、`review_sheet.py`、`run_eval.py`、`tools/eval/testsets/` |
+| 13 | 実機試験・ネイティブ評価 | 未実施 | — |
+
+## 19.1 実測（シードセット40文、PC、参照訳は AI 作成・未検証＝目安のみ）
+
+| 版 | ja→ne chrF++ | ne→ja chrF++ | ne→ja 数字 | ne→ja 用語 | 記録 |
+|---|---:|---:|---:|---:|---|
+| 素の Madlad（INT4） | 63.59 | 40.23 | 66.7% | 42.9% | `2026-11-25_madlad-raw-beam4-seed` |
+| jane v4（IR 検査） | 61.00 | 46.25 | 100% | 71.4% | `2026-11-26_jane-v4-dict-seed` |
+| v4＋ユーザー辞書 | 64.00 | 50.77 | 66.7% | 100% | 同上 |
+| v5＋辞書（重み付き同点崩し・追加1回） | 67.48 | 50.68 | 100% | 85.7% | `2026-11-26_jane-v5-diversify-seed` |
+| v6＋辞書（通貨修正候補） | 67.48 | 51.81 | 100% | 100% | `2026-11-26_jane-v6-repair-seed` |
+
+- 直った：jn14（過去）、jn19（何時）、nj04（いくら）。残る：nj12（数字・通貨は正、価格→賞金の語義ずれ）、nj17（作り話、要確認表示）。
+- INT4 対 INT8（CT2 代理）：ja→ne 63.59 / 63.27、ne→ja 40.23 / 38.50。INT4 の劣化は見られないが純粋な比較ではない。
+- 実機の速度・メモリは未測定。
 
 ---
 
@@ -743,9 +769,9 @@ CPU 負荷の大きい測定は事前に机上検証する（V18）。
 1. プライバシーポリシーの運営者名・連絡先を記入し、同意チェックのリンクを自分のポリシーへ切り替える。
 2. 署名鍵の差し替え（keystore と CI secret の登録）。差し替え後は一度アンインストールが必要。
 3. manifest 署名鍵（Ed25519）の生成・保管・CI secret `MAGI_MANIFEST_SIGNING_KEY` への登録（`docs/MODEL_SIGNING.md`）。
-4. 実機で `models-v1` からの初回ダウンロード、Ed25519 の可否、ne の TTS 音声の有無、キャンセル動作を確認。
+4. 実機確認：`models-v1` からの初回ダウンロード、Ed25519 の可否、ne の TTS 音声の有無、キャンセル動作、要確認表示、辞書ファイルの読み込み、アプリ終了、Room 2.1→2.8 の上書きインストールで起動するか。
 5. ライセンス・利用規約の確認：調整済み ne Whisper（ilprl/Whisper-Small-Nepali-ASR-OSLR54）、PanLex（CC0 と CC BY-NC-SA の矛盾）、IndoWordNet、在日ネパール大使館サイト、在ネパール日本国大使館サイト、`license_registry.tsv` の「要確認」欄。
-6. ネイティブ評価者の手配（ne 母語話者2人以上）と、シードセット参照訳の確認。
+6. ネイティブ評価者の手配（ne 母語話者2人以上）と参照訳の作成・確認（保留中＝V21。`tools/eval/testsets/test_v1_ref_sheet.tsv` を使う）。
 
 ---
 
