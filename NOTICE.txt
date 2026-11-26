@@ -8,3 +8,12 @@ MagiTranslator
 This product is derived from RTranslator (https://github.com/niedev/RTranslator),
 Copyright Luca Martino, licensed under the Apache License, Version 2.0.
 Modifications for MagiTranslator (Japanese <-> Nepali / Japanese <-> Vietnamese) are by the MagiTranslator contributors.
+
+llama.cpp (app/src/main/cpp/src/libs/llama.cpp)
+Copyright (c) 2023-2026 The ggml authors. Licensed under the MIT License (libs/llama.cpp/LICENSE).
+
+Built with PLaMo.
+The optional Japanese <-> Nepali model "PLaMo 3 Translate" is provided by Preferred Networks, Inc. under the
+PLaMo Community License (https://huggingface.co/pfnet/plamo-3-translate-0.8b/blob/main/LICENSE/en). It is not
+part of this repository or of the app package: the app downloads it from the publisher only after the user
+has accepted that license in the app.

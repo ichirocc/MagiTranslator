@@ -41,11 +41,25 @@ public class ResourceManager implements MozillaLanguagesAdapter.ResourceManagerI
     private final DownloadManager downloadManager;
     private final Activity activity;
     private boolean animateDeletion = true;
+
+    /** Asked before a download starts; calls {@code start} only when the download may begin. */
+    public interface DownloadGate {
+        void beforeDownload(Runnable start);
+    }
+
+    @Nullable
+    private DownloadGate downloadGate;
+
+    public void setDownloadGate(@Nullable DownloadGate gate) { downloadGate = gate; }
     private final ResourceManagerView.Listener viewListener = new ResourceManagerView.Listener() {
         @Override
         public void onDownloadClicked() {
-            setState(ResourceManagerView.State.DOWNLOADING);
-            downloadManager.startDownload(downloadInfo);
+            Runnable start = () -> {
+                setState(ResourceManagerView.State.DOWNLOADING);
+                downloadManager.startDownload(downloadInfo);
+            };
+            if (downloadGate != null) downloadGate.beforeDownload(start);   //e.g. a license the user must accept first
+            else start.run();
         }
 
         @Override

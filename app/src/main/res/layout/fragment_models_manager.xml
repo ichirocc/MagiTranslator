@@ -345,6 +345,24 @@
                 android:orientation="horizontal"
                 android:screenReaderFocusable="true"
                 android:focusable="false">
+                <nie.translator.rtranslator.tools.gui.ResourceManagerView
+                    android:id="@+id/resourcePlamo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:focusable="false"
+                    app:modelDescription="@string/description_plamo"
+                    app:modelSize="547"
+                    app:modelTitle="@string/title_plamo"
+                    android:layout_weight="2"/>
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:screenReaderFocusable="true"
+                android:focusable="false">
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"

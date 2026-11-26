@@ -47,8 +47,11 @@ jobs:
             app/src/test/java/nie/translator/rtranslator/downloader/ModelSourcesTest.java \
             app/src/main/java/nie/translator/rtranslator/downloader/ModelStore.java \
             app/src/main/java/nie/translator/rtranslator/downloader/ManifestSignature.java \
-            app/src/test/java/nie/translator/rtranslator/downloader/ModelStoreTest.java
+            app/src/test/java/nie/translator/rtranslator/downloader/ModelStoreTest.java \
+            app/src/main/java/nie/translator/rtranslator/plamo/*.java \
+            app/src/test/java/nie/translator/rtranslator/plamo/PlamoTest.java
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.jane.JaNeLibraryTest
+          java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.plamo.PlamoTest   # PLaMo prompts, glossary, history, license gate
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ModelSourcesTest   # pinned model hashes, no upstream URL
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ModelStoreTest     # atomic install, rollback, manifest signature

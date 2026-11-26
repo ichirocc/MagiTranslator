@@ -179,6 +179,114 @@ public final class Glossary {
         return new Injection(t, required, new ArrayList<>());
     }
 
+    // ---- term lists for a model that takes a glossary as input (PLaMo 3 Translate) ----
+
+    /** A source term found in a text and the rendering the model is given for it. */
+    public static final class Term {
+        public final String source, target;
+        /** glossary (and conversation memory) entries: the output must contain the target; user terms are not */
+        public final boolean required;
+        Term(String source, String target, boolean required) { this.source = source; this.target = target; this.required = required; }
+        @Override public String toString() { return source + "=" + target + (required ? "" : "?"); }
+    }
+
+    /**
+     * Japanese terms in {@code ja} with their Nepali rendering: the glossary, then the conversation memory,
+     * then the user's terms. Longest first, and a matched span is not reused by a shorter term, so
+     * 車椅子 is given as one term and 椅子 (chair) is not added; a term followed by a derivational suffix is
+     * skipped (日本語 is not 日本). At most {@code max} terms (required ones first), in source order.
+     */
+    public List<Term> termsJaNe(String ja, Map<String, String> memory, int max) {
+        List<Term> out = new ArrayList<>();
+        if (ja == null || ja.isEmpty()) return out;
+        Map<String, String> all = new LinkedHashMap<>();
+        Map<String, Boolean> req = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : userTerms.entrySet()) { all.put(e.getKey(), e.getValue()); req.put(e.getKey(), false); }
+        if (memory != null) for (Map.Entry<String, String> e : memory.entrySet()) { all.put(e.getKey(), e.getValue()); req.put(e.getKey(), true); }
+        for (Map.Entry<String, String> e : terms.entrySet()) { all.put(e.getKey(), e.getValue()); req.put(e.getKey(), true); }   // glossary wins
+        List<String> keys = new ArrayList<>(all.keySet());
+        keys.sort(Comparator.comparingInt(String::length).reversed());
+        StringBuilder work = new StringBuilder(ja);
+        List<int[]> at = new ArrayList<>();
+        for (String k : keys) {
+            if (ja.indexOf(k) < 0) continue;   // cheap test before the regex
+            Matcher m = Pattern.compile(Pattern.quote(k) + "(?![" + COMPOUND_SUFFIX + "])").matcher(work);
+            if (!m.find()) continue;
+            at.add(new int[]{m.start(), out.size()});
+            out.add(new Term(k, all.get(k), req.get(k)));
+            do { for (int i = m.start(); i < m.end(); i++) work.setCharAt(i, '\u0000'); } while (m.find());
+        }
+        return limit(out, at, max);
+    }
+
+    /**
+     * Nepali terms in {@code ne} with their Japanese rendering: reversed glossary entries (not demonyms:
+     * नेपाली is a person, the language or an adjective), then the user's Nepali -> Japanese terms. A term
+     * matches at the start of a word and may carry a case marker (काठमाडौंमा); ँ/ं spellings are equal.
+     */
+    public List<Term> termsNeJa(String ne, int max) {
+        List<Term> out = new ArrayList<>();
+        if (ne == null || ne.isEmpty()) return out;
+        Map<String, String> all = new LinkedHashMap<>();
+        Map<String, Boolean> req = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : userReverse.entrySet()) { all.put(e.getKey(), e.getValue()); req.put(e.getKey(), false); }
+        for (Map.Entry<String, String> e : terms.entrySet()) {
+            String neTerm = e.getValue(), jaTerm = e.getKey();
+            if (jaTerm.endsWith("人") || !neTerm.chars().anyMatch(c -> c >= 0x0900 && c <= 0x097F)) continue;
+            all.put(neTerm, jaTerm);
+            req.put(neTerm, true);
+        }
+        List<String> keys = new ArrayList<>(all.keySet());
+        keys.sort(Comparator.comparingInt(String::length).reversed());
+        StringBuilder work = new StringBuilder(ne);
+        List<int[]> at = new ArrayList<>();
+        for (String k : keys) {
+            if (!mayContainNe(ne, k)) continue;   // cheap test before the regex
+            Matcher m = nepaliWord(k).matcher(work);
+            if (!m.find()) continue;
+            at.add(new int[]{m.start(), out.size()});
+            out.add(new Term(k, all.get(k), req.get(k)));
+            do { for (int i = m.start(); i < m.end(); i++) work.setCharAt(i, '\u0000'); } while (m.find());
+        }
+        return limit(out, at, max);
+    }
+
+    // ँ/ं are interchangeable in nepaliWord(): compare with both folded to ं
+    private static boolean mayContainNe(String text, String term) {
+        return text.replace('ँ', 'ं').contains(term.replace('ँ', 'ं'));
+    }
+
+    private static final Map<String, Pattern> NE_WORD_CACHE = java.util.Collections.synchronizedMap(new LinkedHashMap<String, Pattern>(64, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, Pattern> e) { return size() > 4096; }
+    });
+
+    /** A Nepali term at the start of a word, ending the word or followed by a case marker / plural. */
+    static Pattern nepaliWord(String neTerm) {
+        Pattern p = NE_WORD_CACHE.get(neTerm);
+        if (p != null) return p;
+        StringBuilder rx = new StringBuilder("(?<![\\u0900-\\u0963\\u0966-\\u097F])");
+        for (char c : neTerm.toCharArray()) {
+            if (c == 'ँ' || c == 'ं') rx.append("[\\u0901\\u0902]");
+            else rx.append(Pattern.quote(String.valueOf(c)));
+        }
+        rx.append("(?=$|[^\\u0900-\\u0963\\u0966-\\u097F]|").append(NE_CASE_MARKERS).append(")");
+        p = Pattern.compile(rx.toString());
+        NE_WORD_CACHE.put(neTerm, p);
+        return p;
+    }
+
+    // keeps at most max terms, required (verified glossary) ones first, and returns them in source order:
+    // the longest terms were found first, the model reads them in the order of the text
+    private static List<Term> limit(List<Term> found, List<int[]> at, int max) {
+        List<int[]> keep = new ArrayList<>(at);
+        keep.sort((a, b) -> Boolean.compare(found.get(b[1]).required, found.get(a[1]).required));
+        if (keep.size() > max) keep = new ArrayList<>(keep.subList(0, Math.max(0, max)));
+        keep.sort(Comparator.comparingInt(a -> a[0]));
+        List<Term> out = new ArrayList<>();
+        for (int[] a : keep) out.add(found.get(a[1]));
+        return out;
+    }
+
     /** Whether {@code ja} is a known glossary entry. */
     public boolean contains(String ja) { return ja != null && terms.containsKey(ja); }
 
