@@ -42,6 +42,20 @@ sh tools/llama/finetune/export_adapter.sh plamo08-hf lora/step600 personal_lora.
 Step 600 (1.1 epochs) has the best mean on the dev set. Speed with the adapter: 32.4 instead of 34.8 generated
 tokens/s on the PC (-7%). Same material as the dictionary, so the gain is largest for that kind of sentence.
 
+## Distillation (tried, no measurable gain)
+
+`extract_mono.py` collects untranslated care-domain sentences (exam text, care news); a teacher translates them;
+`kd_data.py` keeps the pairs whose round trip agrees (chrF >= 0.25 through the student) and mixes source -> teacher
+(distillation), teacher -> human source (back-translation) and half of the real examples; then a second stage:
+`LR=1e-4 RESUME=lora/step600:0 python3 train_lora.py plamo08-hf data/kd_train.jsonl lora_kd/ 1`.
+
+- Teacher PLaMo 2B + glossary: worse than the trained student on the dev set (57.8 / 49.0 vs 60.0 / 49.2), not used.
+- Teacher Claude (blind 98-sentence check: 57.4 / 52.3, untrained 2B 56.3 / 43.3): 719 pairs (news and policy text).
+  Result vs step 600: dev +2.2 / -0.1, blind -0.2 / -0.7; against step 800 (the same extra training without new data)
+  +0.3 / +3.0; every 95% interval includes 0. The teacher data was another domain (news, policy) than the use
+  (conversation), and small. Not worth it in this form; conversational source text would be the next thing to try.
+  Check the terms of the teacher's provider before training on its output.
+
 Notes on what went wrong on the way (kept so they are not repeated): `model.generate()` of transformers 5.24 with
 PLaMo's remote code produces garbage (its cache path); training and the checks here do not use it. Full logits
 (batch x length x 107520) exhausted 15 GB of RAM: the output layer is applied to the target positions only, lengths
