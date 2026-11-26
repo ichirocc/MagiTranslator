@@ -603,6 +603,14 @@ public class Recognizer extends NeuralNetworkApi {
                             }
                         } else {
                             String t1 = correctText(firstText), t2 = correctText(secondText);
+                            //Whisper's silence rule, as for Nepali: no_speech > 0.6 and avg logprob < -1 means the text is
+                            //a hallucination on silence / noise (on the phone: 「ご視聴ありがとうございました」)
+                            if (Math.max(noSpeechProb1, noSpeechProb2) > NO_SPEECH_THRESHOLD
+                                    && Math.max(outputProbability1, outputProbability2) < LOGPROB_THRESHOLD) {
+                                android.util.Log.i("result", "dropped as silence, no_speech=" + Math.max(noSpeechProb1, noSpeechProb2));
+                                t1 = UNDEFINED_TEXT;
+                                t2 = UNDEFINED_TEXT;
+                            }
                             boolean neFirst = "ne".equals(data.languageCode), neSecond = "ne".equals(data.languageCode2);
                             boolean neWins = (neFirst && outputProbability1 >= outputProbability2) || (neSecond && outputProbability2 > outputProbability1);
                             if (neWins && ensureNeModel()) {
@@ -809,7 +817,29 @@ public class Recognizer extends NeuralNetworkApi {
             //if the correctedText contains a "..." we remove it
             correctedText = correctedText.replace("...", "");
         }
+        if (!correctedText.equals(UNDEFINED_TEXT)) {
+            correctedText = stripSubtitleHallucinations(correctedText);
+            if (correctedText.isEmpty()) correctedText = UNDEFINED_TEXT;   //only a hallucinated phrase: nothing was said
+        }
         return correctedText;
+    }
+
+    // Phrases Whisper learnt from video subtitles and writes on silence, noise or the end of speech
+    // ("Careless Whisper", 2024; reported for Japanese Whisper output). Removed only at the END of the text,
+    // where they are appended; a sentence that merely contains such words in the middle is left as it is.
+    private static final java.util.regex.Pattern SUBTITLE_TAIL = java.util.regex.Pattern.compile(
+            "(?:(?:^|(?<=[\\s、。,.!！]))\\s*(?:"   //at a sentence boundary; the preceding "。" is kept
+                    + "(?:最後まで)?ご視聴(?:いただき|頂き)?(?:本当に|誠に)?ありがとうございました"
+                    + "|(?:高評価|グッドボタン)(?:と|、)?チャンネル登録[^。！!]*"
+                    + "|チャンネル登録(?:を|も)?(?:よろしく(?:お願いします|お願いいたします)?)?"
+                    + "|次回もお楽しみに"
+                    + "|(?:字幕|翻訳)(?:作成|提供|制作)?[:：][^。！!]*"
+                    + "|Thanks? (?:you )?for watching"
+                    + ")[。！!.]*\\s*)+$");
+
+    /** Removes Whisper's subtitle hallucinations from the end of a recognised text (may return ""). */
+    static String stripSubtitleHallucinations(String text) {
+        return SUBTITLE_TAIL.matcher(text).replaceAll("").trim();
     }
 
     // this method returns only the languages of Whisper-small that have a minimum quality (wer <= 37%)
