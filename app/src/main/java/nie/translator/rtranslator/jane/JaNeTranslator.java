@@ -362,7 +362,7 @@ public final class JaNeTranslator {
             List<String> req = required.getOrDefault(c.label, Collections.emptyList());
             if (!toScore.contains(c)) {   // cannot win on the hard checks or ranked below the top K: no round trip
                 double s0 = Double.NEGATIVE_INFINITY;
-                if (BACK_TRANSLATE_TOP_K == 0) {   // no back-translation: rank by agreement with the other candidates + preferred terms
+                if (btTopK(outLang) == 0) {   // no back-translation: rank by agreement with the other candidates + preferred terms
                     double agree = 0;
                     for (Candidate o : unique) if (o != c) agree += QualityScorer.chrF(c.output, o.output);
                     s0 = agree / Math.max(1, unique.size() - 1) + preferredShare(c.output, preferred);
@@ -511,9 +511,14 @@ public final class JaNeTranslator {
 
     /** Back-translations per rerank: the round trip is the dominant cost (measured: 2-4 of 3-5 model calls per
      *  sentence). Hard checks are cheap and decide first, so only candidates in the best hard class can win; among
-     *  them only the top {@link #BACK_TRANSLATE_TOP_K} by a cheap proxy (MBR agreement + preferred terms) are
+     *  them only the top btTopK(outLang) by a cheap proxy (MBR agreement + preferred terms) are
      *  back-translated. A single survivor needs no round trip at all. */
-    static final int BACK_TRANSLATE_TOP_K = Integer.getInteger("jane.btTopK", 2);   // 0 = no round trip (experiment)
+    // Measured on the seed set (docs/eval/2026-11-26_jane-speed-seed.md): for ja->ne, ranking by candidate agreement
+    // without back-translation kept the critical-error rate (5%) and raised chrF++ (67.7 -> 74.5) at ~2.5x speed;
+    // for ne->ja it lost a number (1000 -> 1000万), so ne->ja keeps the round trip.
+    static final int BT_TOP_K_JA_NE = Integer.getInteger("jane.btTopK.jaNe", 0);
+    static final int BT_TOP_K_NE_JA = Integer.getInteger("jane.btTopK.neJa", 2);
+    static int btTopK(String outLang) { return "ne".equals(outLang) ? BT_TOP_K_JA_NE : BT_TOP_K_NE_JA; }
 
     private java.util.Set<Candidate> backTranslationSet(List<Candidate> unique, String source, Map<String, List<String>> required,
                                                         List<String> preferred, String outLang, List<String> extraVowel) {
@@ -526,7 +531,7 @@ public final class JaNeTranslator {
         List<Candidate> pool = new ArrayList<>();   // every candidate in the best hard class (originals, not copies)
         for (int i = 0; i < checked.size(); i++) if (!classBetter(top, checked.get(i))) pool.add(unique.get(i));
         java.util.Set<Candidate> out = new java.util.HashSet<>();
-        if (pool.size() <= 1 || BACK_TRANSLATE_TOP_K == 0) return out;   // the hard checks already decide (or round trips are off)
+        if (pool.size() <= 1 || btTopK(outLang) == 0) return out;   // the hard checks already decide (or round trips are off)
         // ne->ja: the primary (non-"#k") candidates take precedence when hard-free, so they are always scored
         if ("ja".equals(outLang)) for (Candidate c : pool) if (!c.label.contains("#")) out.add(c);
         final Map<Candidate, Double> proxy = new java.util.HashMap<>();
@@ -539,7 +544,7 @@ public final class JaNeTranslator {
         ranked.sort((x, y) -> Double.compare(proxy.get(y), proxy.get(x)));
         int added = 0;
         for (Candidate c : ranked) {
-            if (added >= BACK_TRANSLATE_TOP_K) break;
+            if (added >= btTopK(outLang)) break;
             if (out.add(c)) added++; else if (!c.label.contains("#")) added++;
         }
         return out;
