@@ -59,9 +59,35 @@ public final class ModelSources {
         return SHA256;
     }
 
+    // ---- files downloaded directly from their publisher, never mirrored ----
+    // PLaMo 3 Translate (PLaMo Community License): redistributing the model obliges the distributor to hand
+    // the license to every recipient (Article 4), so this repository does not copy it into its release;
+    // the app downloads the publisher's file, pinned by Hugging Face commit and SHA-256 like the others.
+    // Not in models/models.tsv (that list is what mirror-models.yml copies).
+    private static final Map<String, String[]> DIRECT;   // name -> {url, sha256}
+    static {
+        Map<String, String[]> m = new HashMap<>();
+        m.put("plamo-3-translate-0.8b-Q4_K_M.gguf", new String[]{
+                "https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF/resolve/7de4409f84a9d70e3a5e87b81e84883d49f77b58/plamo-3-translate-0.8b-Q4_K_M.gguf",
+                "70891ec70dc7ab4205745a38307867c2881b99239f20327927633abfe4bc9ec6"});
+        m.put("plamo-3-translate-2b-Q4_K_M.gguf", new String[]{
+                "https://huggingface.co/pfnet/plamo-3-translate-2b-GGUF/resolve/caf0267797e8a4ae418e7d8c480746be2ea6040c/plamo-3-translate-2b-Q4_K_M.gguf",
+                "1ffd9073afcc70e35ccc942428aa2b73d7aa2b9ea779bf504b775369e0276c13"});
+        DIRECT = Collections.unmodifiableMap(m);
+    }
+
+    /** Publisher URL (pinned revision) of a file that is not mirrored, or null. */
+    public static String directUrl(String fileName) {
+        String[] d = DIRECT.get(fileName);
+        return d == null ? null : d[0];
+    }
+
     /** Expected SHA-256 of a model file, or null when the file is not a known model file. */
     public static String expectedSha256(String fileName) {
-        return SHA256.get(fileName);
+        String h = SHA256.get(fileName);
+        if (h != null) return h;
+        String[] d = DIRECT.get(fileName);
+        return d == null ? null : d[1];
     }
 
     /**

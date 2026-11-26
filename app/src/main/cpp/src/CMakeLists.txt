@@ -66,3 +66,32 @@ target_link_libraries(cache_container_native
 
 add_subdirectory(bergamot_translator)
 add_subdirectory(fasttext)
+# ---- MagiTranslator: PLaMo 3 Translate on the CPU (llama.cpp, see tools/llama/) ----
+# Built for Armv8.6-A with dotprod, i8mm and fp16 (Tensor G3/G4/G5 and other Armv9 phones): llama.cpp
+# repacks the Q4_K weights at load time for its i8mm matrix kernels. The Java side checks the CPU
+# features before loading libplamo_engine.so (plamo/CpuFeatures.java), so an older CPU never runs it.
+if(ANDROID AND NOT DEFINED GGML_CPU_ARM_ARCH)
+    set(GGML_CPU_ARM_ARCH "armv8.6-a+dotprod+i8mm+fp16" CACHE STRING "" FORCE)
+endif()
+set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+set(GGML_OPENMP OFF CACHE BOOL "" FORCE)          # the NDK's OpenMP is not supported by llama.cpp (docs/android.md)
+set(GGML_BACKEND_DL OFF CACHE BOOL "" FORCE)
+set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)    # would download KleidiAI at configure time
+set(GGML_CCACHE OFF CACHE BOOL "" FORCE)
+foreach(opt LLAMA_BUILD_COMMON LLAMA_BUILD_TESTS LLAMA_BUILD_TOOLS LLAMA_BUILD_EXAMPLES LLAMA_BUILD_SERVER LLAMA_BUILD_APP LLAMA_CURL)
+    set(${opt} OFF CACHE BOOL "" FORCE)
+endforeach()
+set(_magi_shared ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)                        # llama and ggml linked into libplamo_engine.so only
+add_subdirectory(libs/llama.cpp EXCLUDE_FROM_ALL)
+set(BUILD_SHARED_LIBS ${_magi_shared})
+foreach(t llama ggml ggml-base ggml-cpu)
+    target_compile_options(${t} PRIVATE -O3)      # fast kernels in every build variant, debug included
+endforeach()
+
+add_library(plamo_engine SHARED plamo/plamo_engine.cpp plamo/plamo_core.cpp)
+target_compile_options(plamo_engine PRIVATE -O3 -Wall)
+target_link_libraries(plamo_engine llama)
+if(ANDROID)
+    target_link_libraries(plamo_engine android log)
+endif()

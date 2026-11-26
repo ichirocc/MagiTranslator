@@ -1,0 +1,7 @@
+# private: training data from your dictionary, checkpoints, adapters, the downloaded model
+data/
+lora/
+plamo*-hf/
+*.gguf
+*.jsonl
+*.tsv

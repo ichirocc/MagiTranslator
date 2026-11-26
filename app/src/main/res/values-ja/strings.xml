@@ -217,7 +217,7 @@
     <string name="open_models_manager">モデル管理を開く</string>
     <string name="toast_ne_tts_unavailable">この端末ではネパール語の読み上げができません。翻訳は文字で表示されます。</string>
     <string name="preference_title_user_dictionary_import">辞書ファイルを読み込む</string>
-    <string name="preference_description_user_dictionary_import">自分の jane 辞書（#!jane ja-ne-terms / ne-ja-terms / phrases）。この端末内だけに保存し、送信・バックアップしません。</string>
+    <string name="preference_description_user_dictionary_import">自分の jane 辞書（#!jane ja-ne-terms / ne-ja-terms / phrases）、またはそれで学習したPLaMoアダプター（.gguf）。この端末内だけに保存し、送信・バックアップしません。</string>
     <string name="preference_title_user_dictionary_delete">読み込んだ辞書を削除する</string>
     <string name="user_dictionary_import_result">%1$s を読み込みました：%2$d 件（不正な行 %3$d、重複 %4$d を除外）。</string>
     <string name="user_dictionary_import_failed">jane 辞書ではないか、読み込めないファイルです。</string>
@@ -230,4 +230,12 @@
     <string name="preference_description_delete_all_data">AIモデル・辞書などのダウンロードしたファイルを削除（再ダウンロードが必要）</string>
     <string name="delete_all_data_confirm">ダウンロードしたAIモデルと辞書をすべて削除しますか（%1$s）？アプリは閉じます。翻訳するには再度モデルのダウンロードが必要です。</string>
     <string name="delete_all_data_ok">削除して閉じる</string>
+    <!-- PLaMo 3 Translate（端末内の日本語⇄ネパール語） -->
+    <string name="title_plamo">PLaMo 3 Translate（日本語⇄ネパール語）</string>
+    <string name="description_plamo">Built with PLaMo。端末内で、より正確な日本語⇄ネパール語の翻訳をします（0.8Bモデル、RAM約1GB）。PLaMoコミュニティライセンスに同意すると、Hugging FaceのPreferred Networks公式リポジトリからダウンロードします。Madladは予備としてそのまま使えます。</string>
+    <string name="plamo_license_title">PLaMoコミュニティライセンス</string>
+    <string name="plamo_license_message">このモデルは株式会社Preferred NetworksがPLaMoコミュニティライセンスで提供しています。ダウンロードすると、このライセンスに同意したことになります。主な条件:\n\n• モデルはこのアプリの翻訳画面からのみ使い、アプリの外へ取り出したり他のソフトで動かしたり、改変したりしないこと。\n• 翻訳結果を他のAIモデルの学習に使わないこと。\n• 翻訳は正しいとは限りません。医療・法律・金融などの重要な判断を翻訳だけに頼らないこと。\n• Preferred Networksはモデルと翻訳について保証も責任も負いません。\n\n全文: %1$s</string>
+    <string name="plamo_license_accept">同意してダウンロード</string>
+    <string name="plamo_license_decline">キャンセル</string>
+    <string name="plamo_adapter_imported">PLaMoの個人用アダプター（%1$d MB）を取り込みました。次の翻訳から日本語⇄ネパール語に使います。</string>
 </resources>

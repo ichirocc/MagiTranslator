@@ -437,6 +437,19 @@ public class Global extends Application implements DefaultLifecycleObserver {
         });
     }
 
+    /** PLaMo 3 Translate (GGUF), downloaded from the publisher (never mirrored, see ModelSources.directUrl). */
+    public DownloadGroupInfo getPlamoDownloadInfo(nie.translator.rtranslator.plamo.PlamoModels.Variant variant){
+        return new DownloadGroupInfo(new DownloadInfo[]{
+                new DownloadInfo(
+                        variant.fileName,
+                        nie.translator.rtranslator.downloader.ModelSources.directUrl(variant.fileName),
+                        nie.translator.rtranslator.plamo.PlamoModels.dir(getFilesDir()).getAbsolutePath() + "/",
+                        variant.sizeBytes / 1024,
+                        true,
+                        false)
+        });
+    }
+
     public DownloadGroupInfo getTatoebaDownloadInfo(){
         String downloadFolder = getFilesDir().getAbsolutePath();
         return new DownloadGroupInfo(new DownloadInfo[]{

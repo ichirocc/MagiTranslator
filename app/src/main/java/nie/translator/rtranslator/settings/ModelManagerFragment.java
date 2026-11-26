@@ -74,6 +74,7 @@ public class ModelManagerFragment extends Fragment {
     private ResourceManagerView hyManagerView;
     private ResourceManagerView madladManagerView;
     private ResourceManagerView tatoebaManagerView;
+    private ResourceManagerView plamoManagerView;
     private Button applyButton;
     private SegmentProgressBar barRam;
     private SwitchCompat switchMozillaForVoiceModes;
@@ -106,6 +107,7 @@ public class ModelManagerFragment extends Fragment {
         hyManagerView = view.findViewById(R.id.modelHy);
         madladManagerView = view.findViewById(R.id.modelMadlad);
         tatoebaManagerView = view.findViewById(R.id.resourceTatoeba);
+        plamoManagerView = view.findViewById(R.id.resourcePlamo);
         applyButton = view.findViewById(R.id.buttonApply);
         barRam = view.findViewById(R.id.barRam);
         switchMozillaForVoiceModes = view.findViewById(R.id.switchMozillaForVoiceModes);
@@ -128,6 +130,10 @@ public class ModelManagerFragment extends Fragment {
         resourceManagers.put("hyManager", new ResourceManager(activity, global.getHyMtDownloadInfo(), hyManagerView, downloadManager));
         resourceManagers.put("madladManager", new ResourceManager(activity, global.getMadladDownloadInfo(), madladManagerView, downloadManager));
         resourceManagers.put("tatoebaManager", new ResourceManager(activity, global.getTatoebaDownloadInfo(), tatoebaManagerView, downloadManager));
+        //PLaMo 3 Translate: downloaded from the publisher only after the user accepts its license
+        ResourceManager plamoManager = new ResourceManager(activity, global.getPlamoDownloadInfo(nie.translator.rtranslator.plamo.PlamoModels.Variant.SMALL), plamoManagerView, downloadManager);
+        plamoManager.setDownloadGate(this::askPlamoLicense);
+        resourceManagers.put("plamoManager", plamoManager);
 
         // initialize GUI based on shared preferences
         restoreGuiPreferenceState();
@@ -633,5 +639,23 @@ public class ModelManagerFragment extends Fragment {
             activity.startActivity(intent);
             activity.finish();
         }
+    }
+
+    /** Shows the PLaMo Community License summary; the download starts only after the user accepts it. */
+    private void askPlamoLicense(Runnable start) {
+        if (nie.translator.rtranslator.plamo.PlamoModels.isLicenseAccepted(global.getFilesDir())) { start.run(); return; }
+        new MaterialAlertDialogBuilder(activity, R.style.MyThemeOverlay_MaterialComponents_MaterialAlertDialog)
+                .setTitle(R.string.plamo_license_title)
+                .setMessage(getString(R.string.plamo_license_message, nie.translator.rtranslator.plamo.PlamoModels.LICENSE_URL))
+                .setPositiveButton(R.string.plamo_license_accept, (dialog, which) -> {
+                    try {
+                        nie.translator.rtranslator.plamo.PlamoModels.acceptLicense(global.getFilesDir());
+                        start.run();
+                    } catch (java.io.IOException e) {
+                        Log.e("plamo", "cannot record the license acceptance", e);
+                    }
+                })
+                .setNegativeButton(R.string.plamo_license_decline, null)
+                .show();
     }
 }
