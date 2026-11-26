@@ -297,6 +297,11 @@ public final class JaNeTranslator {
             String para = NeParaphrase.paraphrase(rev.text);
             if (!para.equals(rev.text))
                 addHyps(more, required, rev.requiredTargets, "para", para, backend.translateNBest(para, "ne", "ja", nBest), false, null);
+            // the final danda sometimes pulls Madlad into a hallucination (nj17: with "।" -> 「ネパールネパールの首都…」,
+            // without it -> 「シタはネパールから来ました」; docs/eval/2026-11-26_ne-punctuation-seed.md)
+            String bare = rev.text.replaceAll("[।॥.]\\s*$", "").trim();
+            if (!bare.isEmpty() && !bare.equals(rev.text))
+                addHyps(more, required, rev.requiredTargets, "nopunct", bare, backend.translateNBest(bare, "ne", "ja", nBest), false, null);
             if (more.size() > cands.size()) res = rerank(more, t, required, neToJaPreferred, "ja", "ne");
         }
         if (diversify && TranslationValidator.hardCount(res.issues) > 0) {
