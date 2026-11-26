@@ -73,7 +73,7 @@ public final class JaNeTranslator {
     public JaNeTranslator(Backend backend, Glossary glossary) { this(backend, glossary, new TranslationMemory()); }
 
     public JaNeTranslator(Backend backend, Glossary glossary, TranslationMemory memory) {
-        this.backend = backend;
+        this.backend = new MemoBackend(backend);
         this.glossary = glossary == null ? Glossary.withDefaults() : glossary;
         this.memory = memory == null ? new TranslationMemory() : memory;
     }
@@ -87,6 +87,7 @@ public final class JaNeTranslator {
     public void setNBest(int n) { nBest = Math.max(1, n); }
 
     public Result translate(String text, String src, String tgt) throws Exception {
+        ((MemoBackend) backend).clear();   // request-local: identical calls within one translation are made once
         if ("ja".equals(src) && "ne".equals(tgt)) return jaToNe(text);
         if ("ne".equals(src) && "ja".equals(tgt)) return neToJa(text);
         String out = backend.translate(text, src, tgt);
@@ -356,8 +357,15 @@ public final class JaNeTranslator {
         }
         List<Candidate> scored = new ArrayList<>();
         Candidate best = null;
+        java.util.Set<Candidate> toScore = backTranslationSet(unique, source, required, preferred, outLang, extraVowel);
         for (Candidate c : unique) {
             List<String> req = required.getOrDefault(c.label, Collections.emptyList());
+            if (!toScore.contains(c)) {   // cannot win on the hard checks or ranked below the top K: no round trip
+                Candidate sc = new Candidate(c.label, c.input, c.output, null, Double.NEGATIVE_INFINITY, withExtraVowel(validate(source, c.output, req, outLang), c.output, extraVowel));
+                scored.add(sc);
+                if (best == null || better(sc, best)) best = sc;
+                continue;
+            }
             String back = backend.translate(c.output, outLang, srcLang);
             List<String> scoredTerms = new ArrayList<>(req);
             for (String p : preferred) if (!scoredTerms.contains(p)) scoredTerms.add(p);
@@ -493,5 +501,79 @@ public final class JaNeTranslator {
             out.add(p);
         }
         return String.join("", out);
+    }
+
+    /** Back-translations per rerank: the round trip is the dominant cost (measured: 2-4 of 3-5 model calls per
+     *  sentence). Hard checks are cheap and decide first, so only candidates in the best hard class can win; among
+     *  them only the top {@link #BACK_TRANSLATE_TOP_K} by a cheap proxy (MBR agreement + preferred terms) are
+     *  back-translated. A single survivor needs no round trip at all. */
+    static final int BACK_TRANSLATE_TOP_K = 2;
+
+    private java.util.Set<Candidate> backTranslationSet(List<Candidate> unique, String source, Map<String, List<String>> required,
+                                                        List<String> preferred, String outLang, List<String> extraVowel) {
+        List<Candidate> checked = new ArrayList<>();
+        for (Candidate c : unique)
+            checked.add(new Candidate(c.label, c.input, c.output, null, 0,
+                    withExtraVowel(validate(source, c.output, required.getOrDefault(c.label, Collections.emptyList()), outLang), c.output, extraVowel)));
+        Candidate top = null;
+        for (Candidate c : checked) if (top == null || classBetter(c, top)) top = c;
+        List<Candidate> pool = new ArrayList<>();   // every candidate in the best hard class (originals, not copies)
+        for (int i = 0; i < checked.size(); i++) if (!classBetter(top, checked.get(i))) pool.add(unique.get(i));
+        java.util.Set<Candidate> out = new java.util.HashSet<>();
+        if (pool.size() <= 1) return out;   // the hard checks already decide: no round trip needed
+        // ne->ja: the primary (non-"#k") candidates take precedence when hard-free, so they are always scored
+        if ("ja".equals(outLang)) for (Candidate c : pool) if (!c.label.contains("#")) out.add(c);
+        final Map<Candidate, Double> proxy = new java.util.HashMap<>();
+        for (Candidate c : pool) {
+            double agree = 0;
+            for (Candidate o : unique) if (o != c) agree += QualityScorer.chrF(c.output, o.output);
+            proxy.put(c, agree / Math.max(1, unique.size() - 1) + preferredShare(c.output, preferred));
+        }
+        List<Candidate> ranked = new ArrayList<>(pool);
+        ranked.sort((x, y) -> Double.compare(proxy.get(y), proxy.get(x)));
+        int added = 0;
+        for (Candidate c : ranked) {
+            if (added >= BACK_TRANSLATE_TOP_K) break;
+            if (out.add(c)) added++; else if (!c.label.contains("#")) added++;
+        }
+        return out;
+    }
+
+    /** Hard-check class only (no score): a beats b when it is hard-free and b is not, or less severe, or fewer. */
+    private static boolean classBetter(Candidate a, Candidate b) {
+        if ((a.hard() == 0) != (b.hard() == 0)) return a.hard() == 0;
+        if (a.hard() == 0) return false;
+        int sa = severity(a.issues), sb = severity(b.issues);
+        if (sa != sb) return sa < sb;
+        return a.hard() < b.hard();
+    }
+
+    /** Request-local memo of model calls: the diversification round re-ranks the earlier candidates, and their
+     *  back-translations must not be decoded twice. Cleared at the start of every {@link #translate}. */
+    private static final class MemoBackend implements Backend {
+        private final Backend inner;
+        private final Map<String, Object> memo = new java.util.HashMap<>();
+        MemoBackend(Backend inner) { this.inner = inner; }
+        void clear() { memo.clear(); }
+        public String translate(String text, String s, String t) throws Exception {
+            String k = "1\u0000" + s + "\u0000" + t + "\u0000" + text;
+            Object v = memo.get(k);
+            if (v == null) { v = inner.translate(text, s, t); if (v != null) memo.put(k, v); }
+            return (String) v;
+        }
+        @SuppressWarnings("unchecked")
+        public List<String> translateNBest(String text, String s, String t, int n) throws Exception {
+            String k = "n" + n + "\u0000" + s + "\u0000" + t + "\u0000" + text;
+            Object v = memo.get(k);
+            if (v == null) { v = inner.translateNBest(text, s, t, n); if (v != null) memo.put(k, v); }
+            return (List<String>) v;
+        }
+        @SuppressWarnings("unchecked")
+        public List<String> translateNBestWide(String text, String s, String t, int n, int beam) throws Exception {
+            String k = "w" + n + "/" + beam + "\u0000" + s + "\u0000" + t + "\u0000" + text;
+            Object v = memo.get(k);
+            if (v == null) { v = inner.translateNBestWide(text, s, t, n, beam); if (v != null) memo.put(k, v); }
+            return (List<String>) v;
+        }
     }
 }

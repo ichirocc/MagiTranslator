@@ -62,15 +62,19 @@ public class JaneEval {
         String only = a.get("--only");   // e.g. ja-ne
         try (Py py = new Py(a.get("--models"));
              BufferedWriter out = Files.newBufferedWriter(Paths.get(a.get("--out")), StandardCharsets.UTF_8)) {
+            final int[] calls = new int[3];   // translate (segments + back-translation), n-best, wide
             Backend backend = new Backend() {
                 public String translate(String text, String src, String tgt) throws Exception {
+                    calls[0]++;
                     List<String> h = py.call(tgt, beam, 1, text);
                     return h.isEmpty() ? "" : h.get(0);
                 }
                 public List<String> translateNBest(String text, String src, String tgt, int n) throws Exception {
+                    calls[1]++;
                     return py.call(tgt, beam, Math.min(n, nbest), text);
                 }
                 public List<String> translateNBestWide(String text, String src, String tgt, int n, int b) throws Exception {
+                    calls[2]++;
                     return py.call(tgt, Math.max(beam, b), n, text);
                 }
             };
@@ -81,6 +85,7 @@ public class JaneEval {
                 if (only != null && !only.equals(dir)) continue;
                 String[] d = dir.split("-");
                 long t0 = System.currentTimeMillis();
+                calls[0] = calls[1] = calls[2] = 0;
                 Glossary g = Glossary.withDefaults();
                 JaNeTranslator tr = new JaNeTranslator(backend, g);
                 tr.setDiversify(!a.containsKey("--no-diversify"));
@@ -93,7 +98,7 @@ public class JaneEval {
                 String o = r.text == null ? "" : r.text.replace("\t", " ").replace("\n", " ");
                 out.write(id + "\t" + o + "\n");
                 out.flush();
-                System.err.println(id + " " + (System.currentTimeMillis() - t0) + "ms cands=" + r.candidates.size() + " issues=" + r.issues + " -> " + o);
+                System.err.println(id + " " + (System.currentTimeMillis() - t0) + "ms calls(translate/nbest/wide)=" + calls[0] + "/" + calls[1] + "/" + calls[2] + " cands=" + r.candidates.size() + " issues=" + r.issues + " -> " + o);
             }
         }
     }
