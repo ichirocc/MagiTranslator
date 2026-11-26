@@ -265,4 +265,11 @@
     <string name="preference_description_exit_app">Stop translation and voice modes and close the app (frees memory).</string>
     <string name="exit_app_confirm">Exit MagiTranslator? Running translations and voice modes stop.</string>
     <string name="exit_app_ok">Exit</string>
+    <!-- PLaMo 3 Translate (Japanese <-> Nepali on device) -->
+    <string name="title_plamo">PLaMo 3 Translate (Japanese ⇄ Nepali)</string>
+    <string name="description_plamo">Built with PLaMo. More accurate Japanese ⇄ Nepali translation on the device (0.8B model, about 1 GB of RAM). Downloaded from Preferred Networks on Hugging Face after you accept the PLaMo Community License. Madlad stays installed as the fallback.</string>
+    <string name="plamo_license_title">PLaMo Community License</string>
+    <string name="plamo_license_message">This model is provided by Preferred Networks, Inc. under the PLaMo Community License. By downloading it you agree to that license. In particular:\n\n• Use the model only through this app\'s translation screens, do not copy it out of the app or run it in other software, and do not modify it.\n• Do not use translations to train other AI models.\n• Translations are not guaranteed to be correct: do not rely on them alone for medical, legal, financial or other important decisions.\n• Preferred Networks gives no warranty and has no liability for the model or its translations.\n\nFull text: %1$s</string>
+    <string name="plamo_license_accept">Accept and download</string>
+    <string name="plamo_license_decline">Cancel</string>
 </resources>

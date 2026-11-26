@@ -226,4 +226,11 @@
     <string name="preference_description_exit_app">翻訳・音声モードを止めてアプリを閉じます（メモリを解放）</string>
     <string name="exit_app_confirm">MagiTranslator を終了しますか？実行中の翻訳と音声モードは止まります。</string>
     <string name="exit_app_ok">終了</string>
+    <!-- PLaMo 3 Translate（端末内の日本語⇄ネパール語） -->
+    <string name="title_plamo">PLaMo 3 Translate（日本語⇄ネパール語）</string>
+    <string name="description_plamo">Built with PLaMo。端末内で、より正確な日本語⇄ネパール語の翻訳をします（0.8Bモデル、RAM約1GB）。PLaMoコミュニティライセンスに同意すると、Hugging FaceのPreferred Networks公式リポジトリからダウンロードします。Madladは予備としてそのまま使えます。</string>
+    <string name="plamo_license_title">PLaMoコミュニティライセンス</string>
+    <string name="plamo_license_message">このモデルは株式会社Preferred NetworksがPLaMoコミュニティライセンスで提供しています。ダウンロードすると、このライセンスに同意したことになります。主な条件:\n\n• モデルはこのアプリの翻訳画面からのみ使い、アプリの外へ取り出したり他のソフトで動かしたり、改変したりしないこと。\n• 翻訳結果を他のAIモデルの学習に使わないこと。\n• 翻訳は正しいとは限りません。医療・法律・金融などの重要な判断を翻訳だけに頼らないこと。\n• Preferred Networksはモデルと翻訳について保証も責任も負いません。\n\n全文: %1$s</string>
+    <string name="plamo_license_accept">同意してダウンロード</string>
+    <string name="plamo_license_decline">キャンセル</string>
 </resources>

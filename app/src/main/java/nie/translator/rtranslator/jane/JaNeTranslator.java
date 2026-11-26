@@ -443,7 +443,7 @@ public final class JaNeTranslator {
         return s;
     }
 
-    private static List<TranslationValidator.Issue> validate(String source, String output, List<String> req, String outLang) {
+    static List<TranslationValidator.Issue> validate(String source, String output, List<String> req, String outLang) {
         return "ne".equals(outLang)
                 ? TranslationValidator.validateJaToNe(source, output, req)
                 : withRequiredTerms(TranslationValidator.validateNeToJa(source, output), output, req);

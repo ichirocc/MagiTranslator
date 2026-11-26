@@ -224,6 +224,65 @@ public class Translator extends NeuralNetworkApi {
     @Nullable
     private String janeGlossaryStamp;
 
+    // ===== PLaMo 3 Translate (on-device LLM, ja <-> ne): used before Madlad when installed and its license accepted =====
+    @Nullable
+    private nie.translator.rtranslator.jane.Glossary janeGlossary;
+    @Nullable
+    private nie.translator.rtranslator.jane.PhraseBook janePhraseBook;
+    @Nullable
+    private volatile nie.translator.rtranslator.jane.PlamoTranslator plamoTranslator;
+    @Nullable
+    private nie.translator.rtranslator.plamo.PlamoEngine plamoEngine;
+    @Nullable
+    private java.io.File plamoModelFile;
+    /** per slot: prompt + translation tokens (PFML3 header, history, glossary, text, output) */
+    private static final int PLAMO_CONTEXT_TOKENS = 2048;
+
+    /**
+     * Translates with PLaMo; null when PLaMo is not installed, its license is not accepted, the engine
+     * cannot run on this CPU or the call fails (the caller then uses Madlad). Runs under translationLock.
+     */
+    @Nullable
+    private String translateJaNeWithPlamo(String text, CustomLocale in, CustomLocale out) {
+        java.io.File model = nie.translator.rtranslator.plamo.PlamoModels.usable(global.getFilesDir());
+        if (model == null || janeGlossary == null) return null;
+        try {
+            if (plamoEngine == null || !model.equals(plamoModelFile)) {
+                closePlamo();
+                if (!MemoryGuard.hasRoomFor(global, model.length())) return null;   //Madlad instead of the low-memory killer
+                plamoEngine = nie.translator.rtranslator.plamo.PlamoEngine.open(model, 0, PLAMO_CONTEXT_TOKENS);
+                plamoModelFile = model;
+                plamoTranslator = null;
+            }
+            nie.translator.rtranslator.jane.PlamoTranslator pt = plamoTranslator;
+            if (pt == null) {
+                pt = new nie.translator.rtranslator.jane.PlamoTranslator(plamoEngine, janeGlossary);
+                pt.setPhraseBook(janePhraseBook);
+                plamoTranslator = pt;
+            }
+            nie.translator.rtranslator.jane.JaNeTranslator.Result r = pt.translate(text, in.getCode(), out.getCode());
+            if (nie.translator.rtranslator.tools.PrivacyLog.isDebuggable()) {
+                long[] st = plamoEngine.lastStats();   //counts and times only, no text
+                Log.i("plamo", r.candidates.isEmpty() ? "empty" : r.candidates.get(0).label + " prompt=" + st[0] + " reused=" + st[1] + " generated=" + st[2] + " promptMs=" + st[3] / 1000 + " genMs=" + st[4] / 1000);
+            }
+            nie.translator.rtranslator.jane.ReviewMarks.record(r.text, r.needsReview());   //UI shows "要確認" for it
+            if (r.needsReview()) Log.i("plamo", "needs review: " + r.hardKinds());
+            if ("ja".equals(in.getCode()) && nie.translator.rtranslator.jane.JaNormalizer.normalize(text).isEmpty()) return "";
+            return r.text == null || r.text.isEmpty() ? null : r.text;
+        } catch (Exception | UnsatisfiedLinkError e) {
+            Log.w("plamo", "PLaMo unavailable, using Madlad: " + e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    private void closePlamo() {
+        nie.translator.rtranslator.plamo.PlamoEngine e = plamoEngine;
+        plamoEngine = null;
+        plamoModelFile = null;
+        plamoTranslator = null;
+        if (e != null) e.close();
+    }
+
     /** Clears the jane TranslationMemory so term/name renderings never leak between conversations (SPEC §19.A). */
     public void resetConversationMemory() {
         // Called on the main thread (service onDestroy, language setters): never wait for translationLock,
@@ -232,6 +291,8 @@ public class Translator extends NeuralNetworkApi {
         if (jt != null) {
             jt.memory().clear();
         }
+        nie.translator.rtranslator.jane.PlamoTranslator pt = plamoTranslator;
+        if (pt != null) pt.clearConversation();
         nie.translator.rtranslator.jane.ReviewMarks.clear();
     }
 
@@ -270,8 +331,13 @@ public class Translator extends NeuralNetworkApi {
                     }
                 }, glossary);
                 janeTranslator.setPhraseBook(phraseBook);
+                janeGlossary = glossary;
+                janePhraseBook = phraseBook;
+                plamoTranslator = null;   //rebuilt with the new dictionaries on the next PLaMo call
                 janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried
             }
+            String plamo = translateJaNeWithPlamo(text, in, out);
+            if (plamo != null) return plamo;
             janeBeamSize = beamSize;
             nie.translator.rtranslator.jane.JaNeTranslator.Result r = janeTranslator.translate(text, in.getCode(), out.getCode());
             if (nie.translator.rtranslator.tools.PrivacyLog.isDebuggable()) for (nie.translator.rtranslator.jane.JaNeTranslator.Candidate c : r.candidates) Log.i("jane", c.toString());
@@ -2239,7 +2305,9 @@ public class Translator extends NeuralNetworkApi {
         if (!translationLock.tryLock()) return false;   //a translation is queued or running: keep the model
         try {
             synchronized (langResourcesLock) {
-                if (mode == -1 || mode == MOZILLA) return false;
+                boolean plamoReleased = plamoEngine != null;
+                closePlamo();   //memory-mapped weights + repacked copy: released with the big model
+                if (mode == -1 || mode == MOZILLA) return plamoReleased;
                 int old = mode;
                 onnxTranslationModelCleanup(old);
                 encoderSession = null;
