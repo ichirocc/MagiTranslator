@@ -241,7 +241,7 @@ public final class JaNeTranslator {
     private Result neToJa(String raw) throws Exception {
         String t = Normalizer.normalize(raw == null ? "" : raw, Normalizer.Form.NFC).replace('|', '।').trim();
         if (t.isEmpty()) return new Result("", Collections.emptyList());
-        if (Boolean.parseBoolean(System.getProperty("jane.nePunct", "true"))) t = NePunctuation.restore(t);   // speech recognition drops the final mark; restore it before translating
+        if (Boolean.parseBoolean(System.getProperty("jane.nePunct", "false"))) t = NePunctuation.restore(t);   // speech recognition drops the final mark; restore it before translating
         Map<String, List<String>> inputs = new LinkedHashMap<>();
         Map<String, List<String>> required = new LinkedHashMap<>();
         // known names/terms (नेपाल, काठमाडौं ...) are annotated with their Japanese form: the raw model turned
