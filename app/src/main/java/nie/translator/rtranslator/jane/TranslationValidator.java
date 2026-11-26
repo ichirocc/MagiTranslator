@@ -66,7 +66,19 @@ public final class TranslationValidator {
         if (JA_SCRIPT.matcher(ne).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
         if (src.question && !tgt.question) issues.add(new Issue(Kind.QUESTION_LOST, false, null));
         checkAgreementJaToNe(src, tgt, issues);
+        checkCurrencyJaToNe(src, tgt, issues);
         return issues;
+    }
+
+    private static final Pattern NE_YUAN = Pattern.compile("युआन|युवान|चिनियाँ\\s*युआन");
+
+    /** ja -> ne currency: 円 must stay येन, and no other currency may appear (jn12 「500円」 -> 「५०० युआन」). */
+    static void checkCurrencyJaToNe(LanguageIR src, LanguageIR tgt, List<Issue> issues) {
+        if (src.currencies.contains(Currency.YEN) && !tgt.currencies.contains(Currency.YEN)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "येन"));
+        if (src.currencies.contains(Currency.RUPEE) && !tgt.currencies.contains(Currency.RUPEE)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "रुपैयाँ"));
+        if (!src.currencies.contains(Currency.RUPEE) && tgt.currencies.contains(Currency.RUPEE)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "रुपैयाँ"));
+        if (!src.currencies.contains(Currency.DOLLAR) && tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "डलर"));
+        if (NE_YUAN.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "युआन"));
     }
 
     /** ne -> ja */

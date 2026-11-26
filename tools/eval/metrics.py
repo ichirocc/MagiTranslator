@@ -396,6 +396,17 @@ def validate(src, hyp, direction, required_targets=None):
                 issues.append((k + "_LOST", hard, None))
         if s["tense"] == "PAST" and t["tense"] != "PAST":
             issues.append(("PAST_LOST", True, None))
+        # currency (TranslationValidator.checkCurrencyJaToNe)
+        if "YEN" in s["cur"] and "YEN" not in t["cur"]:
+            issues.append(("CURRENCY_MISMATCH", True, "येन"))
+        if "RUPEE" in s["cur"] and "RUPEE" not in t["cur"]:
+            issues.append(("CURRENCY_MISMATCH", True, "रुपैयाँ"))
+        if "RUPEE" not in s["cur"] and "RUPEE" in t["cur"]:
+            issues.append(("CURRENCY_MISMATCH", True, "रुपैयाँ"))
+        if "DOLLAR" not in s["cur"] and "DOLLAR" in t["cur"]:
+            issues.append(("CURRENCY_MISMATCH", True, "डलर"))
+        if re.search(r"युआन|युवान|चिनियाँ\s*युआन", hyp):
+            issues.append(("CURRENCY_MISMATCH", True, "युआन"))
         return issues
     s, t = analyze_ne(src), analyze_ja(hyp)
     _check_numbers(s["numbers"], t["numbers_norm"], issues)
