@@ -44,7 +44,7 @@ import nie.translator.rtranslator.tools.Tools;
 import nie.translator.rtranslator.tools.gui.ResourceManagerView;
 import nie.translator.rtranslator.tools.gui.SegmentProgressBar;
 import nie.translator.rtranslator.voice_translation.neural_networks.translation.Translator;
-import worker8.com.github.radiogroupplus.RadioGroupPlus;
+import nie.translator.rtranslator.widgets.NestedRadioGroup;
 
 public class ModelManagerFragment extends Fragment {
     private enum ApplySettingsStage{
@@ -67,7 +67,7 @@ public class ModelManagerFragment extends Fragment {
     private HashMap<String, ResourceManager> resourceManagers = new HashMap<>();
     private DownloadManager.Callback downloadManagerCallback;
     // gui
-    private RadioGroupPlus radioGroup;
+    private NestedRadioGroup radioGroup;
     private RadioButton radioMozilla;
     private RadioButton radioHy;
     private RadioButton radioMadlad;

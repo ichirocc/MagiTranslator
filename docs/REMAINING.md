@@ -16,8 +16,8 @@
 | 7 | nj17「ネパールから」の作り話 | 「要確認」で警告は出る。正しい訳はまだ作れない |
 | 8 | モデルを個別に選んで消す機能 | 「すべて削除」のみ実装。既存の「モデル管理」画面の削除範囲は未調査 |
 | 9 | 会話集に無い文での評価 | 198文は会話集由来で辞書ありが有利 |
-| 10 | Jetifier の撤去 | RadioGroupPlus の置き換え後に可能 |
-| 11 | `libsqlite4java.so` の 16KB ページ対応 | 外部部品。もとから未対応 |
+| 10 | ~~Jetifier の撤去~~ | 済み：RadioGroupPlus を自前の `widgets/NestedRadioGroup` に置き換え、`android.enableJetifier=false` |
+| 11 | ~~`libsqlite4java.so` の 16KB ページ対応~~ | 済み：SQLite を同梱ビルドに置き換え（9d534f8）。残る 4KB 整列は `libdjl_tokenizer.so`・`libortextensions.so`・`libonnxruntime_extensions4j_jni.so`（配布済みバイナリ、新版なし） |
 | 12 | 多義語の文脈選択、主語・目的語の入れ替え検出 | 仕様書の未実装項目 |
 
 ## ユーザーにお願いすること
