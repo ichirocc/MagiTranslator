@@ -237,6 +237,11 @@ public class Translator extends NeuralNetworkApi {
 
     /** Runs the ja<->ne library; the backend is this Translator's Madlad model with UI notifications muted. */
     @Nullable
+    /** Set only while a ja<->ne translation runs: shows the first model hypothesis at once (isFinal=false),
+     *  so the user sees text immediately; the checked result replaces it with the same result ID. */
+    private volatile java.util.function.Consumer<String> janeFirstDraft = null;
+    private volatile String janeDraftInput = null;
+
     private String translateJaNeWithLibrary(String text, CustomLocale in, CustomLocale out, int beamSize) {
         try {
             File user = new File(global.getFilesDir(), "jane_glossary.tsv");   //optional user terminology: ja<TAB>ne
@@ -261,7 +266,11 @@ public class Translator extends NeuralNetworkApi {
 
                     @Override
                     public List<String> translateNBest(String t, String src, String tgt, int n) throws Exception {
-                        return silentTranslateNBest(t, src, tgt, janeBeamSize, n);
+                        List<String> hyps = silentTranslateNBest(t, src, tgt, janeBeamSize, n);
+                        java.util.function.Consumer<String> draft = janeFirstDraft;
+                        // the first n-best of the request is the whole (normalized) input
+                        if (draft != null && !hyps.isEmpty()) { janeFirstDraft = null; draft.accept(hyps.get(0)); }
+                        return hyps;
                     }
 
                     @Override
@@ -976,7 +985,24 @@ public class Translator extends NeuralNetworkApi {
                 final boolean jaNe = isJaNePair(inputLanguage, outputLanguage) && (performMode == MADLAD || performMode == MADLAD_CACHE);
                 final String nnInput = textToTranslate;
                 if (jaNe && beamSize < JA_NE_BEAM_SIZE) beamSize = JA_NE_BEAM_SIZE;
-                String janeResult = jaNe ? translateJaNeWithLibrary(textToTranslate, inputLanguage, outputLanguage, beamSize) : null;
+                String janeResult = null;
+                if (jaNe) {
+                    final long draftID = currentResultID;
+                    final CustomLocale draftIn = inputLanguage, draftOut = outputLanguage;
+                    final TranslationCancellation.Ticket draftTicket = ticket;
+                    janeDraftInput = textToTranslate;
+                    janeFirstDraft = draft -> {
+                        if (draft == null || draft.trim().isEmpty() || draftTicket.isCancelled()) return;
+                        if (responseListener != null) mainHandler.post(() -> { if (!draftTicket.isCancelled()) responseListener.onTranslatedText(textToTranslate, draft, null, draftID, false, TranslateListener.ResultType.NORMAL, draftIn, draftOut); });
+                        else mainHandler.post(() -> { if (!draftTicket.isCancelled()) notifyResult(textToTranslate, draft, null, draftID, false, TranslateListener.ResultType.NORMAL, draftIn, draftOut); });
+                    };
+                    try {
+                        janeResult = translateJaNeWithLibrary(textToTranslate, inputLanguage, outputLanguage, beamSize);
+                    } finally {
+                        janeFirstDraft = null;
+                        janeDraftInput = null;
+                    }
+                }
                 ticket.throwIfCancelled();   //the library swallows backend errors: do not fall back to the plain pipeline
                 BreakIterator iterator = BreakIterator.getSentenceInstance(inputLanguage.getLocale());
                 iterator.setText(nnInput);
