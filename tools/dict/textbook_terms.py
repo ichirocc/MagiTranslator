@@ -57,10 +57,11 @@ def load_keys(name, col=0):
     keys = set()
     p = os.path.join(REPO, "dictionaries", name)
     if os.path.exists(p):
-        for line in open(p, encoding="utf-8"):
-            if line.strip() and not line.startswith("#"):
-                cell = line.rstrip("\n").split("\t")[col]
-                keys.update(k.strip() for k in cell.split("/"))
+        with open(p, encoding="utf-8") as f:
+            for line in f:
+                if line.strip() and not line.startswith("#"):
+                    cell = line.rstrip("\n").split("\t")[col]
+                    keys.update(k.strip() for k in cell.split("/"))
     return keys
 
 

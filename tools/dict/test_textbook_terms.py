@@ -32,6 +32,19 @@ def write(text, suffix=".txt"):
 
 
 class TermsTest(unittest.TestCase):
+    def setUp(self):
+        # a small dictionary of its own, so the test does not depend on what dictionaries/ contains today
+        self.repo = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.repo, "dictionaries", "review"))
+        with open(os.path.join(self.repo, "dictionaries", "ja_ne_terms.tsv"), "w", encoding="utf-8") as f:
+            f.write("#!jane ja-ne-terms\n車椅子\tह्वीलचियर\n")
+        with open(os.path.join(self.repo, "dictionaries", "review", "care_candidates.tsv"), "w", encoding="utf-8") as f:
+            f.write("# candidates\n移乗\tस्थानान्तरण\n")
+        self.saved, T.REPO = T.REPO, self.repo
+
+    def tearDown(self):
+        T.REPO = self.saved
+
     def test_terms_marks_status(self):
         out = io.StringIO()
         with redirect_stdout(out):
