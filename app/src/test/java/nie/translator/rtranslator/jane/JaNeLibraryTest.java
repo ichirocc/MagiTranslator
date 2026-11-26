@@ -569,6 +569,14 @@ public class JaNeLibraryTest {
             tc.setDiversify(false);
             yes(tc.translate("यसको मूल्य १,००० रुपैयाँ हो।", "ne", "ja").needsReview(), "without the extra round nj12 stays hard");
         }
+        // NePunctuation: restore the final mark speech recognition drops
+        eq("तपाईं कहाँ जानुहुन्छ?", NePunctuation.restore("तपाईं कहाँ जानुहुन्छ"), "wh-word -> ?");
+        eq("के तपाईं आउनुहुन्छ?", NePunctuation.restore("के तपाईं आउनुहुन्छ"), "initial के -> ?");
+        eq("म घर जान्छु।", NePunctuation.restore("म घर जान्छु"), "statement -> danda");
+        eq("म घर जान्छु।", NePunctuation.restore("म घर जान्छु।"), "already ended: unchanged");
+        eq("यो कति हो?", NePunctuation.restore("यो कति हो?"), "already a question: unchanged");
+        eq("hello", NePunctuation.restore("hello"), "non-Devanagari untouched");
+        eq("म कहिलेकाहीं पौडी खेल्छु।", NePunctuation.restore("म कहिलेकाहीं पौडी खेल्छु"), "कहिलेकाहीं is not कहिले");
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures > 0) System.exit(1);
     }
