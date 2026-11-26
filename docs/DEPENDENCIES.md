@@ -40,7 +40,7 @@
 | ai.djl.android:core / tokenizer-native、ai.djl.huggingface:tokenizers | 0.33.0 | 0.33.0 | tokenizers は 0.40.0 があるが Android ネイティブ（tokenizer-native）は 0.33.0 止まり。JNI の版ずれを避け据え置き |
 | com.github.pemistahl:lingua | 1.2.2 | 1.2.2 | 最新 |
 | com.github.gkonovalov.android-vad:silero | 2.0.10 | 2.0.10 | 最新 |
-| PRDownloader / RadioGroupPlus（JitPack） | 1.0.2 / 1.0.1 | 同 | 最新（更新停止） |
+| PRDownloader（JitPack） | 1.0.2 | 同 | 最新（更新停止）。RadioGroupPlus は撤去（`widgets/NestedRadioGroup`） |
 
 ## GitHub Actions
 
@@ -69,4 +69,4 @@ NDK r28 の対応 API は 35 まで（minSdk 36 のネイティブ部分は 35 �
 
 ## 今後（AGP 10 で削除予定の警告）
 - ~~`android.nonFinalResIds=false`~~ → 削除済み（R の id を switch / アノテーション / static final に使う箇所なし）
-- `android.enableJetifier=true` → **維持**：`com.github.worker8:RadioGroupPlus:1.0.1` の POM が `com.android.support:appcompat-v7` に依存（AGP 10 で Jetifier が無くなる前に RadioGroupPlus の置き換えが必要）
+- `android.enableJetifier=false` → **撤去済み**：最後の依存元 `com.github.worker8:RadioGroupPlus:1.0.1`（`com.android.support:appcompat-v7`）を自前の `widgets/NestedRadioGroup` に置き換えた。`./gradlew checkJetifier` で他に旧サポートライブラリ依存は無い
