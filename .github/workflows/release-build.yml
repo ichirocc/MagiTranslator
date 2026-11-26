@@ -114,7 +114,7 @@ jobs:
         id: ver
         shell: bash
         run: |
-          ver=$(grep -oP "versionName '\K[^']+" app/build.gradle)
+          ver=$(grep -oP "versionName = '\K[^']+" app/build.gradle)
           echo "ver=$ver" >> "$GITHUB_OUTPUT"
           mkdir -p dist
           cp app/build/outputs/apk/release/*.apk "dist/MagiTranslator-${ver}.apk"

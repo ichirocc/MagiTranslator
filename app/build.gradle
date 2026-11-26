@@ -24,16 +24,16 @@ ext {
 }
 
 android {
-    namespace 'nie.translator.rtranslator'
+    namespace = 'nie.translator.rtranslator'
     //compileSdkVersion 33  //33
-    ndkVersion "30.0.16248370"
+    ndkVersion = "30.0.16248370"
     defaultConfig {
-        applicationId "com.magi.translator"
-        targetSdk 36
-        compileSdk 36
-        versionName '3.0.0-magi.18'
-        versionCode 45
-        minSdk 36   //MagiTranslator: Android 16+ only
+        applicationId = "com.magi.translator"
+        targetSdk = 36
+        compileSdk = 36
+        versionName = '3.0.0-magi.18'
+        versionCode = 45
+        minSdk = 36   //MagiTranslator: Android 16+ only
         externalNativeBuild {
             cmake {
                 arguments '-DSPM_ENABLE_SHARED=OFF',
@@ -71,14 +71,14 @@ android {
     }
 
     buildFeatures {
-        prefab true   //no prefab package is used any more (sqlite4java was the only one); harmless
-        buildConfig true
+        prefab = true   //no prefab package is used any more (sqlite4java was the only one); harmless
+        buildConfig = true
     }
 
     packaging {
         jniLibs {
             // store .so compressed and extract at install: only ELF segment alignment matters for 16KB pages
-            useLegacyPackaging true
+            useLegacyPackaging = true
         }
     }
     signingConfigs {
@@ -89,26 +89,26 @@ android {
             // Fallback = the temporary public sideload key (see docs/SPEC.md §19.8); replace it before
             // distributing to anyone else.
             def envStore = System.getenv('MAGI_KEYSTORE_FILE') ?: project.findProperty('MAGI_KEYSTORE_FILE')
-            storeFile envStore ? file(envStore) : file('magi-sideload.jks')
-            storePassword System.getenv('MAGI_KEYSTORE_PASSWORD') ?: project.findProperty('MAGI_KEYSTORE_PASSWORD') ?: 'magitranslator'
-            keyAlias System.getenv('MAGI_KEY_ALIAS') ?: project.findProperty('MAGI_KEY_ALIAS') ?: 'magi'
-            keyPassword System.getenv('MAGI_KEY_PASSWORD') ?: project.findProperty('MAGI_KEY_PASSWORD') ?: 'magitranslator'
+            storeFile = envStore ? file(envStore) : file('magi-sideload.jks')
+            storePassword = System.getenv('MAGI_KEYSTORE_PASSWORD') ?: project.findProperty('MAGI_KEYSTORE_PASSWORD') ?: 'magitranslator'
+            keyAlias = System.getenv('MAGI_KEY_ALIAS') ?: project.findProperty('MAGI_KEY_ALIAS') ?: 'magi'
+            keyPassword = System.getenv('MAGI_KEY_PASSWORD') ?: project.findProperty('MAGI_KEY_PASSWORD') ?: 'magitranslator'
         }
     }
     buildTypes {
         debug {
-            minifyEnabled false
-            multiDexEnabled true
-            debuggable true
+            minifyEnabled = false
+            multiDexEnabled = true
+            debuggable = true
         }
         release {
             // Enables code shrinking, obfuscation, and optimization for only
             // your project's release build type.
-            minifyEnabled false
+            minifyEnabled = false
 
             // Enables resource shrinking, which is performed by the
             // Android Gradle plugin.
-            shrinkResources false
+            shrinkResources = false
 
             // Includes the default ProGuard rules files that are packaged with
             // the Android Gradle plugin. To learn more, go to the section about
@@ -116,13 +116,13 @@ android {
             proguardFiles getDefaultProguardFile(
                     'proguard-android-optimize.txt'),
                     'proguard-rules.pro'
-            signingConfig signingConfigs.sideload
+            signingConfig = signingConfigs.sideload
         }
     }
     lint {
         // run lint on release builds and report, but do not fail the build (fixes are tracked separately)
-        checkReleaseBuilds true
-        abortOnError false
+        checkReleaseBuilds = true
+        abortOnError = false
     }
     configurations.all {
         resolutionStrategy.force 'com.google.code.findbugs:jsr305:3.0.2'
@@ -132,8 +132,8 @@ android {
     }
     externalNativeBuild {
         cmake {
-            path file('src/main/cpp/src/CMakeLists.txt')
-            version '4.1.2'
+            path = file('src/main/cpp/src/CMakeLists.txt')
+            version = '4.1.2'
         }
     }
 }
