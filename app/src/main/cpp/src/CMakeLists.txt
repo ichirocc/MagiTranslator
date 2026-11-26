@@ -21,7 +21,20 @@ add_library(sentencepiece-interface SHARED SentencePieceProcessorInterface.cpp)
 add_library(cache_container_native SHARED CacheContainerNative.cpp)
 add_library(dictionary_translator_interface SHARED DictionaryTranslator.cpp protobuf/dictionary_data.pb.cc protobuf/dictionary_data.pb.h)
 
-find_package(sqlite4java-android REQUIRED CONFIG)
+# SQLite, compiled into the app from the official amalgamation (libs/sqlite, docs/VENDORED.md).
+# It replaces the sqlite4java prefab package, whose prebuilt .so files were aligned to 4 KB pages
+# (Android 15+ devices with 16 KB pages); built here, it follows the NDK's 16 KB alignment.
+add_library(sqlite3_static STATIC libs/sqlite/sqlite3.c)
+target_include_directories(sqlite3_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/libs/sqlite)
+target_compile_definitions(sqlite3_static PRIVATE
+        SQLITE_THREADSAFE=1           # serialized: safe from any JNI thread
+        SQLITE_DQS=0                  # no double-quoted string literals
+        SQLITE_DEFAULT_MEMSTATUS=0
+        SQLITE_OMIT_LOAD_EXTENSION    # no dlopen of extensions
+        SQLITE_OMIT_DEPRECATED
+        SQLITE_USE_ALLOCA
+)
+set_target_properties(sqlite3_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # protobuf lite import
 # FIND THREADS (This populates CMAKE_THREAD_LIBS_INIT) and force protobuf to use it
@@ -43,12 +56,12 @@ include("${protobuf_cmake_dir}/libprotobuf-lite.cmake")
 
 target_include_directories(dictionary_translator_interface PRIVATE
         #${CMAKE_CURRENT_SOURCE_DIR}/libs/sentencepiece/third_party/protobuf-lite
-        ${CMAKE_CURRENT_SOURCE_DIR}/sqlite4java/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/sqlite
 )
 
 target_link_libraries(dictionary_translator_interface
         libprotobuf-lite
-        sqlite4java-android::sqlite4java
+        sqlite3_static
         android
         log
 )
