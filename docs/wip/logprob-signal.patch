@@ -1,0 +1,575 @@
+From b86c90766d3c4d58b272a8da6c9b9ebdb6c01fa8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 26 Nov 2026 04:41:31 +0000
+Subject: [PATCH] jane: decoder log-probability per hypothesis (Backend.Scored)
+ - tie-break among equally severe hard candidates, low-confidence flag hook;
+ runner/JaneEval protocol extended (backward compatible)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01RWR1fuqhM5QqVKkUduJ9o8
+---
+ .../translator/rtranslator/jane/Backend.java  | 23 ++++++
+ .../rtranslator/jane/JaNeTranslator.java      | 80 +++++++++++++++----
+ .../translation/Translator.java               | 58 ++++++++++++--
+ .../rtranslator/jane/JaNeLibraryTest.java     | 38 +++++++++
+ tools/eval/JaneEval.java                      | 32 +++++++-
+ tools/eval/onnx_runner.py                     | 36 ++++++---
+ tools/eval/test_onnx_runner.py                | 15 ++++
+ 7 files changed, 245 insertions(+), 37 deletions(-)
+
+diff --git a/app/src/main/java/nie/translator/rtranslator/jane/Backend.java b/app/src/main/java/nie/translator/rtranslator/jane/Backend.java
+index ca43eec..0813e9e 100644
+--- a/app/src/main/java/nie/translator/rtranslator/jane/Backend.java
++++ b/app/src/main/java/nie/translator/rtranslator/jane/Backend.java
+@@ -22,4 +22,27 @@ public interface Backend {
+     default List<String> translateNBestWide(String text, String srcLang, String tgtLang, int n, int beam) throws Exception {
+         return translateNBest(text, srcLang, tgtLang, n);
+     }
++
++    /** One hypothesis with its length-normalised log-probability (sum of token log-probs / tokens); NaN when unknown. */
++    final class Scored {
++        public final String text;
++        public final double logProb;
++        public Scored(String text, double logProb) { this.text = text; this.logProb = logProb; }
++    }
++
++    /** {@link #translateNBest} with the decoder's log-probability per hypothesis. Default: NaN (no signal). */
++    default List<Scored> translateNBestScored(String text, String srcLang, String tgtLang, int n) throws Exception {
++        return unscored(translateNBest(text, srcLang, tgtLang, n));
++    }
++
++    /** {@link #translateNBestWide} with log-probabilities. Default: NaN (no signal). */
++    default List<Scored> translateNBestWideScored(String text, String srcLang, String tgtLang, int n, int beam) throws Exception {
++        return unscored(translateNBestWide(text, srcLang, tgtLang, n, beam));
++    }
++
++    static List<Scored> unscored(List<String> hyps) {
++        List<Scored> out = new java.util.ArrayList<>();
++        for (String h : hyps) out.add(new Scored(h, Double.NaN));
++        return out;
++    }
+ }
+diff --git a/app/src/main/java/nie/translator/rtranslator/jane/JaNeTranslator.java b/app/src/main/java/nie/translator/rtranslator/jane/JaNeTranslator.java
+index 7e63171..8cf1d61 100644
+--- a/app/src/main/java/nie/translator/rtranslator/jane/JaNeTranslator.java
++++ b/app/src/main/java/nie/translator/rtranslator/jane/JaNeTranslator.java
+@@ -23,14 +23,19 @@ public final class JaNeTranslator {
+         public final String label, input, output, backTranslation;
+         public final double score;
+         public final List<TranslationValidator.Issue> issues;
++        /** decoder log-probability (length-normalised) of this output when it came from a beam hypothesis; NaN otherwise */
++        public final double logProb;
+         Candidate(String label, String input, String output, String backTranslation, double score) {
+             this(label, input, output, backTranslation, score, Collections.emptyList());
+         }
+         Candidate(String label, String input, String output, String backTranslation, double score, List<TranslationValidator.Issue> issues) {
+-            this.label = label; this.input = input; this.output = output; this.backTranslation = backTranslation; this.score = score; this.issues = issues;
++            this(label, input, output, backTranslation, score, issues, Double.NaN);
++        }
++        Candidate(String label, String input, String output, String backTranslation, double score, List<TranslationValidator.Issue> issues, double logProb) {
++            this.label = label; this.input = input; this.output = output; this.backTranslation = backTranslation; this.score = score; this.issues = issues; this.logProb = logProb;
+         }
+         public int hard() { return TranslationValidator.hardCount(issues); }
+-        @Override public String toString() { return label + " hard=" + hard() + " score=" + String.format("%.3f", score) + " issues=" + issues + " -> " + output; }
++        @Override public String toString() { return label + " hard=" + hard() + " score=" + String.format("%.3f", score) + " lp=" + String.format("%.3f", logProb) + " issues=" + issues + " -> " + output; }
+     }
+ 
+     public static final class Result {
+@@ -39,10 +44,16 @@ public final class JaNeTranslator {
+         /** problems detected in the chosen translation (empty when none) */
+         public final List<TranslationValidator.Issue> issues;
+         Result(String text, List<Candidate> candidates) { this(text, candidates, Collections.emptyList()); }
+-        Result(String text, List<Candidate> candidates, List<TranslationValidator.Issue> issues) { this.text = text; this.candidates = candidates; this.issues = issues; }
++        /** the decoder was much less sure of the chosen output than of the best hypothesis (see LOW_CONFIDENCE_GAP) */
++        public final boolean lowConfidence;
++        Result(String text, List<Candidate> candidates, List<TranslationValidator.Issue> issues) { this(text, candidates, issues, false); }
++        Result(String text, List<Candidate> candidates, List<TranslationValidator.Issue> issues, boolean lowConfidence) {
++            this.text = text; this.candidates = candidates; this.issues = issues; this.lowConfidence = lowConfidence;
++        }
+ 
+-        /** Abstention (spec v2 part 5): the chosen translation still has a hard problem, so the UI marks it "要確認". */
+-        public boolean needsReview() { return TranslationValidator.hardCount(issues) > 0; }
++        /** Abstention (spec v2 part 5): the chosen translation still has a hard problem, or the decoder had little
++         *  confidence in it, so the UI marks it "要確認". */
++        public boolean needsReview() { return TranslationValidator.hardCount(issues) > 0 || lowConfidence; }
+ 
+         /** Kinds of the hard problems in the chosen translation, without any text (safe to log). */
+         public List<TranslationValidator.Kind> hardKinds() {
+@@ -60,6 +71,9 @@ public final class JaNeTranslator {
+     /** Sets the user's phrase book. A hit adds a "phrase" candidate that is validated and ranked like the others. */
+     public void setPhraseBook(PhraseBook p) { phrases = p == null ? new PhraseBook() : p; }
+     private final TranslationMemory memory;
++    // decoder log-probability of every beam hypothesis seen in the current translate() call, keyed by the
++    // finished output text (jane is called one translation at a time: the app serialises them with a lock)
++    private final Map<String, Double> hypLogProb = new java.util.HashMap<>();
+     private int maxCandidates = 5;
+     private int nBest = 3;
+     private static final double MBR_WEIGHT = 0.3;
+@@ -87,6 +101,7 @@ public final class JaNeTranslator {
+     public void setNBest(int n) { nBest = Math.max(1, n); }
+ 
+     public Result translate(String text, String src, String tgt) throws Exception {
++        hypLogProb.clear();
+         if ("ja".equals(src) && "ne".equals(tgt)) return jaToNe(text);
+         if ("ne".equals(src) && "ja".equals(tgt)) return neToJa(text);
+         String out = backend.translate(text, src, tgt);
+@@ -173,10 +188,11 @@ public final class JaNeTranslator {
+             List<String> segs = e.getValue();
+             if (segs.size() == 1 && nBest > 1) {
+                 // one model call, several beam hypotheses: diversity at no extra encoder cost
+-                List<String> hyps = backend.translateNBest(segs.get(0), "ja", "ne", nBest);
++                List<Backend.Scored> hyps = backend.translateNBestScored(segs.get(0), "ja", "ne", nBest);
+                 for (int k = 0; k < hyps.size(); k++) {
+-                    String out = finishNe(hyps.get(k), whole);
++                    String out = finishNe(hyps.get(k).text, whole);
+                     if (out.isEmpty()) continue;
++                    recordLogProb(out, hyps.get(k).logProb);
+                     String label = k == 0 ? e.getKey() : e.getKey() + "#" + (k + 1);
+                     if (k > 0) required.put(label, required.getOrDefault(e.getKey(), Collections.emptyList()));
+                     cands.add(new Candidate(label, segs.get(0), out, null, Double.NaN));
+@@ -200,7 +216,7 @@ public final class JaNeTranslator {
+         if (diversify && TranslationValidator.hardCount(res.issues) > 0) {
+             // every candidate is hard: one bounded extra round (wider beam, clause split, paraphrase)
+             List<Candidate> more = new ArrayList<>(cands);
+-            addHyps(more, required, mustHave, "wide", whole, backend.translateNBestWide(whole, "ja", "ne", WIDE_NBEST, WIDE_BEAM), true, whole);
++            addHyps(more, required, mustHave, "wide", whole, backend.translateNBestWideScored(whole, "ja", "ne", WIDE_NBEST, WIDE_BEAM), true, whole);
+             if (sentences.size() == 1) {
+                 List<String> clauses = JaParaphrase.clauses(whole);
+                 if (clauses.size() > 1) {
+@@ -210,7 +226,7 @@ public final class JaNeTranslator {
+             }
+             String para = JaParaphrase.paraphrase(termsText);
+             if (!para.equals(termsText))
+-                addHyps(more, required, mustHave, "para", para, backend.translateNBest(para, "ja", "ne", nBest), false, whole);
++                addHyps(more, required, mustHave, "para", para, backend.translateNBestScored(para, "ja", "ne", nBest), false, whole);
+             if (more.size() > cands.size()) res = rerank(more, whole, required, preferred, "ne", "ja", extraVowel);
+         }
+         remember(res, injWhole.applied, labelNames);
+@@ -265,10 +281,11 @@ public final class JaNeTranslator {
+             List<String> segs = e.getValue();
+             if (segs.size() == 1 && nBest > 1) {
+                 // beam alternatives: the baseline turned १,००० रुपैयाँ into 「100万円」 with no other candidate
+-                List<String> hyps = backend.translateNBest(segs.get(0), "ne", "ja", nBest);
++                List<Backend.Scored> hyps = backend.translateNBestScored(segs.get(0), "ne", "ja", nBest);
+                 for (int k = 0; k < hyps.size(); k++) {
+-                    String out = finishJa(hyps.get(k));
++                    String out = finishJa(hyps.get(k).text);
+                     if (out.isEmpty()) continue;
++                    recordLogProb(out, hyps.get(k).logProb);
+                     String label = k == 0 ? e.getKey() : e.getKey() + "#" + (k + 1);
+                     required.putIfAbsent(label, rev.requiredTargets);
+                     cands.add(new Candidate(label, segs.get(0), out, null, Double.NaN));
+@@ -291,10 +308,10 @@ public final class JaNeTranslator {
+         Result res = rerank(cands, t, required, neToJaPreferred, "ja", "ne");
+         if (diversify && TranslationValidator.hardCount(res.issues) > 0) {
+             List<Candidate> more = new ArrayList<>(cands);
+-            addHyps(more, required, rev.requiredTargets, "wide", t, backend.translateNBestWide(t, "ne", "ja", WIDE_NBEST, WIDE_BEAM), true, null);
++            addHyps(more, required, rev.requiredTargets, "wide", t, backend.translateNBestWideScored(t, "ne", "ja", WIDE_NBEST, WIDE_BEAM), true, null);
+             String para = NeParaphrase.paraphrase(rev.text);
+             if (!para.equals(rev.text))
+-                addHyps(more, required, rev.requiredTargets, "para", para, backend.translateNBest(para, "ne", "ja", nBest), false, null);
++                addHyps(more, required, rev.requiredTargets, "para", para, backend.translateNBestScored(para, "ne", "ja", nBest), false, null);
+             if (more.size() > cands.size()) res = rerank(more, t, required, neToJaPreferred, "ja", "ne");
+         }
+         if (diversify && TranslationValidator.hardCount(res.issues) > 0) {
+@@ -321,10 +338,11 @@ public final class JaNeTranslator {
+ 
+     /** Adds beam hypotheses as candidates; with allHash every label carries "#" (fallback-only alternatives). */
+     private void addHyps(List<Candidate> into, Map<String, List<String>> required, List<String> req, String base, String input,
+-                         List<String> hyps, boolean allHash, String jaWhole) {
++                         List<Backend.Scored> hyps, boolean allHash, String jaWhole) {
+         for (int k = 0; k < hyps.size(); k++) {
+-            String out = jaWhole != null ? finishNe(hyps.get(k), jaWhole) : finishJa(hyps.get(k));
++            String out = jaWhole != null ? finishNe(hyps.get(k).text, jaWhole) : finishJa(hyps.get(k).text);
+             if (out.isEmpty()) continue;
++            recordLogProb(out, hyps.get(k).logProb);
+             String label = allHash || k > 0 ? base + "#" + (k + 1) : base;
+             required.put(label, req);
+             into.add(new Candidate(label, input, out, null, Double.NaN));
+@@ -371,7 +389,7 @@ public final class JaNeTranslator {
+                 for (Candidate o : unique) if (o != c) agree += QualityScorer.chrF(c.output, o.output);
+                 s += MBR_WEIGHT * agree / (unique.size() - 1);
+             }
+-            Candidate sc = new Candidate(c.label, c.input, c.output, back, s, withExtraVowel(validate(source, c.output, req, outLang), c.output, extraVowel));
++            Candidate sc = new Candidate(c.label, c.input, c.output, back, s, withExtraVowel(validate(source, c.output, req, outLang), c.output, extraVowel), logProbOf(c.output));
+             scored.add(sc);
+             if (best == null || better(sc, best)) best = sc;
+         }
+@@ -383,7 +401,7 @@ public final class JaNeTranslator {
+             for (Candidate c : scored) if (!c.label.contains("#") && (primary == null || better(c, primary))) primary = c;
+             if (primary != null && primary.hard() == 0) best = primary;
+         }
+-        return new Result(best.output, scored, best.issues);
++        return new Result(best.output, scored, best.issues, lowConfidence(best, scored));
+     }
+ 
+     private static List<TranslationValidator.Issue> withRequiredTerms(List<TranslationValidator.Issue> issues, String output, List<String> req) {
+@@ -411,6 +429,31 @@ public final class JaNeTranslator {
+         return hit / (double) preferred.size();
+     }
+ 
++    private void recordLogProb(String output, double lp) {
++        if (Double.isNaN(lp)) return;
++        Double old = hypLogProb.get(output);
++        if (old == null || lp > old) hypLogProb.put(output, lp);   // same text from several inputs: keep the most confident
++    }
++
++    private double logProbOf(String output) {
++        Double lp = hypLogProb.get(output);
++        return lp == null ? Double.NaN : lp;
++    }
++
++    /**
++     * Low-confidence gap (nats per token) between the most confident hypothesis among the candidates and the
++     * chosen one. Calibrated on the seed set (docs/eval/2026-11-26_jane-v7-logprob-seed.md): no chosen output
++     * whose validator verdict was clean exceeded it. NaN disables the flag.
++     */
++    static double LOW_CONFIDENCE_GAP = Double.NaN;
++
++    static boolean lowConfidence(Candidate chosen, List<Candidate> scored) {
++        if (Double.isNaN(LOW_CONFIDENCE_GAP) || Double.isNaN(chosen.logProb)) return false;
++        double top = Double.NEGATIVE_INFINITY;
++        for (Candidate c : scored) if (!Double.isNaN(c.logProb) && c.logProb > top) top = c.logProb;
++        return top - chosen.logProb > LOW_CONFIDENCE_GAP;
++    }
++
+     static boolean better(Candidate a, Candidate b) {
+         if (a.hard() != b.hard() && (a.hard() == 0 || b.hard() == 0)) return a.hard() < b.hard();
+         if (a.hard() > 0 && b.hard() > 0) {
+@@ -419,6 +462,9 @@ public final class JaNeTranslator {
+             int sa = severity(a.issues), sb = severity(b.issues);
+             if (sa != sb) return sa < sb;
+             if (a.hard() != b.hard()) return a.hard() < b.hard();
++            // same severity and count: the decoder's own confidence breaks the tie when both are known
++            // (SourceContributionAnalyzer, spec 15 P1); the round-trip score stays the fallback
++            if (!Double.isNaN(a.logProb) && !Double.isNaN(b.logProb) && a.logProb != b.logProb) return a.logProb > b.logProb;
+         }
+         return a.score > b.score;
+     }
+diff --git a/app/src/main/java/nie/translator/rtranslator/voice_translation/neural_networks/translation/Translator.java b/app/src/main/java/nie/translator/rtranslator/voice_translation/neural_networks/translation/Translator.java
+index f938a88..cb7ad3a 100644
+--- a/app/src/main/java/nie/translator/rtranslator/voice_translation/neural_networks/translation/Translator.java
++++ b/app/src/main/java/nie/translator/rtranslator/voice_translation/neural_networks/translation/Translator.java
+@@ -187,6 +187,8 @@ public class Translator extends NeuralNetworkApi {
+     private static final ThreadLocal<Boolean> SILENT = new ThreadLocal<>();
+     // when set (by the jane backend), executeCacheDecoder appends the beam N-best token sequences here
+     private static final ThreadLocal<List<int[]>> NBEST = new ThreadLocal<>();
++    // parallel to NBEST: length-normalised log-probability of each sequence (NaN for unfinished beams)
++    private static final ThreadLocal<List<Double>> NBEST_LP = new ThreadLocal<>();
+     // beam used by the jane backend, refreshed on every call (the backend lambda is cached)
+     private volatile int janeBeamSize = JA_NE_BEAM_SIZE;
+     // serialises translations: model switching and jane calls share the ONNX sessions
+@@ -268,6 +270,16 @@ public class Translator extends NeuralNetworkApi {
+                     public List<String> translateNBestWide(String t, String src, String tgt, int n, int beam) throws Exception {
+                         return silentTranslateNBest(t, src, tgt, Math.max(janeBeamSize, beam), n);   //only when every candidate is hard
+                     }
++
++                    @Override
++                    public List<nie.translator.rtranslator.jane.Backend.Scored> translateNBestScored(String t, String src, String tgt, int n) throws Exception {
++                        return silentTranslateNBestScored(t, src, tgt, janeBeamSize, n);
++                    }
++
++                    @Override
++                    public List<nie.translator.rtranslator.jane.Backend.Scored> translateNBestWideScored(String t, String src, String tgt, int n, int beam) throws Exception {
++                        return silentTranslateNBestScored(t, src, tgt, Math.max(janeBeamSize, beam), n);
++                    }
+                 }, glossary);
+                 janeTranslator.setPhraseBook(phraseBook);
+                 janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried
+@@ -287,26 +299,50 @@ public class Translator extends NeuralNetworkApi {
+ 
+     /** Beam N-best of a single model call (falls back to the 1-best when the text must be split). */
+     private List<String> silentTranslateNBest(String text, String src, String tgt, int beamSize, int n) throws Exception {
+-        CustomLocale in = CustomLocale.getInstance(src), out = CustomLocale.getInstance(tgt);
+         ArrayList<String> results = new ArrayList<>();
++        for (nie.translator.rtranslator.jane.Backend.Scored h : silentTranslateNBestScored(text, src, tgt, beamSize, n)) results.add(h.text);
++        return results;
++    }
++
++    /** Like silentTranslateNBest, with each hypothesis' length-normalised log-probability (NaN when unknown). */
++    private List<nie.translator.rtranslator.jane.Backend.Scored> silentTranslateNBestScored(String text, String src, String tgt, int beamSize, int n) throws Exception {
++        CustomLocale in = CustomLocale.getInstance(src), out = CustomLocale.getInstance(tgt);
++        ArrayList<nie.translator.rtranslator.jane.Backend.Scored> results = new ArrayList<>();
+         if (beamSize < 2 || tokenize(text, in, out, true).getInputIDs().length >= 200) {
+-            results.add(silentTranslate(text, src, tgt, beamSize));
++            results.add(new nie.translator.rtranslator.jane.Backend.Scored(silentTranslate(text, src, tgt, beamSize), Double.NaN));
+             return results;
+         }
+         Boolean previous = SILENT.get();
+         SILENT.set(Boolean.TRUE);
+         ArrayList<int[]> sink = new ArrayList<>();
++        ArrayList<Double> sinkLp = new ArrayList<>();
+         NBEST.set(sink);
++        NBEST_LP.set(sinkLp);
+         try {
+             String best = performNNTextTranslation(text, new String[]{""}, in, out, beamSize, false, null);
+-            if (best != null && !best.trim().isEmpty()) results.add(best.trim());
++            ArrayList<String> decoded = new ArrayList<>();
+             for (int[] ids : sink) {
+-                if (results.size() >= n) break;
+                 String d = tokenizer.decode(ids);
+-                if (d != null && !d.trim().isEmpty() && !results.contains(d.trim())) results.add(d.trim());
++                decoded.add(d == null ? "" : d.trim());
++            }
++            ArrayList<String> seen = new ArrayList<>();
++            if (best != null && !best.trim().isEmpty()) {
++                String b = best.trim();
++                int at = decoded.indexOf(b);
++                results.add(new nie.translator.rtranslator.jane.Backend.Scored(b, at >= 0 && at < sinkLp.size() ? sinkLp.get(at) : Double.NaN));
++                seen.add(b);
++            }
++            for (int i = 0; i < decoded.size(); i++) {
++                if (results.size() >= n) break;
++                String d = decoded.get(i);
++                if (!d.isEmpty() && !seen.contains(d)) {
++                    results.add(new nie.translator.rtranslator.jane.Backend.Scored(d, i < sinkLp.size() ? sinkLp.get(i) : Double.NaN));
++                    seen.add(d);
++                }
+             }
+         } finally {
+             NBEST.remove();
++            NBEST_LP.remove();
+             if (previous == null) SILENT.remove(); else SILENT.set(previous);
+         }
+         return results;
+@@ -1712,9 +1748,17 @@ public class Translator extends NeuralNetworkApi {
+                 for(int i = 0; i < finishedBeamSentences.size(); i++) order.add(i);
+                 final ArrayList<Double> probs = finishedBeamSentencesProbabilities;
+                 order.sort((a, b) -> Double.compare(probs.get(b), probs.get(a)));
+-                for(int i : order) nbestSink.add(finishedBeamSentences.get(i));
++                List<Double> lpSink = NBEST_LP.get();
++                for(int i : order) {
++                    nbestSink.add(finishedBeamSentences.get(i));
++                    //length-normalised log-probability: the (already normalised, alpha 0 = raw) score per token
++                    if(lpSink != null) lpSink.add(probs.get(i) / Math.max(1, finishedBeamSentences.get(i).length));
++                }
+                 if(nbestSink.isEmpty()){
+-                    for(ArrayList<Integer> beam : completeBeamOutput) nbestSink.add(beam.stream().mapToInt(k -> k).toArray());
++                    for(ArrayList<Integer> beam : completeBeamOutput) {
++                        nbestSink.add(beam.stream().mapToInt(k -> k).toArray());
++                        if(lpSink != null) lpSink.add(Double.NaN);
++                    }
+                 }
+             }
+             //selection of the best final result
+diff --git a/app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java b/app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java
+index 10f1341..adaa31d 100644
+--- a/app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java
++++ b/app/src/test/java/nie/translator/rtranslator/jane/JaNeLibraryTest.java
+@@ -569,6 +569,44 @@ public class JaNeLibraryTest {
+             tc.setDiversify(false);
+             yes(tc.translate("यसको मूल्य १,००० रुपैयाँ हो।", "ne", "ja").needsReview(), "without the extra round nj12 stays hard");
+         }
++        {
++            // decoder log-probability (SourceContributionAnalyzer): tie-break only among hard candidates of equal severity
++            java.util.List<TranslationValidator.Issue> rep = java.util.Arrays.asList(new TranslationValidator.Issue(TranslationValidator.Kind.REPETITION, true, null));
++            JaNeTranslator.Candidate hi = new JaNeTranslator.Candidate("hi", "", "x", null, 0.1, rep, -0.2);
++            JaNeTranslator.Candidate lo = new JaNeTranslator.Candidate("lo", "", "y", null, 0.9, rep, -1.5);
++            yes(JaNeTranslator.better(hi, lo), "equal severity: higher log-prob wins over a higher round-trip score");
++            JaNeTranslator.Candidate nan = new JaNeTranslator.Candidate("nan", "", "z", null, 0.9, rep, Double.NaN);
++            yes(JaNeTranslator.better(nan, hi), "unknown log-prob: the score decides as before");
++            JaNeTranslator.Candidate cleanLow = new JaNeTranslator.Candidate("c", "", "w", null, 0.5, java.util.Collections.emptyList(), -3.0);
++            JaNeTranslator.Candidate cleanHigh = new JaNeTranslator.Candidate("d", "", "v", null, 0.4, java.util.Collections.emptyList(), -0.1);
++            yes(JaNeTranslator.better(cleanLow, cleanHigh), "clean candidates: the score still decides (log-prob is not a quality score)");
++            java.util.List<TranslationValidator.Issue> num = java.util.Arrays.asList(new TranslationValidator.Issue(TranslationValidator.Kind.NUMBER_LOST, true, "1"));
++            JaNeTranslator.Candidate sure = new JaNeTranslator.Candidate("s", "", "u", null, 0.1, num, -0.01);
++            yes(JaNeTranslator.better(hi, sure), "severity still comes first");
++            double saved = JaNeTranslator.LOW_CONFIDENCE_GAP;
++            try {
++                java.util.List<JaNeTranslator.Candidate> pool = java.util.Arrays.asList(cleanLow, cleanHigh);
++                JaNeTranslator.LOW_CONFIDENCE_GAP = Double.NaN;
++                yes(!JaNeTranslator.lowConfidence(cleanLow, pool), "flag disabled when uncalibrated");
++                JaNeTranslator.LOW_CONFIDENCE_GAP = 1.0;
++                yes(JaNeTranslator.lowConfidence(cleanLow, pool), "gap 2.9 > 1.0: low confidence");
++                yes(!JaNeTranslator.lowConfidence(cleanHigh, pool), "chosen is the most confident: no flag");
++                yes(!JaNeTranslator.lowConfidence(nan, pool), "unknown chosen log-prob: no flag");
++                // end to end: scored backend, flag reaches Result.needsReview
++                Backend sb = new Backend() {
++                    public String translate(String text, String s, String t) { return "ja".equals(t) ? "こんにちは。" : "नमस्ते।"; }
++                    public java.util.List<Backend.Scored> translateNBestScored(String text, String s, String t, int n) {
++                        return java.util.Arrays.asList(new Backend.Scored("नमस्ते।", -0.1));
++                    }
++                };
++                JaNeTranslator.Result rlp = new JaNeTranslator(sb, Glossary.withDefaults()).translate("こんにちは。", "ja", "ne");
++                yes(!rlp.lowConfidence, "single hypothesis is never low confidence");
++                for (JaNeTranslator.Candidate cd : rlp.candidates) yes(Double.isNaN(cd.logProb) || cd.logProb == -0.1, "candidate carries the backend log-prob");
++            } finally {
++                JaNeTranslator.LOW_CONFIDENCE_GAP = saved;
++            }
++        }
++
+         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
+         if (failures > 0) System.exit(1);
+     }
+diff --git a/tools/eval/JaneEval.java b/tools/eval/JaneEval.java
+index c3f0317..467a49e 100644
+--- a/tools/eval/JaneEval.java
++++ b/tools/eval/JaneEval.java
+@@ -28,14 +28,23 @@ public class JaneEval {
+             r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8));
+         }
+         synchronized List<String> call(String tgt, int beam, int n, String text) throws IOException {
++            List<String> out = new ArrayList<>();
++            for (Backend.Scored h : callScored(tgt, beam, n, text)) out.add(h.text);
++            return out;
++        }
++        synchronized List<Backend.Scored> callScored(String tgt, int beam, int n, String text) throws IOException {
+             w.write(tgt + "\t" + beam + "\t" + n + "\t" + esc(text) + "\n");
+             w.flush();
+             String line = r.readLine();
+             if (line == null) throw new IOException("runner exited");
+             String[] parts = line.split("\t", -1);
+             int k = Integer.parseInt(parts[0]);
+-            List<String> out = new ArrayList<>();
+-            for (int i = 1; i <= k; i++) out.add(unesc(parts[i]));
++            List<Backend.Scored> out = new ArrayList<>();
++            for (int i = 1; i <= k; i++) {
++                double lp = Double.NaN;   // trailing log-probabilities (newer runners); "nan" when unknown
++                if (parts.length > k + i) { try { lp = Double.parseDouble(parts[k + i]); } catch (NumberFormatException ignored) { } }
++                out.add(new Backend.Scored(unesc(parts[i]), lp));
++            }
+             return out;
+         }
+         public void close() { p.destroy(); }
+@@ -60,6 +69,7 @@ public class JaneEval {
+         int beam = Integer.parseInt(a.getOrDefault("--beam", "4"));   // the app forces beam >= 4 for ja<->ne
+         int nbest = Integer.parseInt(a.getOrDefault("--nbest", "3"));
+         String only = a.get("--only");   // e.g. ja-ne
++        final boolean noLp = a.containsKey("--no-logprob");   // ignore the decoder log-probabilities (old behaviour)
+         try (Py py = new Py(a.get("--models"));
+              BufferedWriter out = Files.newBufferedWriter(Paths.get(a.get("--out")), StandardCharsets.UTF_8)) {
+             Backend backend = new Backend() {
+@@ -73,7 +83,15 @@ public class JaneEval {
+                 public List<String> translateNBestWide(String text, String src, String tgt, int n, int b) throws Exception {
+                     return py.call(tgt, Math.max(beam, b), n, text);
+                 }
++                public List<Backend.Scored> translateNBestScored(String text, String src, String tgt, int n) throws Exception {
++                    return noLp ? Backend.unscored(translateNBest(text, src, tgt, n)) : py.callScored(tgt, beam, Math.min(n, nbest), text);
++                }
++                public List<Backend.Scored> translateNBestWideScored(String text, String src, String tgt, int n, int b) throws Exception {
++                    return noLp ? Backend.unscored(translateNBestWide(text, src, tgt, n, b)) : py.callScored(tgt, Math.max(beam, b), n, text);
++                }
+             };
++            // --lpdump FILE: per row, the chosen candidate's log-prob, the best candidate log-prob and the gap (calibration)
++            BufferedWriter lpdump = a.containsKey("--lpdump") ? Files.newBufferedWriter(Paths.get(a.get("--lpdump")), StandardCharsets.UTF_8) : null;
+             for (String line : Files.readAllLines(Paths.get(a.get("--in")), StandardCharsets.UTF_8)) {
+                 if (line.startsWith("#") || line.startsWith("id\t") || line.trim().isEmpty()) continue;
+                 String[] c = line.split("\t", -1);
+@@ -93,8 +111,18 @@ public class JaneEval {
+                 String o = r.text == null ? "" : r.text.replace("\t", " ").replace("\n", " ");
+                 out.write(id + "\t" + o + "\n");
+                 out.flush();
++                if (lpdump != null) {
++                    double chosen = Double.NaN, top = Double.NaN; int hard = 0; String label = "";
++                    for (JaNeTranslator.Candidate cd : r.candidates) {
++                        if (!Double.isNaN(cd.logProb) && (Double.isNaN(top) || cd.logProb > top)) top = cd.logProb;
++                        if (cd.output.equals(r.text)) { chosen = cd.logProb; hard = cd.hard(); label = cd.label; }
++                    }
++                    lpdump.write(id + "\t" + label + "\t" + hard + "\t" + chosen + "\t" + top + "\t" + (top - chosen) + "\t" + r.lowConfidence + "\n");
++                    lpdump.flush();
++                }
+                 System.err.println(id + " " + (System.currentTimeMillis() - t0) + "ms cands=" + r.candidates.size() + " issues=" + r.issues + " -> " + o);
+             }
++            if (lpdump != null) lpdump.close();
+         }
+     }
+ }
+diff --git a/tools/eval/onnx_runner.py b/tools/eval/onnx_runner.py
+index 3b5956d..c7df66f 100644
+--- a/tools/eval/onnx_runner.py
++++ b/tools/eval/onnx_runner.py
+@@ -365,8 +365,11 @@ class MadladRunner:
+             dec_past = {i: (reorder_cache(k, src), reorder_cache(v, src)) for i, (k, v) in present.items()}
+             j += 1
+             stop = len(finished) >= p_len
+-        self._last_nbest = ([finished[i] for i in sorted(range(len(finished)), key=lambda i: -finished_scores[i])]
+-                            if finished else [list(b) for b in beams])
++        order = sorted(range(len(finished)), key=lambda i: -finished_scores[i])
++        self._last_nbest = [finished[i] for i in order] if finished else [list(b) for b in beams]
++        # length-normalised log-probability per hypothesis (score / tokens); NaN for unfinished beams
++        self._last_nbest_lp = ([finished_scores[i] / max(1, len(finished[i])) for i in order]
++                               if finished else [float("nan")] * len(beams))
+         if finished_scores:
+             return finished[first_index_of_max(finished_scores)]
+         return beams[first_index_of_max(scores)]
+@@ -377,15 +380,24 @@ class MadladRunner:
+     def translate_nbest(self, text, tgt_lang, beam, n):
+         """Mirror of Translator.silentTranslateNBest: the chosen best first, then the beam N-best sink
+         (finished sentences by score, or the active beams when none finished), de-duplicated, up to n."""
+-        self._last_nbest = []
++        return [h for h, _ in self.translate_nbest_scored(text, tgt_lang, beam, n)]
++
++    def translate_nbest_scored(self, text, tgt_lang, beam, n):
++        """translate_nbest with each hypothesis' length-normalised log-probability (NaN when unknown:
++        greedy decoding, or a beam that never finished)."""
++        self._last_nbest, self._last_nbest_lp = [], []
+         best = self.translate(text, tgt_lang, beam).strip()
+-        out = [best] if best else []
+-        for ids in (self._last_nbest if beam > 1 else []):
++        decoded = [(decode_ids(self.id_to_piece, ids).strip(), lp)
++                   for ids, lp in zip(self._last_nbest, self._last_nbest_lp)] if beam > 1 else []
++        nan = float("nan")
++        out = []
++        if best:
++            out.append((best, next((lp for d, lp in decoded if d == best), nan)))
++        for d, lp in decoded:
+             if len(out) >= n:
+                 break
+-            d = decode_ids(self.id_to_piece, ids).strip()
+-            if d and d not in out:
+-                out.append(d)
++            if d and d not in [h for h, _ in out]:
++                out.append((d, lp))
+         return out
+ 
+ 
+@@ -409,7 +421,8 @@ def _unesc(s):
+ 
+ def serve(runner, inp=None, out=None):
+     """Line protocol for tools/eval/JaneEval.java. Request: tgt<TAB>beam<TAB>n<TAB>escaped text.
+-    Response: count<TAB>escaped hyp1<TAB>escaped hyp2 ... (count = number of hypotheses)."""
++    Response: count<TAB>escaped hyp1<TAB>escaped hyp2 ...<TAB>lp1<TAB>lp2 ... (count = number of hypotheses;
++    the trailing length-normalised log-probabilities, "nan" when unknown, are ignored by older clients)."""
+     inp = inp or sys.stdin
+     out = out or sys.stdout
+     for line in inp:
+@@ -417,8 +430,9 @@ def serve(runner, inp=None, out=None):
+         if not line:
+             continue
+         tgt, beam, n, text = line.split("\t", 3)
+-        hyps = runner.translate_nbest(_unesc(text), tgt, int(beam), int(n))
+-        out.write("\t".join([str(len(hyps))] + [_esc(h) for h in hyps]) + "\n")
++        scored = runner.translate_nbest_scored(_unesc(text), tgt, int(beam), int(n))
++        out.write("\t".join([str(len(scored))] + [_esc(h) for h, _ in scored]
++                            + [("nan" if lp != lp else f"{lp:.6f}") for _, lp in scored]) + "\n")
+         out.flush()
+ 
+ 
+diff --git a/tools/eval/test_onnx_runner.py b/tools/eval/test_onnx_runner.py
+index a25545b..0aa9950 100644
+--- a/tools/eval/test_onnx_runner.py
++++ b/tools/eval/test_onnx_runner.py
+@@ -183,5 +183,20 @@ class DryRun(unittest.TestCase):
+         self.assertEqual(rc, 1)
+ 
+ 
++class ServeProtocol(unittest.TestCase):
++    def test_serve_appends_logprobs(self):
++        import io
++
++        class Fake:
++            def translate_nbest_scored(self, text, tgt, beam, n):
++                return [("a\tb", -0.25), ("c", float("nan"))]
++        out = io.StringIO()
++        R.serve(Fake(), inp=io.StringIO("ne\t4\t3\tx\n"), out=out)
++        parts = out.getvalue().rstrip("\n").split("\t")
++        self.assertEqual(parts[0], "2")
++        self.assertEqual(parts[1:3], ["a\\tb", "c"])   # hypotheses stay escaped; old clients read only these
++        self.assertEqual(parts[3:], ["-0.250000", "nan"])
++
++
+ if __name__ == "__main__":
+     unittest.main()
+-- 
+2.43.0
+
