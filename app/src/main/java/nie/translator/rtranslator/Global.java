@@ -411,7 +411,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
                         "Madlad-v2.zip",
                         nie.translator.rtranslator.downloader.ModelSources.url("Madlad-v2.zip"),
                         downloadFolder + "/Translation/",
-                        1320000,
+                        1430000,
                         true,
                         true)
 

@@ -89,6 +89,64 @@ public class Translator extends NeuralNetworkApi {
     private OrtSession cacheInitSession;
     private OrtSession embedAndLmHeadSession;
     private OrtSession embedSession;
+    // Output vocabulary of the logits being decoded: logit index i is token outputVocab[i]; null = the logits
+    // cover the whole vocabulary (index == token id). Set for each translation by selectMadladHead.
+    @Nullable
+    private volatile int[] outputVocab;
+    // Madlad-v2: decoder body + output layers (null paths / sessions = the single-file decoder of Madlad.zip)
+    @Nullable private String madladJaneHeadPath, madladFullHeadPath;
+    @Nullable private int[] madladJaneVocab;
+    @Nullable private OrtSession madladJaneHeadSession, madladFullHeadSession;
+
+    /**
+     * The output layer for this translation: the ja/ne head (fewer logits) for a Japanese or Nepali target,
+     * otherwise the full head, created on first use. Also sets {@link #outputVocab}. null = the decoder
+     * computes the logits itself (Madlad.zip, or another model).
+     */
+    @Nullable
+    private OrtSession selectMadladHead(CustomLocale outputLanguage) throws OrtException {
+        if (mode != MADLAD_CACHE || madladJaneHeadSession == null) {
+            outputVocab = null;
+            return null;
+        }
+        String tgt = outputLanguage.getCode();
+        if ("ja".equals(tgt) || "ne".equals(tgt)) {
+            outputVocab = madladJaneVocab;
+            return madladJaneHeadSession;
+        }
+        if (madladFullHeadSession == null) {
+            try (OrtSession.SessionOptions o = new OrtSession.SessionOptions()) {
+                o.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.EXTENDED_OPT);
+                o.addConfigEntry("session.intra_op.allow_spinning", "0");
+                madladFullHeadSession = onnxEnv.createSession(madladFullHeadPath, o);
+            }
+        }
+        outputVocab = null;
+        return madladFullHeadSession;
+    }
+
+    /** Token id of a logit index (identity when the decoder scores the whole vocabulary). */
+    private int tokenOf(int logitIndex) {
+        int[] v = outputVocab;
+        return v == null ? logitIndex : v[logitIndex];
+    }
+
+    /** madlad_output_ids.bin: ascending int32 little-endian token ids; null when the file is not valid. */
+    @Nullable
+    private static int[] readOutputVocab(File f) {
+        try {
+            byte[] b = java.nio.file.Files.readAllBytes(f.toPath());
+            if (b.length == 0 || b.length % 4 != 0) return null;
+            java.nio.IntBuffer ib = java.nio.ByteBuffer.wrap(b).order(java.nio.ByteOrder.LITTLE_ENDIAN).asIntBuffer();
+            int[] ids = new int[ib.remaining()];
+            ib.get(ids);
+            for (int i = 1; i < ids.length; i++) if (ids[i] <= ids[i - 1]) return null;   //must be ascending
+            return ids;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
     private LanguageDetector languageDetector;
     private final Map<String, String> nllbLanguagesCodes = new HashMap<>();
     private final Map<String, HyLanguageInfo> hyLanguagesInfo = new HashMap<>();
@@ -346,6 +404,8 @@ public class Translator extends NeuralNetworkApi {
             cacheInitSession.close();
             if (mode == MADLAD_CACHE) {
                 embedSession.close();
+                if (madladJaneHeadSession != null) { madladJaneHeadSession.close(); madladJaneHeadSession = null; }
+                if (madladFullHeadSession != null) { madladFullHeadSession.close(); madladFullHeadSession = null; }
             } else {
                 embedAndLmHeadSession.close();
             }
@@ -360,6 +420,10 @@ public class Translator extends NeuralNetworkApi {
         String vocabPath = "";
         String embedAndLmHeadPath = "";
         String cacheInitializerPath = "";
+        outputVocab = null;   //set per translation (selectMadladHead) when the decoder has separate output layers
+        madladJaneHeadPath = null;
+        madladFullHeadPath = null;
+        madladJaneVocab = null;
 
         if(mode == NLLB || mode == NLLB_CACHE) {
             //8 bit
@@ -400,6 +464,21 @@ public class Translator extends NeuralNetworkApi {
                 File embed4 = new File(basePath + "/madlad_embed_4bit.onnx");
                 embedAndLmHeadPath = embed4.exists() ? embed4.getPath() : basePath + "/madlad_embed_8bit.onnx";
                 cacheInitializerPath = basePath + "/Int4Acc4/madlad_cache_initializer_4bit.onnx";
+                //Madlad-v2.zip: the decoder without its output layer ("body", output pre_logits) + two output
+                //layers: the ja/ne head scores only the tokens a Japanese or Nepali translation can use
+                //(tools/models/output_vocab.py, logit i = token madladJaneVocab[i]), the full head all 256000
+                //(any other target language, loaded only when needed). See tools/models/split_output_layer.py.
+                File body = new File(basePath + "/Int4Acc4/madlad_decoder_4bit_body.onnx");
+                File janeHead = new File(basePath + "/madlad_lm_head_jane.onnx");
+                File fullHead = new File(basePath + "/madlad_lm_head_full.onnx");
+                File janeIds = new File(basePath + "/madlad_output_ids.bin");
+                int[] ids = body.exists() && janeHead.exists() && fullHead.exists() && janeIds.exists() ? readOutputVocab(janeIds) : null;
+                if (ids != null) {
+                    decoderPath = body.getPath();
+                    madladJaneHeadPath = janeHead.getPath();
+                    madladFullHeadPath = fullHead.getPath();
+                    madladJaneVocab = ids;
+                }
             }
         }else {  //hy-mt
             if(Global.USE_EXTERNAL_MEMORY_FOR_RESOURCES) {
@@ -458,6 +537,16 @@ public class Translator extends NeuralNetworkApi {
             embedSession = onnxEnv.createSession(embedAndLmHeadPath, embedAndLmHeadOptions);
         } else if(mode != HY_MT){
             embedAndLmHeadSession = onnxEnv.createSession(embedAndLmHeadPath, embedAndLmHeadOptions);
+        }
+        if (mode == MADLAD_CACHE && madladJaneHeadPath != null) {
+            //small layer: one thread without busy-waiting, so it does not compete with the decoder's thread pool
+            //(measured: decoder + head in two sessions is only faster than one decoder with this setting)
+            try (OrtSession.SessionOptions headOptions = new OrtSession.SessionOptions()) {
+                headOptions.setOptimizationLevel(optDefaultLevel);
+                headOptions.setIntraOpNumThreads(1);
+                headOptions.addConfigEntry("session.intra_op.allow_spinning", "0");
+                madladJaneHeadSession = onnxEnv.createSession(madladJaneHeadPath, headOptions);
+            }
         }
 
         decoderOptions.close();
@@ -1286,6 +1375,9 @@ public class Translator extends NeuralNetworkApi {
             attentionMaskTensorBatched = beamSize > 1 ? batchEncoderAttentionMask(attentionMask, beamSize, true) : null;
             initResultBatched = initResult != null && beamSize > 1 ? batchEncoderKvCache(initResult, nLayers, beamSize, true) : null;  //this is not executed for HY_MT
 
+            //Madlad-v2: the output layer for this target language (null = the decoder outputs the logits itself)
+            final OrtSession madladHead = selectMadladHead(outputLanguage);
+
             //we begin the iterative execution of the decoder
             String[] partialResults = new String[beamSize];  //used for log
             OrtSession.Result result = null;
@@ -1399,6 +1491,12 @@ public class Translator extends NeuralNetworkApi {
                     requestedOutputs.add("logits");
                     lmHeadResult = embedAndLmHeadSession.run(lmHeadInput, requestedOutputs);
                     decoderOutput = (OnnxTensor) lmHeadResult.get(0);
+                }else if(madladHead != null) {
+                    //Madlad-v2: the decoder body outputs pre_logits, the selected output layer the logits
+                    Map<String, OnnxTensor> headInput = new HashMap<String, OnnxTensor>();
+                    headInput.put("pre_logits", (OnnxTensor) result.get("pre_logits").get());
+                    lmHeadResult = madladHead.run(headInput);
+                    decoderOutput = (OnnxTensor) lmHeadResult.get(0);
                 }else {
                     decoderOutput = (OnnxTensor) result.get("logits").get();
                 }
@@ -1411,7 +1509,7 @@ public class Translator extends NeuralNetworkApi {
                             initBeamSearchData(logits, beamSize, max, completeBeamOutput, beamsOutputsProbabilities);
                         } else {
                             int seqLen = logits[0].length;
-                            max[0] = Utils.getIndexOfLargest(logits[0][seqLen - 1]);
+                            max[0] = tokenOf(Utils.getIndexOfLargest(logits[0][seqLen - 1]));
                             completeBeamOutput[0].add(max[0]);
                         }
                     }
@@ -1436,7 +1534,7 @@ public class Translator extends NeuralNetworkApi {
                             initBeamSearchData(logits, beamSize, max, completeBeamOutput, beamsOutputsProbabilities);
                         } else {
                             int seqLen = logits[0].length;
-                            max[0] = Utils.getIndexOfLargest(logits[0][seqLen - 1]);
+                            max[0] = tokenOf(Utils.getIndexOfLargest(logits[0][seqLen - 1]));
                             completeBeamOutput[0].add(max[0]);
                         }
                     }else {
@@ -1447,7 +1545,7 @@ public class Translator extends NeuralNetworkApi {
                             cacheContainer = updateBeamSearchData(logits, beamSize, eos, result, sequenceLength, nLayers, nHeads, hiddenSizeAttention, cacheContainer, maxProbabilities, beamMax, max, completeBeamOutput, beamsOutputsProbabilities, finishedBeamSentences, finishedBeamSentencesProbabilities);
                         } else {
                             int seqLen = logits[0].length;
-                            max[0] = Utils.getIndexOfLargest(logits[0][seqLen - 1]);
+                            max[0] = tokenOf(Utils.getIndexOfLargest(logits[0][seqLen - 1]));
                             completeBeamOutput[0].add(max[0]);
                         }
                     }
@@ -1816,15 +1914,14 @@ public class Translator extends NeuralNetworkApi {
         int seqLen = logits[0].length;
         float[] last = logits[0][seqLen-1];
         //one pass for the top beamSize words (same result as beamSize argmax scans), one for logSumExp
-        int found = Utils.topK(last, beamSize, max);
-        for (int i = 0; i < beamSize; i++) {
-            completeBeamOutput[i].add(max[i]);
-        }
+        int found = Utils.topK(last, beamSize, max);   //logit indexes
         //we insert the initial probabilities of the "beamSize" output strings into beamsOutputsProbabilities
         double logSumExp = found > 0 ? Utils.logSumExpFast(last, last[max[0]]) : Utils.logSumExpFast(last);   //the same for every beam: computed once
         for (int i = 0; i < beamSize; i++) {
             float maxLogit = last[max[i]];
             beamsOutputsProbabilities[i] = maxLogit - logSumExp;
+            max[i] = tokenOf(max[i]);   //from here on, token ids
+            completeBeamOutput[i].add(max[i]);
         }
     }
 
@@ -1840,10 +1937,15 @@ public class Translator extends NeuralNetworkApi {
         // sum is computed in the same order as before, so the probabilities are bit-identical.
         long timeSoftmax = System.currentTimeMillis();
         double[] logSumExps = new double[beamSize];
+        float[][] topLogits = new float[beamSize][beamSize];
         java.util.stream.IntStream.range(0, beamSize).parallel().forEach(k -> {
             float[] last = logits[k][logits[k].length - 1];
-            int found = Utils.topK(last, beamSize, beamMax[k]);
+            int found = Utils.topK(last, beamSize, beamMax[k]);   //logit indexes
             logSumExps[k] = found > 0 ? Utils.logSumExpFast(last, last[beamMax[k][0]]) : Utils.logSumExpFast(last);
+            for (int i = 0; i < beamSize; i++) {
+                topLogits[k][i] = last[beamMax[k][i]];
+                beamMax[k][i] = tokenOf(beamMax[k][i]);   //from here on, token ids (eos, next inputs, output)
+            }
         });
         //Now beamMax will contain for each decoder output ("beamSize" outputs) the "beamSize" words with highest probability,
         // so for each output we calculate its overall probability for each of its "beamSize" words with highest probability
@@ -1853,7 +1955,7 @@ public class Translator extends NeuralNetworkApi {
             int seqLen = logits[k].length;
             double logSumExp = logSumExps[k];
             for (int i = 0; i < beamSize; i++) {
-                float maxLogit = logits[k][seqLen-1][beamMax[k][i]];
+                float maxLogit = topLogits[k][i];   //read by logit index before beamMax became token ids
                 beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilities[k] + maxLogit - logSumExp;
                 if(beamMax[k][i] == eos) {
                     beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilitiesTemp[(k*beamSize)+i] - EOS_PENALTY;

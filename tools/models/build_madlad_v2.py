@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
-"""Builds Madlad-v2.zip from the mirrored Madlad.zip: the embedding table goes from 8 bits (one global
-scale) to 4-bit blocks (GatherBlockQuantized, block 32), everything else is copied byte for byte.
+"""Builds Madlad-v2.zip from the mirrored Madlad.zip:
+  - the embedding table goes from 8 bits (one global scale) to 4-bit blocks (GatherBlockQuantized,
+    block 32): quantize_embed_4bit.py;
+  - the decoder's output layer is split off (split_output_layer.py): Int4Acc4/madlad_decoder_4bit_body.onnx
+    + madlad_lm_head_full.onnx (all 256000 tokens) + madlad_lm_head_jane.onnx (only the tokens a
+    Japanese or Nepali translation can use, listed in madlad_output_ids.bin by output_vocab.py);
+  - the encoder, the cache initializer and spiece.model are copied byte for byte.
 
     python3 build_madlad_v2.py Madlad.zip Madlad-v2.zip [--stored]
 
@@ -8,7 +13,7 @@ Reproducible: the input hash is checked, the quantisation is plain numpy (IEEE, 
 entries are sorted with a fixed timestamp and permissions. With --stored (no compression) the output
 does not depend on the zlib version either; the default (deflate) is smaller but can differ between
 zlib builds, so CI compares the result with models/models.tsv and fails on any difference.
-Needs: numpy, onnx (versions in requirements.txt next to this file).
+Needs: numpy, onnx, sentencepiece (versions in requirements.txt next to this file).
 """
 import hashlib, os, shutil, subprocess, sys, tempfile, zipfile
 
@@ -34,6 +39,16 @@ def main():
         subprocess.run([sys.executable, "-I", os.path.join(HERE, "quantize_embed_4bit.py"),
                         os.path.join(base, "madlad_embed_8bit.onnx"), os.path.join(base, "madlad_embed_4bit.onnx"), "32"], check=True)
         os.remove(os.path.join(base, "madlad_embed_8bit.onnx"))
+        ids = os.path.join(base, "madlad_output_ids.bin")
+        subprocess.run([sys.executable, "-I", os.path.join(HERE, "output_vocab.py"), os.path.join(base, "spiece.model"), ids], check=True)
+        dec = os.path.join(base, "Int4Acc4", "madlad_decoder_4bit.onnx")
+        split = os.path.join(work, "split")
+        subprocess.run([sys.executable, "-I", os.path.join(HERE, "split_output_layer.py"), dec, ids, split], check=True)
+        os.remove(dec)
+        shutil.move(os.path.join(split, "madlad_decoder_4bit_body.onnx"), os.path.join(base, "Int4Acc4", "madlad_decoder_4bit_body.onnx"))
+        shutil.move(os.path.join(split, "madlad_lm_head_full.onnx"), os.path.join(base, "madlad_lm_head_full.onnx"))
+        shutil.move(os.path.join(split, "madlad_lm_head_jane.onnx"), os.path.join(base, "madlad_lm_head_jane.onnx"))
+        os.rmdir(split)
         for f in os.listdir(base):
             if f.endswith(".deq.npy"): os.remove(os.path.join(base, f))
         entries = []

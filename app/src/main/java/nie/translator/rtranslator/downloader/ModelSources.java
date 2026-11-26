@@ -51,7 +51,7 @@ public final class ModelSources {
         m.put("Mozilla_ja.zip", "7dc89da8423afde983f101e01d14c9739b81dc73bd7750f33ea71ee375cd7e9f");
         m.put("Mozilla_vi.zip", "c6c2dc34448337c3ee61e5d0d10140771323a812b8bc7ea161619c221f3b751f");
         m.put("Madlad.zip", "ec3183e6106182938fe095d8e48057e2412ded278b560c2dc818c72cfedd682d");
-        m.put("Madlad-v2.zip", "a6de6b4d45ab1c22acebd334227620df98fc98c5219d4879d6ce6b0dd94746c0");   //built from Madlad.zip: tools/models/build_madlad_v2.py
+        m.put("Madlad-v2.zip", "fcecaf5dff9653059b046ec06df834cf518ccfdb9899005dc73cc5fbc1c87f63");   //built from Madlad.zip: tools/models/build_madlad_v2.py
         m.put("HY-MT.zip", "15d5dd9b0634fa0daac27fd50a06ec46c940eaadac2409d51361d3aa0ce3aff8");
         SHA256 = Collections.unmodifiableMap(m);
     }
