@@ -26,7 +26,7 @@ ext {
 android {
     namespace 'nie.translator.rtranslator'
     //compileSdkVersion 33  //33
-    ndkVersion "28.2.13676358"
+    ndkVersion "30.0.16248370"
     defaultConfig {
         applicationId "com.magi.translator"
         targetSdk 36
@@ -36,7 +36,8 @@ android {
         minSdk 36   //MagiTranslator: Android 16+ only
         externalNativeBuild {
             cmake {
-                arguments '-DSPM_ENABLE_SHARED=OFF',  //sentencepiece flags
+                arguments '-DSPM_ENABLE_SHARED=OFF',
+                        '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',   //CMake 4 dropped compatibility with cmake_minimum_required < 3.5 (vendored libs)  //sentencepiece flags
                         '-DSPM_BUILD_TEST=OFF',
                         '-DSPM_ENABLE_TCMALLOC=OFF',
                         //bergamot flags
@@ -129,7 +130,7 @@ android {
     externalNativeBuild {
         cmake {
             path file('src/main/cpp/src/CMakeLists.txt')
-            version '3.31.6'
+            version '4.1.2'
         }
     }
 }
