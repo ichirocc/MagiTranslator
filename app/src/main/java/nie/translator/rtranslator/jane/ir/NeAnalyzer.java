@@ -28,7 +28,11 @@ public final class NeAnalyzer {
     // colloquial negative future: a vowel sign + न्न (खान्न, जान्न, हुन्न). A consonant before न्न is a
     // noun/adjective (प्रसन्न, सम्पन्न); भिन्न-type words are listed explicitly.
     private static final Pattern NEG_NN = Pattern.compile("[\\u093E-\\u094C\\u0901\\u0902]न्नँ?$");
-    private static final List<String> NN_NOT_NEGATION = Arrays.asList("भिन्न", "विभिन्न", "खिन्न", "छिन्न", "छिन्नभिन्न");
+    private static final List<String> NN_NOT_NEGATION = Arrays.asList("भिन्न", "विभिन्न", "खिन्न", "छिन्न", "छिन्नभिन्न",
+            "सुन्न", "किन्न", "बुन्न", "चिन्न", "थुन्न");   // infinitives of -न् stems (सुन्+न "to hear"), not negation
+    // tag question ("…, होइन?" = "…, right?") and "X कि Y-दैन" ("whether or not") are not negated statements
+    private static final Pattern TAG_QUESTION = Pattern.compile("[,،]?\\s*(?:होइन|हैन)\\s*(?:र|त|नि)?\\s*[?？]");
+    private static final Pattern ALTERNATIVE = Pattern.compile("(\\S+)\\s+कि\\s+\\S+");
     // negative past: गएन / आएन / गरेन / गरेनन् (3rd person), गइनँ / गरिनँ / गइनौं (1st/2nd person).
     // The bare ि+न ending is "day"-like (दिन, बिन) so it only counts with ँ / न् / ौं; loanwords in े+न are listed.
     private static final Pattern NEG_PAST = Pattern.compile("(?:[एइ]न|ेन|िनँ|िनन्|िनौं|िनौ)(?:ँ|न्|ौं|ौँ|ौ)?$");
@@ -84,7 +88,8 @@ public final class NeAnalyzer {
     private static final Pattern DOLLAR = Pattern.compile(NE_L + "डलर");
 
     public static boolean hasNegation(String ne) {
-        Matcher m = WORD.matcher(IrText.nfc(ne));
+        String t = ALTERNATIVE.matcher(TAG_QUESTION.matcher(IrText.nfc(ne)).replaceAll("")).replaceAll("$1");
+        Matcher m = WORD.matcher(t);
         while (m.find()) {
             String w = m.group();
             if (w.equals("दिन")) continue;                 // "day"

@@ -20,11 +20,11 @@ public final class JaAnalyzer {
 
     // --- negation (predicate level). Adjectives that merely end in ない are excluded.
     static final Pattern NEG = Pattern.compile(
-            "(ない|なかった|なくて|ないで|ません|ませんでした|ず(?=[、。に]|$)|ぬ(?=[、。]|$))");
+            "(ない|なかった|なくて|ないで|ません|ませんでした|(?:では|じゃ)なく|ず(?=[、。に]|$)|ぬ(?=[、。]|$))");
     // adjectives / idioms that end in ない but are not a negated predicate;
     // apology / obligation / conjecture / invitation are not negation either
     static final Pattern NOT_NEGATION = Pattern.compile(
-            "((?:少|すく|危|あぶ|切|せつ|だらし|つまら|くだら|もったい|勿体|仕方が?|しかたが?|間違い|違い|半端|きた|おさ|はか|儚|ぎこち|情け|なさけ|頼り|たより|物足り|もの足り|ものたり|申し訳|申しわけ|そっけ|素っ気|あどけ|あっけ|呆気|味気|あじけ)な(?:い|く|かっ|さ|け)|汚い|幼い|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか)");
+            "((?:少|すく|危|あぶ|切|せつ|だらし|つまら|くだら|もったい|勿体|仕方が?|しかたが?|間違い|違い|半端|きた|おさ|はか|儚|ぎこち|情け|なさけ|頼り|たより|物足り|もの足り|ものたり|申し訳|申しわけ|そっけ|素っ気|あどけ|あっけ|呆気|味気|あじけ)な(?:い|く|かっ|さ|け)|汚い|幼い|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか(?!ら)|(?:じゃ|では)ない(?:です|でしょう)?か)");
     static final Pattern QUESTION = Pattern.compile("(か[。？]?$|？|\\?)");
 
     /** stated question words; 何か / 誰も / いつも (indefinites) excluded */
