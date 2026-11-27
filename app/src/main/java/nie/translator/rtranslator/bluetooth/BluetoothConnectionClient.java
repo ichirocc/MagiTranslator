@@ -202,8 +202,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                         if (index != -1) {
                             Log.d("bluetooth_communicator_client", "onCharacteristicChanged, MTU_RESPONSE_UUID, peer: " + gatt.getDevice().getName());
                             Channel channel = channels.get(index);
-                            int responseValue = nie.translator.rtranslator.bluetooth.tools.BluetoothTools.parseIntOr(value, -1);
-                            if (responseValue < 2) return;   //not a valid length: ignore the packet (threw on the binder thread)
+                            int responseValue = Integer.valueOf(new String(value, StandardCharsets.UTF_8));
                             channel.setBluetoothMessagesLength(responseValue - 1); //we keep at least 1 byte as extra margin
                             if (responseValue < PREFERRED_MTU) {
                                 Log.d("bluetooth_communicator_client", "mtu requested");
@@ -218,7 +217,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                         if (index != -1) {
                             Log.d("bluetooth_communicator_client", "onCharacteristicChanged, CONNECTION_RESPONSE_UUID, peer: " + gatt.getDevice().getName());
                             if (!channels.get(index).getPeer().isConnected() && !channels.get(index).getPeer().isReconnecting() && !channels.get(index).getPeer().isDisconnecting()) {
-                                int responseValue = nie.translator.rtranslator.bluetooth.tools.BluetoothTools.parseIntOr(value, -1);   //neither ACCEPT nor REJECT when invalid
+                                int responseValue = Integer.valueOf(new String(value, StandardCharsets.UTF_8));
 
                                 if (responseValue == nie.translator.rtranslator.bluetooth.BluetoothConnectionServer.ACCEPT) {
                                     notifyConnectionSuccess(channels.get(index));
@@ -234,7 +233,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                         if (index != -1) {
                             Log.d("bluetooth_communicator_client", "onCharacteristicChanged, CONNECTION_RESUMED_SEND_UUID, peer: " + gatt.getDevice().getName());
                             if (channels.get(index).getPeer().isReconnecting() && !channels.get(index).getPeer().isDisconnecting()) {
-                                int responseValue = nie.translator.rtranslator.bluetooth.tools.BluetoothTools.parseIntOr(value, -1);   //neither ACCEPT nor REJECT when invalid
+                                int responseValue = Integer.valueOf(new String(value, StandardCharsets.UTF_8));
 
                                 if (responseValue == nie.translator.rtranslator.bluetooth.BluetoothConnectionServer.ACCEPT) {
                                     // connection resumed

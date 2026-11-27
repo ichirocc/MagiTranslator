@@ -61,19 +61,11 @@ class BluetoothMessage implements Parcelable {
     }
 
     public static BluetoothMessage createFromBytes(Context context, Peer sender, byte[] completeData) {
-        if (completeData == null) return null;
         String completeText = new String(completeData, StandardCharsets.UTF_8);
         if (completeText.length() > TOTAL_HEADERS_LENGTH) {
-            //the header comes from another device: a malformed one drops the packet (it threw NumberFormatException)
-            int type;
-            try {
-                type = Integer.parseInt(completeText.substring(ID_LENGTH + SEQUENCE_NUMBER_LENGTH, TOTAL_HEADERS_LENGTH));
-            } catch (NumberFormatException e) {
-                return null;
-            }
-            if (type != NON_FINAL && type != FINAL) return null;
             SequenceNumber id = new SequenceNumber(context, completeText.substring(0, ID_LENGTH), ID_LENGTH);
             SequenceNumber sequenceNumber = new SequenceNumber(context, completeText.substring(ID_LENGTH, ID_LENGTH + SEQUENCE_NUMBER_LENGTH), SEQUENCE_NUMBER_LENGTH);
+            int type = Integer.valueOf(completeText.substring(ID_LENGTH + SEQUENCE_NUMBER_LENGTH, TOTAL_HEADERS_LENGTH));
             byte[] data = BluetoothTools.subBytes(completeData, TOTAL_HEADERS_LENGTH, completeData.length);   // the header is deleted
             if (data != null && sender != null) {
                 return new BluetoothMessage(context, sender, id, sequenceNumber, type, data);
