@@ -155,6 +155,9 @@ public class WalkieTalkieService extends VoiceTranslationService {
                                         @Override
                                         public void onFailure(int[] reasons, long value) {
                                             WalkieTalkieService.super.notifyError(reasons,value);
+                                            //nothing will be translated: turn the mic stopped above back on (it stayed off)
+                                            startVoiceRecorder();
+                                            notifyMicActivated();
                                         }
                                     });
                                 }
@@ -363,11 +366,10 @@ public class WalkieTalkieService extends VoiceTranslationService {
             @Override
             public void onFailure(int[] reasons, long value) {
                 WalkieTalkieService.super.notifyError(reasons,value);
-                //if the tts is not active we restart the mic here
-                if(ttsEngine == null || !ttsEngine.isActive() || isAudioMute){
-                    startVoiceRecorder();
-                    notifyMicActivated();
-                }
+                //a failed translation is never spoken, so the end of TTS will not restart the mic: restart it here always
+                //(it was restarted only when TTS was off, and stayed off after a failure with TTS on)
+                startVoiceRecorder();
+                notifyMicActivated();
             }
         };
         secondResultTranslateListener = new Translator.TranslateListener() {
@@ -415,11 +417,10 @@ public class WalkieTalkieService extends VoiceTranslationService {
             @Override
             public void onFailure(int[] reasons, long value) {
                 WalkieTalkieService.super.notifyError(reasons,value);
-                //if the tts is not active we restart the mic here
-                if(ttsEngine == null || !ttsEngine.isActive() || isAudioMute){
-                    startVoiceRecorder();
-                    notifyMicActivated();
-                }
+                //a failed translation is never spoken, so the end of TTS will not restart the mic: restart it here always
+                //(it was restarted only when TTS was off, and stayed off after a failure with TTS on)
+                startVoiceRecorder();
+                notifyMicActivated();
             }
         };
         //voice recorder initialization
