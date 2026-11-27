@@ -368,7 +368,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
                 @Override
                 public void onError(int reason) {
-                    responseListener.onSuccess(new ArrayList<>());
+                    //forget the last good list: it described a TTS engine that does not answer now
+                    Global.this.ttsLanguages = new ArrayList<>();
+                    responseListener.onSuccess(Global.this.ttsLanguages);
                 }
             });
         }

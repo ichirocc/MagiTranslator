@@ -38,7 +38,6 @@ public class TTS {
     private static Thread getSupportedLanguageThread;
     private static ArrayDeque<SupportedLanguagesListener> supportedLanguagesListeners = new ArrayDeque<>();
     private static final Object lock = new Object();
-    private static final ArrayList<CustomLocale> ttsLanguages = new ArrayList<>();
 
 
     public TTS(Context context, final InitListener listener) {
@@ -209,6 +208,9 @@ public class TTS {
                     } else {
                         quality = Voice.QUALITY_NORMAL;
                     }
+                    //a new list on every query: one shared static list grew by the whole set at each query (duplicates),
+                    //and the list already handed to callers (Global caches it) changed under them
+                    final ArrayList<CustomLocale> ttsLanguages = new ArrayList<>();
                     boolean foundLanguage = false; // if there is available languages
                     if (set != null) {
                         // we filter the languages that have a tts that reflects the quality characteristics we want
