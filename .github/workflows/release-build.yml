@@ -79,6 +79,7 @@ jobs:
             --testset tools/eval/testsets/test_v1_candidates.tsv docs/eval/outputs/*.tsv > /tmp/validator_dump.tsv
           python3 -I tools/eval/check_validator_parity.py /tmp/validator_dump.tsv
           python3 -I tools/dict/test_textbook_terms.py   # textbook vocabulary tool
+          python3 -I tools/distill/test_build.py   # PC-side distillation data builder
 
       - name: Restore release keystore from secrets (optional)
         shell: bash
