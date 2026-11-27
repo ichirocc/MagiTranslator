@@ -383,6 +383,9 @@ public class JaNeLibraryTest {
         yes(!TranslationValidator.jaHasNegation("ズボンの前後が逆になっていないか確認してください。"), "embedded check 〜ていないか確認 is not negation");
         yes(!TranslationValidator.jaHasNegation("体が冷えないうちに拭きます。"), "〜ないうちに is not negation");
         yes(TranslationValidator.jaHasNegation("まだ確認していません。"), "plain negation still detected");
+        yes(TranslationValidator.validateNeToJa("सुजुकीज्यूले चिया पिउनुभयो।", "私がお茶を飲みました。").toString().contains("HARD PERSON_REVERSED"), "ne->ja resident action as speaker's");
+        yes(!TranslationValidator.validateNeToJa("सुजुकीज्यूले चिया पिउनुभयो।", "鈴木様がお茶を飲まれました。").toString().contains("PERSON_REVERSED"), "ne->ja third person kept");
+        yes(TranslationValidator.validateNeToJa("गर्न सक्छु कि सक्दिनँ भनेर नर्भस छु।", "私はできません。").toString().contains("HARD ALTERNATIVE_LOST"), "can-or-not as flat refusal");
         // speaker/listener reversal (ir/Person)
         yes(TranslationValidator.validateJaToNe("確認しますね。", "कृपया जाँच गर्नुहोस्।", null).toString().contains("HARD PERSON_REVERSED"), "self announcement rendered as request is hard");
         yes(TranslationValidator.validateJaToNe("私が対応します。", "तपाईं सम्हाल्नुहोस्।", null).toString().contains("PERSON_REVERSED"), "explicit 私 rendered as request");

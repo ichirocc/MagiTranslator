@@ -80,4 +80,12 @@ public final class Traps {
         if (JA_CAUSATIVE.matcher(ja).find() && NE_SELF_EAT.matcher(ne).find() && !NE_CAUSATIVE.matcher(ne).find()) return true;
         return JA_BREAK.matcher(ja).find() && !JA_DAY_OFF.matcher(ja).find() && NE_DAY_OFF.matcher(ne).find();
     }
+
+    // --- ne -> ja: "can I or not" (सक्छु कि सक्दिनँ) rendered as a flat "I cannot"
+    private static final Pattern NE_CAN_OR_NOT = Pattern.compile("सक्छु कि सक्दिनँ|सक्छु कि सक्दिन");
+    private static final Pattern JA_WHETHER = Pattern.compile("かどうか|か不安|か心配|か分から|自信|務まるか|できるか");
+
+    public static boolean alternativeLost(String ne, String ja) {
+        return NE_CAN_OR_NOT.matcher(ne).find() && !JA_WHETHER.matcher(ja).find();
+    }
 }

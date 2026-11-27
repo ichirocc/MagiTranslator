@@ -40,7 +40,9 @@ public final class TranslationValidator {
         /** OJT traps: guidance turned into its opposite (hard); 見守る reduced to a plain look (soft) */
         GUIDANCE_REVERSED, WATCH_OVER_LOST,
         /** care words swapped: かゆい as pain, 飲ませて as eat-yourself, 休憩 as day off */
-        CARE_WORD_SWAPPED }
+        CARE_WORD_SWAPPED,
+        /** ne->ja: "can I or not" turned into a flat refusal */
+        ALTERNATIVE_LOST }
 
     public static final class Issue {
         public final Kind kind;
@@ -106,6 +108,8 @@ public final class TranslationValidator {
         if (NE_SCRIPT.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
         if (tgt.degenerateRepeat) issues.add(new Issue(Kind.REPETITION, true, null));
         checkNeToJaMeaning(src, tgt, issues);
+        if (Person.neThirdPersonAsFirst(src.originalText, tgt.originalText)) issues.add(new Issue(Kind.PERSON_REVERSED, true, null));
+        if (Traps.alternativeLost(src.originalText, tgt.originalText)) issues.add(new Issue(Kind.ALTERNATIVE_LOST, true, null));
         return issues;
     }
 

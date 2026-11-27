@@ -46,4 +46,17 @@ public final class Person {
         String l = lastNe(ne);
         return NE_IMPERATIVE_END.matcher(l).find() && !NE_FIRST.matcher(l).find();
     }
+
+    // --- ne -> ja (new staff reporting in Nepali)
+    private static final Pattern NE_THIRD_HONORIFIC_SUBJECT = Pattern.compile("(ज्यू|जी|ज्यु|आमाजु|बुबाजु|उहाँ)(ले)?\\s");
+    private static final Pattern NE_HONORIFIC_VERB = Pattern.compile("नुभयो|नुहुन्छ|नुभएको");
+    private static final Pattern NE_FIRST_PRONOUN = Pattern.compile("(^|[\\s,।])(म|मैले|मलाई|मेरो|हामी|हामीले)(?=[\\s,।])");
+    private static final Pattern JA_FIRST_PRONOUN = Pattern.compile("私|僕|わたし");
+
+    /** "सुजुकीज्यूले चिया पिउनुभयो" (Suzuki drank) rendered as "私が飲みました": a resident's action reported as the speaker's */
+    public static boolean neThirdPersonAsFirst(String ne, String ja) {
+        if (ne == null || ja == null) return false;
+        return NE_THIRD_HONORIFIC_SUBJECT.matcher(ne).find() && NE_HONORIFIC_VERB.matcher(ne).find()
+                && !NE_FIRST_PRONOUN.matcher(ne).find() && JA_FIRST_PRONOUN.matcher(ja).find();
+    }
 }
