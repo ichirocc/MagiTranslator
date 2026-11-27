@@ -42,7 +42,9 @@ public final class TranslationValidator {
         /** care words swapped: かゆい as pain, 飲ませて as eat-yourself, 休憩 as day off */
         CARE_WORD_SWAPPED,
         /** ne->ja: "can I or not" turned into a flat refusal */
-        ALTERNATIVE_LOST }
+        ALTERNATIVE_LOST,
+        /** seasonal: 熱中症 as fever, heater off as on, getting cold as make cold */
+        SEASONAL_REVERSED }
 
     public static final class Issue {
         public final Kind kind;
@@ -150,6 +152,7 @@ public final class TranslationValidator {
         if (Traps.guidanceReversed(sj, tn)) issues.add(new Issue(Kind.GUIDANCE_REVERSED, true, null));
         if (Traps.watchOverLost(sj, tn)) issues.add(new Issue(Kind.WATCH_OVER_LOST, false, null));
         if (Traps.careWordSwapped(sj, tn)) issues.add(new Issue(Kind.CARE_WORD_SWAPPED, true, null));
+        if (Traps.seasonalReversed(sj, tn)) issues.add(new Issue(Kind.SEASONAL_REVERSED, true, null));
     }
 
     private static void checkNumbers(List<String> a, List<String> b, List<Issue> issues) {

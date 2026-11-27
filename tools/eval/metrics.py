@@ -466,6 +466,10 @@ def validate(src, hyp, direction, required_targets=None):
                 or (re.search(r"飲ませ|食べさせ", src) and re.search(r"खानुहोस्|पिउनुहोस्", hyp) and not re.search(r"खुवा|पिला|लगाउ", hyp))
                 or (re.search(r"休憩", src) and not re.search(r"休み|休暇|有給", src) and re.search(r"बिदा", hyp))):
             issues.append(("CARE_WORD_SWAPPED", True, None))
+        if ((re.search(r"熱中症", src) and re.search(r"ज्वरो", hyp) and not re.search(r"हिट|गर्मी|लु ", hyp))
+                or (re.search(r"(スイッチ|電源|暖房|ヒーター)[^。]*(切|消)", src) and re.search(r"चलाउनुहोस्|अन गर्नुहोस्", hyp) and not re.search(r"बन्द|अफ", hyp))
+                or (re.search(r"冷える|冷えない|冷え込", src) and re.search(r"चिसो बनाउनुहोस्|चिसो पार्नुहोस्", hyp))):
+            issues.append(("SEASONAL_REVERSED", True, None))
         # currency (TranslationValidator.checkCurrencyJaToNe)
         if "YEN" in s["cur"] and "YEN" not in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "येन"))

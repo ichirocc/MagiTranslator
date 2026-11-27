@@ -88,4 +88,21 @@ public final class Traps {
     public static boolean alternativeLost(String ne, String ja) {
         return NE_CAN_OR_NOT.matcher(ne).find() && !JA_WHETHER.matcher(ja).find();
     }
+
+    // --- seasonal traps (owner's 365-day dictionary, layer 4)
+    private static final Pattern JA_HEATSTROKE = Pattern.compile("熱中症");
+    private static final Pattern NE_FEVER = Pattern.compile("ज्वरो");
+    private static final Pattern NE_HEAT = Pattern.compile("हिट|गर्मी|लु ");
+    private static final Pattern JA_SWITCH_OFF = Pattern.compile("(スイッチ|電源|暖房|ヒーター)[^。]*(切|消)");
+    private static final Pattern NE_TURN_ON = Pattern.compile("चलाउनुहोस्|अन गर्नुहोस्");
+    private static final Pattern NE_TURN_OFF = Pattern.compile("बन्द|अफ");
+    private static final Pattern JA_GETS_COLD = Pattern.compile("冷える|冷えない|冷え込");
+    private static final Pattern NE_MAKE_COLD = Pattern.compile("चिसो बनाउनुहोस्|चिसो पार्नुहोस्");
+
+    /** 熱中症 -> ज्वरो (fever), turn the heater OFF -> turn it ON, (the body) gets cold -> make it cold */
+    public static boolean seasonalReversed(String ja, String ne) {
+        if (JA_HEATSTROKE.matcher(ja).find() && NE_FEVER.matcher(ne).find() && !NE_HEAT.matcher(ne).find()) return true;
+        if (JA_SWITCH_OFF.matcher(ja).find() && NE_TURN_ON.matcher(ne).find() && !NE_TURN_OFF.matcher(ne).find()) return true;
+        return JA_GETS_COLD.matcher(ja).find() && NE_MAKE_COLD.matcher(ne).find();
+    }
 }
