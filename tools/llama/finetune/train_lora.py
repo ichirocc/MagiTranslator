@@ -21,6 +21,9 @@ model = AutoModelForCausalLM.from_pretrained(M, trust_remote_code=True, dtype=DT
 print(f'device {DEV}, dtype {DT}', flush=True)
 model.config.use_cache = False
 cfg = LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, target_modules=['qkv_proj', 'o_proj', 'gate_up_proj', 'down_proj'], task_type='CAUSAL_LM')
+if os.environ.get('GC') == '1':   # recompute activations in the backward pass (2B on 15 GB of RAM)
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant': False})
+    model.enable_input_require_grads()
 model = get_peft_model(model, cfg)
 model.print_trainable_parameters()
 
@@ -32,7 +35,7 @@ for r in rows:
     ids = (p + t)[:256]
     labels = ([-100] * len(p) + t)[:256]
     examples.append((ids, labels))
-B, ACC = 8, 2   # effective batch 16
+B, ACC = int(os.environ.get('B', '8')), int(os.environ.get('ACC', '2'))   # effective batch 16 (2B: B=4 ACC=4 for 15 GB of RAM)
 order = sorted(range(len(examples)), key=lambda i: len(examples[i][0]))
 batches = [order[i:i + B] for i in range(0, len(order), B)]
 steps_per_epoch = math.ceil(len(batches) / ACC)
