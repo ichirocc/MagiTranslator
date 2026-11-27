@@ -253,11 +253,14 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      *
      * @param data The audio data.
      */
+    // one thread takes the chunks in the order they arrive: a new thread per chunk could take the lock out of order
+    // (and costs a thread per utterance); recognition itself still runs under lock as before
+    private final java.util.concurrent.ExecutorService enqueueExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> new Thread(r, "recognizer"));
+
     public void recognize(final float[] data, int beamSize, final String languageCode) {
-        new Thread("recognizer"){
+        enqueueExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                super.run();
                 synchronized (lock) {
                     Log.e("recognizer","recognizingCalled");
                     if (data != null) {
@@ -275,14 +278,13 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                     }
                 }
             }
-        }.start();
+        });
     }
 
     public void recognize(final float[] data, int beamSize, final String languageCode1, final String languageCode2) {
-        new Thread("recognizer"){
+        enqueueExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                super.run();
                 synchronized (lock) {
                     Log.e("recognizer","recognizingCalled");
                     if (data != null) {
@@ -293,7 +295,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                     }
                 }
             }
-        }.start();
+        });
     }
 
     private void recognize() {
