@@ -367,6 +367,10 @@ public class JaNeLibraryTest {
         yes(!TranslationValidator.validateJaToNe("昨日は行きませんでした。", "म हिजो गइनँ।", null).toString().contains("PAST_LOST"), "negative past is past");
         yes(PhraseBook.keyNe("तपाईंलाई कस्तो छ?").equals(PhraseBook.keyNe("तपाइँलाई कस्तो छ")), "ne phrase key folds candrabindu and long/short i");
         yes(PhraseBook.keyNe("धन्यवाद, ठीक छ।").equals(PhraseBook.keyNe("धन्यवाद, ठिक छ")), "ne phrase key folds ी/ि");
+        yes(TranslationValidator.validateJaToNe("もう少し待ってください。", "कृपया पर्खन सकियो।", null).toString().contains("HARD ADVERB_REVERSED"), "もう少し as finished");
+        yes(TranslationValidator.validateJaToNe("ペンを貸してください。", "कलम सापटी लिनुहोस्।", null).toString().contains("HARD DIRECTION_REVERSED"), "lend request as borrow");
+        yes(!TranslationValidator.validateJaToNe("ペンを貸してください。", "कलम सापटी दिनुहोस्।", null).toString().contains("DIRECTION_REVERSED"), "lend kept");
+        yes(TranslationValidator.validateJaToNe("薬を飲みましょう。", "औषधि पिऔं।", null).toString().contains("soft MEDICINE_VERB"), "medicine with drink is soft");
         // speaker/listener reversal (ir/Person)
         yes(TranslationValidator.validateJaToNe("確認しますね。", "कृपया जाँच गर्नुहोस्।", null).toString().contains("HARD PERSON_REVERSED"), "self announcement rendered as request is hard");
         yes(TranslationValidator.validateJaToNe("私が対応します。", "तपाईं सम्हाल्नुहोस्।", null).toString().contains("PERSON_REVERSED"), "explicit 私 rendered as request");

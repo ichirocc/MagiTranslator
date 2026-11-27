@@ -385,6 +385,18 @@ def _last(s, pat):
     return parts[-1] if parts else s.strip()
 
 
+# --- everyday traps (ir/Traps.java)
+_T_MORE = re.compile(r"もう少し|もうちょっと|あと少し|もう一度|もういちど")
+_T_DONE_JA = re.compile(r"終わ|済|完了|しまい|ました")
+_T_DONE_NE = re.compile(r"सकियो|सकिएको|सकिसक्यो|सकिसकेको")
+_T_LEND = re.compile(r"貸して(ください|下さい|もらえ|くれ|いただけ)")
+_T_BORROW = re.compile(r"借り(て|ます|たい|る|ても)")
+_T_TAKE = re.compile(r"सापटी\s*लिनुहोस्")
+_T_GIVE = re.compile(r"सापटी\s*दि(न्छु|न्छौं|एँ|एको छु)")
+_T_MED = re.compile(r"薬[^。]*飲")
+_T_MED_NE = re.compile(r"औषधि[^।]{0,15}पि(उ|औं|ए|इ|यो)")
+
+
 def ja_states_own_action(ja):
     if ja is None:
         return False
@@ -425,6 +437,12 @@ def validate(src, hyp, direction, required_targets=None):
             issues.append(("PAST_LOST", True, None))
         if ja_states_own_action(src) and ne_only_listener_imperative(hyp):
             issues.append(("PERSON_REVERSED", True, None))
+        if _T_MORE.search(src) and not _T_DONE_JA.search(src) and _T_DONE_NE.search(hyp):
+            issues.append(("ADVERB_REVERSED", True, None))
+        if (_T_LEND.search(src) and _T_TAKE.search(hyp)) or (not _T_LEND.search(src) and _T_BORROW.search(src) and _T_GIVE.search(hyp)):
+            issues.append(("DIRECTION_REVERSED", True, None))
+        if _T_MED.search(src) and _T_MED_NE.search(hyp):
+            issues.append(("MEDICINE_VERB", False, None))
         # currency (TranslationValidator.checkCurrencyJaToNe)
         if "YEN" in s["cur"] and "YEN" not in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "येन"))

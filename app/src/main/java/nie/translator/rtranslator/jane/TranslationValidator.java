@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import nie.translator.rtranslator.jane.ir.Person;
+import nie.translator.rtranslator.jane.ir.Traps;
 import nie.translator.rtranslator.jane.ir.Currency;
 import nie.translator.rtranslator.jane.ir.IrText;
 import nie.translator.rtranslator.jane.ir.JaAnalyzer;
@@ -33,7 +34,9 @@ public final class TranslationValidator {
         /** ja->ne agreement (IR-lite, SPEC v2 part 2): the candidate dropped what the Japanese predicate states */
         WH_LOST, OBLIGATION_LOST, REQUEST_LOST, PAST_LOST, CONJECTURE_LOST, PERMISSION_LOST, NAME_EXTRA_VOWEL,
         /** ja states the speaker's own action, the candidate tells the listener to do it (zero-pronoun reversal) */
-        PERSON_REVERSED }
+        PERSON_REVERSED,
+        /** everyday traps: もう少し as finished, 貸す/借りる swapped (hard); medicine with पिउनु (soft) */
+        ADVERB_REVERSED, DIRECTION_REVERSED, MEDICINE_VERB }
 
     public static final class Issue {
         public final Kind kind;
@@ -132,6 +135,10 @@ public final class TranslationValidator {
         // (jn14 先生はもう帰られました -> "is at home")
         if (src.tense == Tense.PAST && tgt.tense != Tense.PAST) issues.add(new Issue(Kind.PAST_LOST, true, null));
         if (Person.jaStatesOwnAction(src.originalText) && Person.neOnlyListenerImperative(tgt.originalText)) issues.add(new Issue(Kind.PERSON_REVERSED, true, null));
+        String sj = src.originalText, tn = tgt.originalText;
+        if (Traps.adverbReversed(sj, tn)) issues.add(new Issue(Kind.ADVERB_REVERSED, true, null));
+        if (Traps.directionReversed(sj, tn)) issues.add(new Issue(Kind.DIRECTION_REVERSED, true, null));
+        if (Traps.medicineDrink(sj, tn)) issues.add(new Issue(Kind.MEDICINE_VERB, false, null));
     }
 
     private static void checkNumbers(List<String> a, List<String> b, List<Issue> issues) {

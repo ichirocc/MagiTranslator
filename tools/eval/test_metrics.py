@@ -143,6 +143,7 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(self.kinds("確認しますね。", "कृपया जाँच गर्नुहोस्।", "ja-ne"), ["PERSON_REVERSED"])
         self.assertEqual(self.kinds("確認しますね。", "म जाँच गर्छु है।", "ja-ne"), [])
         self.assertEqual(self.kinds("「確認」を押します。", "पक्का बटन थिच्नुहोस्।", "ja-ne"), [])
+        self.assertEqual(self.kinds("ペンを貸してください。", "कलम सापटी लिनुहोस्।", "ja-ne"), ["DIRECTION_REVERSED"])
         self.assertEqual(M.validate("明日は雨でしょう。", "भोलि पानी पर्छ।", "ja-ne"), [("CONJECTURE_LOST", False, None)])
         self.assertEqual(M.validate("ここで写真を撮ってもいいですか？", "यहाँ फोटो खिच्ने?", "ja-ne")[-1], ("PERMISSION_LOST", False, None))
 
