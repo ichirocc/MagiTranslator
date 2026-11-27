@@ -398,7 +398,7 @@ public class Peer implements Parcelable, Cloneable {
     public Peer(Parcel in) {
         uniqueName = Objects.requireNonNull(in.readString());
         name = uniqueName.substring(0, uniqueName.length() - 2);  // because the last two digits are an id
-        device = in.readParcelable(BluetoothDevice.class.getClassLoader());
+        device = in.readParcelable(BluetoothDevice.class.getClassLoader(), BluetoothDevice.class);
         isHardwareConnected = in.readByte() != 0;
         isConnected = in.readByte() != 0;
         isReconnecting = in.readByte() != 0;

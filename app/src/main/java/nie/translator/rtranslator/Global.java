@@ -23,8 +23,6 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -1262,19 +1260,6 @@ public class Global extends Application implements DefaultLifecycleObserver {
     }
 
 
-
-    public boolean isNetworkOnWifi() {
-        WifiManager wifi_m = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        if (wifi_m.isWifiEnabled()) { // if wifi is on
-            WifiInfo wifi_i = wifi_m.getConnectionInfo();
-            if (wifi_i.getNetworkId() == -1) {
-                return false; // Not connected to any wifi device
-            }
-            return true; // Connected to some wifi device
-        } else {
-            return false; // user turned off wifi
-        }
-    }
 
     private void loadLanguagesResources(CustomLocale firstLanguage, CustomLocale secondLanguage, RTranslatorMode mode, Translator.GeneralListener listener){
         if(translator != null) {

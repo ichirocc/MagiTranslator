@@ -46,7 +46,7 @@ public abstract class BluetoothHeadsetUtils {
      */
     public BluetoothHeadsetUtils(Context context) {
         mContext = context;
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        mBluetoothAdapter = nie.translator.rtranslator.bluetooth.tools.BluetoothTools.getAdapter(mContext);
         mAudioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     }
 
@@ -281,6 +281,7 @@ public abstract class BluetoothHeadsetUtils {
         }
     };
 
+    @SuppressWarnings("deprecation")  // paired with Recorder\x27s SCO calls
     public boolean isBluetoothScoAvailable() {
         return mAudioManager.isBluetoothScoOn();
     }

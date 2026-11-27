@@ -50,7 +50,6 @@
     <application
         android:name="nie.translator.rtranslator.Global"
         android:enableOnBackInvokedCallback="true"
-        tools:replace="android:allowBackup"
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"

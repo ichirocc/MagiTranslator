@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.tools;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -23,6 +24,8 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Insets;
+import android.graphics.Point;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
@@ -30,6 +33,8 @@ import android.os.Parcelable;
 import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
+import android.view.WindowInsets;
+import android.view.WindowMetrics;
 
 import androidx.core.content.ContextCompat;
 
@@ -68,6 +73,14 @@ import nie.translator.rtranslator.bluetooth.Peer;
 import nie.translator.rtranslator.tools.gui.peers.GuiPeer;
 
 public class Tools {
+    /** The app window's size without the navigation bar and the display cutout: what Display.getSize returned
+     *  (deprecated; WindowMetrics is its documented replacement). */
+    public static Point getAppWindowSize(Activity activity) {
+        WindowMetrics metrics = activity.getWindowManager().getCurrentWindowMetrics();
+        Insets insets = metrics.getWindowInsets().getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars() | WindowInsets.Type.displayCutout());
+        return new Point(metrics.getBounds().width() - insets.left - insets.right, metrics.getBounds().height() - insets.top - insets.bottom);
+    }
+
     public static final int CONNECTION_SERVICE = 0;
     public static final int CONVERSATION_SERVICE = 1;
     public static final int WALKIE_TALKIE_SERVICE = 2;

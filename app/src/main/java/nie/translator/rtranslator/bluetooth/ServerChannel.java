@@ -121,6 +121,7 @@ class ServerChannel extends Channel {
     @Override
     protected void writeCommand() {
         new Thread() {
+            @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
             @Override
             public void run() {
                 synchronized (lock) {
@@ -188,6 +189,7 @@ class ServerChannel extends Channel {
         }
     }
 
+    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
     public boolean acceptConnection() {   //handshake commands must avoid the sendCommand queue (because of the isConnected check), also they don't need it because they are already sent sequentially
         synchronized (lock) {
             boolean success = false;
@@ -208,6 +210,7 @@ class ServerChannel extends Channel {
         }
     }
 
+    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
     public boolean rejectConnection() {  //handshake commands must avoid the sendCommand queue (because of the isConnected check), also they don't need it because they are already sent sequentially
         synchronized (lock) {
             boolean success = false;
@@ -228,6 +231,7 @@ class ServerChannel extends Channel {
         }
     }
 
+    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
     public boolean notifyConnectionResumed() {  //handshake commands must avoid the sendCommand queue (because of the isConnected check), also they don't need it because they are already sent sequentially
         synchronized (lock) {
             boolean success = false;
@@ -248,6 +252,7 @@ class ServerChannel extends Channel {
         }
     }
 
+    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
     public boolean notifyConnectionResumedRejected() {   //handshake commands must avoid the sendCommand queue (because of the isConnected check), also they don't need it because they are already sent sequentially
         synchronized (lock) {
             boolean success = false;
@@ -274,6 +279,7 @@ class ServerChannel extends Channel {
         sendCommand(command);
     }
 
+    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
     @Override
     public boolean notifyDisconnection(DisconnectionNotificationCallback disconnectionNotificationCallback) {
         synchronized (lock) {

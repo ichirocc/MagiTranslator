@@ -293,6 +293,7 @@ public class BluetoothCommunicator {
      * @param bluetoothChange indicates if BluetoothCommunicator can turn bluetooth on or off programmatically, to turn it on when is needed
      * and to restart it to force disconnections in case of errors
      */
+    @SuppressWarnings("deprecation")  // BluetoothAdapter.enable/disable have no replacement for apps (the user would have to confirm each time); the app restores the state it changed
     public BluetoothCommunicator(final Context context, String name, int strategy, boolean bluetoothChange) {
         this.context = context;
         this.strategy = strategy;
@@ -331,7 +332,7 @@ public class BluetoothCommunicator {
 
                             } else if (state == BluetoothAdapter.STATE_ON) {
                                 notifyBluetoothStatusChange(true, !turningOnBluetooth);
-                                bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                                bluetoothAdapter = nie.translator.rtranslator.bluetooth.tools.BluetoothTools.getAdapter(context);
                                 if (bluetoothAdapter != null) {
                                     if (initializingConnection) {
                                         initializingConnection = false;
@@ -418,7 +419,7 @@ public class BluetoothCommunicator {
             }
         };
 
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        bluetoothAdapter = nie.translator.rtranslator.bluetooth.tools.BluetoothTools.getAdapter(context);
         if (bluetoothAdapter != null) {
             if (bluetoothAdapter.isEnabled()) {
                 originalBluetoothState = BluetoothAdapter.STATE_ON;
@@ -583,6 +584,7 @@ public class BluetoothCommunicator {
      * @return SUCCESS if everithing is OK, ALREADY_STARTED if BluetoothCommunicator is already advertising, NOT_MAIN_THREAD if this method is not called
      * from the main thread, BLUETOOTH_LE_NOT_SUPPORTED if the device not supports bluetooth le (or rarely for a general bluetooth error), DESTROYING if destroy() is called before
      **/
+    @SuppressWarnings("deprecation")  // BluetoothAdapter.enable/disable have no replacement for apps (the user would have to confirm each time); the app restores the state it changed
     public int startAdvertising() {
         synchronized (bluetoothLock) {
             if (!destroying) {
@@ -668,6 +670,7 @@ public class BluetoothCommunicator {
      * @return SUCCESS if everithing is OK, ALREADY_STOPPED if BluetoothCommunicator is not advertising, NOT_MAIN_THREAD if this method is not called
      * from the main thread, BLUETOOTH_LE_NOT_SUPPORTED if the device not supports bluetooth le (or rarely for a general bluetooth error)
      **/
+    @SuppressWarnings("deprecation")  // BluetoothAdapter.enable/disable have no replacement for apps (the user would have to confirm each time); the app restores the state it changed
     public int stopAdvertising(boolean tryRestoreBluetoothStatus) {
         synchronized (bluetoothLock) {
             if (connectionServer != null && bluetoothAdapter != null) {
@@ -747,6 +750,7 @@ public class BluetoothCommunicator {
      * @return SUCCESS if everithing is OK, ALREADY_STARTED if BluetoothCommunicator is already advertising, NOT_MAIN_THREAD if this method is not called
      * from the main thread, BLUETOOTH_LE_NOT_SUPPORTED if the device not supports bluetooth le (or rarely for a general bluetooth error), DESTROYING if destroy() is called before
      **/
+    @SuppressWarnings("deprecation")  // BluetoothAdapter.enable/disable have no replacement for apps (the user would have to confirm each time); the app restores the state it changed
     public int startDiscovery() {
         // If we're already discovering, stop it
         if (!destroying) {
@@ -833,6 +837,7 @@ public class BluetoothCommunicator {
      * @return SUCCESS if everithing is OK, ALREADY_STOPPED if BluetoothCommunicator is not discovering, NOT_MAIN_THREAD if this method is not called
      * from the main thread, BLUETOOTH_LE_NOT_SUPPORTED if the device not supports bluetooth le (or rarely for a general bluetooth error)
      **/
+    @SuppressWarnings("deprecation")  // BluetoothAdapter.enable/disable have no replacement for apps (the user would have to confirm each time); the app restores the state it changed
     public int stopDiscovery(boolean tryRestoreBluetoothStatus) {
         synchronized (bluetoothLock) {
             if (bluetoothAdapter != null && connectionClient != null) {
@@ -1072,6 +1077,7 @@ public class BluetoothCommunicator {
         return bluetoothAdapter;
     }
 
+    @SuppressWarnings("deprecation")  // BluetoothAdapter.enable/disable have no replacement for apps (the user would have to confirm each time); the app restores the state it changed
     public void forceDisconnectionFromAll(){
         destroyConnection();
         // restart of connection
@@ -1095,6 +1101,7 @@ public class BluetoothCommunicator {
      * @param peer connected peer you want to disconnect from
      * @return SUCCESS if bluetooth le is supported by the device or BLUETOOTH_LE_NOT_SUPPORTED if not (or rarely if we had a generic bluetooth problem)
      */
+    @SuppressWarnings("deprecation")  // BluetoothAdapter.enable/disable have no replacement for apps (the user would have to confirm each time); the app restores the state it changed
     public int disconnect(final nie.translator.rtranslator.bluetooth.Peer peer) {
         synchronized (bluetoothLock) {
             if (connectionClient != null && connectionServer != null && bluetoothAdapter != null) {

@@ -184,6 +184,7 @@ public class TranslationFragment extends Fragment {
         ttsOutputButton.setTag(R.drawable.sound_icon);
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         activity = (VoiceTranslationActivity) requireActivity();

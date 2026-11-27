@@ -1482,6 +1482,7 @@ public class Translator extends NeuralNetworkApi {
         int initialPromptLength = tokenize(" ", inputLanguage, outputLanguage, false).getInputIDs().length;
         NNResult lastPartialResult = null;
 
+        @SuppressWarnings("unchecked")  // generic arrays cannot be created directly
         ArrayList<Integer>[] completeBeamOutput = new ArrayList[beamSize];  //contains the "beamSize" strings produced by the decoder
         for (int j = 0; j < beamSize; j++) {
             completeBeamOutput[j] = new ArrayList<Integer>();
@@ -2148,7 +2149,7 @@ public class Translator extends NeuralNetworkApi {
         ArrayList<Integer>[] oldCompleteBeamOutput = completeBeamOutput.clone();
         for (int i = 0; i < beamSize; i++) {
             beamsOutputsProbabilities[i] = beamsOutputsProbabilitiesTemp[maxProbabilities[i]];
-            completeBeamOutput[i] = (ArrayList<Integer>) oldCompleteBeamOutput[maxProbabilities[i]/beamSize].clone();
+            completeBeamOutput[i] = new ArrayList<>(oldCompleteBeamOutput[maxProbabilities[i]/beamSize]);
             completeBeamOutput[i].add(beamMax[maxProbabilities[i]/beamSize][maxProbabilities[i]%beamSize]);
         }
         // reorder of the kvCache to match the new selected inputs for the next iteration

@@ -117,6 +117,7 @@ class ClientChannel extends nie.translator.rtranslator.bluetooth.Channel {
     @Override
     protected void writeCommand() {
         new Thread() {
+            @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
             @Override
             public void run() {
                 super.run();
@@ -177,6 +178,7 @@ class ClientChannel extends nie.translator.rtranslator.bluetooth.Channel {
         }
     }
 
+    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
     public boolean requestConnection(String uniqueName) {  //handshake commands must avoid the sendCommand queue (because of the isConnected check), also they don't need it because they are already sent sequentially
         synchronized (lock) {
             boolean success = false;
@@ -194,6 +196,7 @@ class ClientChannel extends nie.translator.rtranslator.bluetooth.Channel {
         }
     }
 
+    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
     public boolean notifyConnectionResumed(String uniqueName) {  //handshake commands must avoid the sendCommand queue (because of the isConnected check), also they don't need it because they are already sent sequentially
         synchronized (lock) {
             boolean success = false;
@@ -234,6 +237,7 @@ class ClientChannel extends nie.translator.rtranslator.bluetooth.Channel {
         sendCommand(command);
     }
 
+    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
     @Override
     public boolean notifyDisconnection(DisconnectionNotificationCallback disconnectionNotificationCallback) {
         synchronized (lock) {

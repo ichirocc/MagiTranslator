@@ -36,17 +36,17 @@ public class CustomLocale implements Comparable<CustomLocale>, Serializable {
     private String cachedIso3Language = null;
 
     public CustomLocale(String language, String country, String variant) {
-        locale = new Locale(language, country, variant);
+        locale = Locale.of(language, country, variant);
         initCacheValues();
     }
 
     public CustomLocale(String languageCode, String countryCode) {
-        locale = new Locale(languageCode, countryCode);
+        locale = Locale.of(languageCode, countryCode);
         initCacheValues();
     }
 
     public CustomLocale(String languageCode){
-        locale = new Locale(languageCode);
+        locale = Locale.of(languageCode);
         initCacheValues();
     }
 
@@ -59,11 +59,11 @@ public class CustomLocale implements Comparable<CustomLocale>, Serializable {
         CustomLocale locale = null;
         String[] languageCode = code.split("-");
         if (languageCode.length == 1) {
-            locale = new CustomLocale(new Locale(languageCode[0]));
+            locale = new CustomLocale(Locale.of(languageCode[0]));
         } else if (languageCode.length == 2) {
-            locale = new CustomLocale(new Locale(languageCode[0], languageCode[1]));
+            locale = new CustomLocale(Locale.of(languageCode[0], languageCode[1]));
         } else if (languageCode.length >= 3) {
-            locale = new CustomLocale(new Locale(languageCode[0], languageCode[1], languageCode[2]));
+            locale = new CustomLocale(Locale.of(languageCode[0], languageCode[1], languageCode[2]));
         }
         return locale;
     }

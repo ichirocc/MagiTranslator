@@ -574,7 +574,7 @@ OR compile the CPU-only version of Marian with
 endif(CUDA_FOUND)
 
 else(COMPILE_CUDA)
-  message(WARNING "COMPILE_CUDA=off : Building only CPU version")
+  message(STATUS "COMPILE_CUDA=off : Building only CPU version")  # MagiTranslator: the CPU build is intended (Android), not a warning
 endif(COMPILE_CUDA)
 
 # TODO: make compatible with older CUDA versions
@@ -611,7 +611,7 @@ if(NOT WIN32)
     include_directories(${Tcmalloc_INCLUDE_DIR})
     set(EXT_LIBS ${EXT_LIBS} ${Tcmalloc_LIBRARIES})
   else(Tcmalloc_FOUND)
-    message(WARNING "Cannot find TCMalloc library. Continuing.")
+    message(STATUS "Cannot find TCMalloc library. Continuing.")  # MagiTranslator: none on Android, the default allocator is used
   endif(Tcmalloc_FOUND)
 endif()
 

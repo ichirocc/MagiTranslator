@@ -63,8 +63,7 @@ public class ButtonKeyboard extends DeactivableButton {
                 }
             });
         }else{
-            Point point= new Point();
-            activity.getWindowManager().getDefaultDisplay().getSize(point);
+            Point point = Tools.getAppWindowSize(activity);
             int margin = Tools.convertDpToPixels(activity,16);
             int iconSize = Tools.convertDpToPixels(activity, 40);
             int micReducedSize = Tools.convertDpToPixels(activity,ButtonMic.SIZE_ICON_DP);

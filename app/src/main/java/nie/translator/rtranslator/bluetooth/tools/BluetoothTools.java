@@ -20,6 +20,13 @@ import java.util.Random;
  * may not work correctly.
  */
 public class BluetoothTools {
+    /** The device's Bluetooth adapter, or null without Bluetooth (BluetoothAdapter.getDefaultAdapter() is deprecated). */
+    @androidx.annotation.Nullable
+    public static android.bluetooth.BluetoothAdapter getAdapter(android.content.Context context) {
+        android.bluetooth.BluetoothManager manager = context.getSystemService(android.bluetooth.BluetoothManager.class);
+        return manager != null ? manager.getAdapter() : null;
+    }
+
     public static final int FIX_NUMBER = 0;
     public static final int FIX_TEXT = 1;
 

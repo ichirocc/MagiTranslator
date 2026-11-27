@@ -98,6 +98,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                 }
             }
 
+            @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
             @Override
             public void onServicesDiscovered(final BluetoothGatt gatt, int status) {
                 super.onServicesDiscovered(gatt, status);
@@ -190,6 +191,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                 }
             }
 
+            @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
             @Override
             public void onCharacteristicChanged(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic) {
                 super.onCharacteristicChanged(gatt, characteristic);
@@ -303,6 +305,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                 }
             }
 
+            @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
             @Override
             public void onCharacteristicRead(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic, final int status) {
                 super.onCharacteristicRead(gatt, characteristic, status);
@@ -352,6 +355,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                 }
             }
 
+            @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
             @Override
             public void onCharacteristicWrite(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic, final int status) {
                 super.onCharacteristicWrite(gatt, characteristic, status);

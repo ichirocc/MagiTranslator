@@ -259,7 +259,7 @@ class BluetoothMessage implements Parcelable {
     };
 
     private BluetoothMessage(Parcel in) {
-        sender = in.readParcelable(Peer.class.getClassLoader());
+        sender = in.readParcelable(Peer.class.getClassLoader(), Peer.class);
         id = new SequenceNumber(context, in.readString(), ID_LENGTH);
         sequenceNumber = new SequenceNumber(context, in.readString(), SEQUENCE_NUMBER_LENGTH);
         type = in.readInt();

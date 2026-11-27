@@ -92,6 +92,7 @@ public class DownloadFragment extends Fragment {
         progressNumbersText = view.findViewById(R.id.progress_numbers);
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);

@@ -1158,8 +1158,7 @@ public class CustomAnimator {
 
 
     public void animateGenerateEditText(final VoiceTranslationActivity activity, final ButtonKeyboard buttonKeyboard, final ButtonMic buttonMic, final EditText editText, final ImageButton micPlaceHolder, final Listener listener){
-        Point point= new Point();
-        activity.getWindowManager().getDefaultDisplay().getSize(point);
+        Point point = Tools.getAppWindowSize(activity);
         int durationStandard = activity.getResources().getInteger(R.integer.durationStandard);
         int margin = Tools.convertDpToPixels(activity,16);
         int iconSize = Tools.convertDpToPixels(activity, 40);
@@ -1216,8 +1215,7 @@ public class CustomAnimator {
     }
 
     public void animateDeleteEditText(final VoiceTranslationActivity activity, final ButtonMic buttonMic, final ButtonKeyboard buttonKeyboard, final EditText editText, final ImageButton micPlaceHolder, final Listener listener){
-        Point point= new Point();
-        activity.getWindowManager().getDefaultDisplay().getSize(point);
+        Point point = Tools.getAppWindowSize(activity);
         int durationStandard = activity.getResources().getInteger(R.integer.durationStandard);
         int margin = Tools.convertDpToPixels(activity,16);
         int iconSize = Tools.convertDpToPixels(activity, 40);

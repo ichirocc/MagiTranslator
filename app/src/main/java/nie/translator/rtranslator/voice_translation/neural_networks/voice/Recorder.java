@@ -217,6 +217,7 @@ public class Recorder {
                     }
                 }
 
+                @SuppressWarnings("deprecation")  // Bluetooth SCO kept: setCommunicationDevice changes headset routing, not testable here
                 @Override
                 public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
                     boolean found = false;
@@ -347,6 +348,7 @@ public class Recorder {
      * Stops capture, releases the {@link AudioRecord} and unregisters the audio device callback.
      * Idempotent. Safe to call from any thread except the audio thread itself.
      */
+    @SuppressWarnings("deprecation")  // Bluetooth SCO kept: setCommunicationDevice changes headset routing, not testable here
     public void destroy() {
         synchronized (lifecycleLock) {
             if (destroyed) return;
@@ -804,6 +806,7 @@ public class Recorder {
         }
     }
 
+    @SuppressWarnings("deprecation")  // Bluetooth SCO kept: setCommunicationDevice changes headset routing, not testable here
     private boolean setBLEHeadsetConnection(){
         AudioDeviceInfo[] allDeviceInfo = audioManager.getDevices(GET_DEVICES_INPUTS);
         for (AudioDeviceInfo device : allDeviceInfo) {
