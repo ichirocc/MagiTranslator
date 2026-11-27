@@ -30,6 +30,14 @@ sh tools/llama/finetune/export_adapter.sh plamo08-hf lora/step600 personal_lora.
 - Check an adapter with the app's engine: `plamo_cli model.gguf 4 personal_lora.gguf < sentences.tsv`, then
   `python3 tools/llama/finetune/score.py references.tsv name=output.tsv` (chrF, off-topic count).
 
+## On the free Colab GPU (for a PC without enough RAM, e.g. 4 GB)
+
+`colab_train.ipynb`: open it in Colab (File -> Upload notebook), choose a T4 GPU, store a Hugging Face token as the
+`HF_TOKEN` secret after accepting the PLaMo Community License, run the cells. It clones this repository, builds the
+data from the public dictionaries, trains 600 steps and downloads `personal_lora.gguf`. `train_lora.py` uses the
+GPU when there is one (bf16 if supported, float32 on a T4). The time on a T4 has not been measured yet.
+The adapter stays private (see above); files on Colab are gone when the session ends.
+
 ## Measured (the app's engine, Q4_K_M base + adapter, greedy, no glossary)
 
 | | ja→ne chrF | ne→ja chrF |

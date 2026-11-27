@@ -1,4 +1,5 @@
-"""LoRA on PLaMo 3 Translate 0.8B (bf16 on the CPU: AMX), loss on the translation tokens only.
+"""LoRA on PLaMo 3 Translate 0.8B (bf16 on the CPU: AMX, or a CUDA GPU when present), loss on the translation tokens only.
+GPU: bf16 when the GPU supports it, float32 otherwise (T4 of the free Colab tier).
 usage: train_lora.py model_dir train.jsonl out_dir [epochs] [max_steps]
 Batches are sorted by length (little padding); no KV cache (the remote code's cache path is not used)."""
 import json, math, os, random, sys, time
@@ -14,7 +15,10 @@ torch.manual_seed(0)
 _libc = ctypes.CDLL('libc.so.6')
 torch.set_num_threads(4)
 tok = AutoTokenizer.from_pretrained(M, trust_remote_code=True)
-model = AutoModelForCausalLM.from_pretrained(M, trust_remote_code=True, dtype=torch.bfloat16)
+DEV = 'cuda' if torch.cuda.is_available() else 'cpu'
+DT = torch.bfloat16 if DEV == 'cpu' or torch.cuda.is_bf16_supported() else torch.float32
+model = AutoModelForCausalLM.from_pretrained(M, trust_remote_code=True, dtype=DT).to(DEV)
+print(f'device {DEV}, dtype {DT}', flush=True)
 model.config.use_cache = False
 cfg = LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, target_modules=['qkv_proj', 'o_proj', 'gate_up_proj', 'down_proj'], task_type='CAUSAL_LM')
 model = get_peft_model(model, cfg)
@@ -48,7 +52,7 @@ def collate(ix):
     for j, i in enumerate(ix):
         a, b = examples[i]
         ids[j, :len(a)] = torch.tensor(a); lab[j, :len(b)] = torch.tensor(b); att[j, :len(a)] = 1
-    return ids, lab, att
+    return ids.to(DEV), lab.to(DEV), att.to(DEV)
 
 # The output layer only where there is a target token: full logits are batch x length x 107520 floats
 # (about 0.9 GB per batch plus gradients), which exhausted the RAM on long batches.
@@ -66,7 +70,7 @@ if resume:
     from safetensors.torch import load_file
     rdir, start = resume.rsplit(':', 1); start = int(start)
     from peft import set_peft_model_state_dict
-    set_peft_model_state_dict(model, load_file(os.path.join(rdir, 'adapter_model.safetensors')))
+    set_peft_model_state_dict(model, load_file(os.path.join(rdir, 'adapter_model.safetensors'), device=DEV))
     for _ in range(start): sched.step()
     print(f'resumed from {rdir} at step {start}', flush=True)
 
@@ -87,7 +91,7 @@ while step < total:
         torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], 1.0)
         opt.step(); sched.step(); opt.zero_grad(set_to_none=True)
         step += 1
-        if step % 5 == 0: _libc.malloc_trim(0)   # give freed buffers back (glibc keeps them otherwise)
+        if step % 5 == 0 and DEV == 'cpu': _libc.malloc_trim(0)   # give freed buffers back (glibc keeps them otherwise)
         if step % 10 == 0 or step == 1:
             el = time.time() - t0
             done_steps = step - start
