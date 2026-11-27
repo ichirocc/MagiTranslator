@@ -936,6 +936,11 @@ public class TranslationFragment extends Fragment {
             public void onSuccess() {
                 activateTranslationButton();
             }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {   //the button stayed disabled for good
+                activateTranslationButton();
+            }
         });
         // change language displayed
         setDisplayedFirstLanguage(language);
@@ -947,6 +952,11 @@ public class TranslationFragment extends Fragment {
         global.setSecondTextLanguage(language, new Translator.GeneralListener() {
             @Override
             public void onSuccess() {
+                activateTranslationButton();
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {   //the button stayed disabled for good
                 activateTranslationButton();
             }
         });
@@ -969,6 +979,11 @@ public class TranslationFragment extends Fragment {
         global.switchTextLanguages(new Translator.GeneralListener() {
             @Override
             public void onSuccess() {
+                activateTranslationButton();
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {   //the button stayed disabled for good
                 activateTranslationButton();
             }
         });

@@ -1078,16 +1078,17 @@ public class Global extends Application implements DefaultLifecycleObserver {
      */
     public void updateLanguagesAndResources(Translator.GeneralListener listener){
         getLanguages(RTranslatorMode.TEXT_TRANSLATION_MODE, false);  //this will update the recognizer langs, the translator langs and also the mozilla langs (for all the RTranslator modes)
-        setFirstTextLanguage(getFirstTextLanguage(false), new Translator.GeneralListener() {
+        //a failure at any step is passed on (it was dropped: the caller, e.g. the settings' "applying settings" dialog, waited forever)
+        setFirstTextLanguage(getFirstTextLanguage(false), new ForwardFailure(listener) {
             @Override
             public void onSuccess() {
-                setSecondTextLanguage(getSecondTextLanguage(false), new Translator.GeneralListener() {
+                setSecondTextLanguage(getSecondTextLanguage(false), new ForwardFailure(listener) {
                     @Override
                     public void onSuccess() {
-                        setFirstLanguage(getFirstLanguage(false), new Translator.GeneralListener() {
+                        setFirstLanguage(getFirstLanguage(false), new ForwardFailure(listener) {
                             @Override
                             public void onSuccess() {
-                                setSecondLanguage(getSecondLanguage(false), new Translator.GeneralListener() {
+                                setSecondLanguage(getSecondLanguage(false), new ForwardFailure(listener) {
                                     @Override
                                     public void onSuccess() {
                                         setLanguage(getLanguage(false));
@@ -1100,6 +1101,16 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 });
             }
         });
+    }
+
+    /** A step of a chain of language loads whose failure ends the chain and reaches the caller's listener. */
+    private abstract static class ForwardFailure extends Translator.GeneralListener {
+        private final Translator.GeneralListener caller;
+        ForwardFailure(Translator.GeneralListener caller) { this.caller = caller; }
+        @Override
+        public void onFailure(int[] reasons, long value) {
+            if (caller != null) caller.onFailure(reasons, value);
+        }
     }
 
     public String getName() {
