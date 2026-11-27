@@ -24,7 +24,7 @@ public final class JaAnalyzer {
     // adjectives / idioms that end in ない but are not a negated predicate;
     // apology / obligation / conjecture / invitation are not negation either
     static final Pattern NOT_NEGATION = Pattern.compile(
-            "((?:少|すく|危|あぶ|切|せつ|だらし|つまら|くだら|もったい|勿体|仕方が?|しかたが?|間違い|違い|半端|きた|おさ|はか|儚|ぎこち|情け|なさけ|頼り|たより|物足り|もの足り|ものたり|申し訳|申しわけ|そっけ|素っ気|あどけ|あっけ|呆気|味気|あじけ)な(?:い|く|かっ|さ|け)|汚い|幼い|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか(?!ら)|(?:じゃ|では)ない(?:です|でしょう)?か|ないか(?=[、]?(?:確認|見|観察|チェック|調べ))|ないうちに)");
+            "((?:少|すく|危|あぶ|切|せつ|だらし|つまら|くだら|もったい|勿体|仕方が?|しかたが?|間違い|違い|半端|きた|おさ|はか|儚|ぎこち|情け|なさけ|頼り|たより|物足り|もの足り|ものたり|申し訳|申しわけ|そっけ|素っ気|あどけ|あっけ|呆気|味気|あじけ)な(?:い|く|かっ|さ|け)|汚い|幼い|すみません|すいません|申し訳(あり|ござい)ません|かもしれ(ない|ません)|なければ(なら|なり|いけ)(ない|ません)|なくては(なら|なり|いけ)(ない|ません)|ないと(いけ|だめ|ダメ)(ない|ません)?|ませんか(?!ら)|(?:じゃ|では)ない(?:です|でしょう)?か|ないか(?=[、]?(?:確認|見|観察|チェック|調べ|伸ばし|直し))|ないうちに|手が離せ(?:ない|ません)|変わり(?:は)?(?:ない|ありません))");
     static final Pattern QUESTION = Pattern.compile("(か[。？]?$|？|\\?)");
 
     /** stated question words; 何か / 誰も / いつも (indefinites) excluded */
@@ -50,7 +50,7 @@ public final class JaAnalyzer {
     };
 
     static final Pattern OBLIGATION = Pattern.compile("(なければ(なら|なり|いけ)|なくては(なら|なり|いけ)|ないと(いけ|だめ|ダメ)|なきゃ|なくちゃ|べき)");
-    static final Pattern REQUEST = Pattern.compile("(ください|下さい|[てで](くれ(ませんか|ますか)?|ちょうだい|もらえ|いただけ)|お願い)");
+    static final Pattern REQUEST = Pattern.compile("(ください|下さい|[てで](くれ(ませんか|ますか)?|ちょうだい|もらえ(?!れば)|いただけ)|お願い)");
     static final Pattern CONJECTURE = Pattern.compile("(でしょう(?!か)|だろう|かもしれ|と思い|と思う|みたい|らしい|はず)");
     static final Pattern PERMISSION = Pattern.compile("[てで]も(いい|良い|よい|大丈夫|かまわ|構わ)");
     /** sentence-final past/perfect predicate (ました・でした・かった・〜た). あなた etc. excluded by the kana before た. */

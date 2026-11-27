@@ -389,6 +389,9 @@ public class JaNeLibraryTest {
         yes(TranslationValidator.validateJaToNe("熱中症に気をつけてください。", "ज्वरोमा ध्यान दिनुहोस्।", null).toString().contains("HARD SEASONAL_REVERSED"), "heatstroke as fever");
         yes(TranslationValidator.validateJaToNe("布団が温まったら電気毛布のスイッチを切ってください。", "ओछ्यान तातो भएपछि इलेक्ट्रिक कम्बल चलाउनुहोस्।", null).toString().contains("SEASONAL_REVERSED"), "switch off as on");
         yes(!TranslationValidator.validateJaToNe("布団が温まったら電気毛布のスイッチを切ってください。", "ओछ्यान तातो भएपछि स्विच बन्द गर्नुहोस्।", null).toString().contains("SEASONAL_REVERSED"), "switch off kept");
+        yes(TranslationValidator.neHasNegation("नलुकाईकन तुरुन्तै रिपोर्ट गर्नुहोस्।"), "ne negative absolutive नलुकाईकन is negation");
+        yes(!TranslationValidator.jaHasNegation("今、手が離せないので少し待ってください。"), "手が離せない is an idiom for busy");
+        yes(!TranslationValidator.validateJaToNe("早めに共有してもらえれば対策を考えられます。", "छिट्टै भन्नुभयो भने उपाय सोच्न सकिन्छ।", null).toString().contains("REQUEST_LOST"), "てもらえれば is a condition, not a request");
         // speaker/listener reversal (ir/Person)
         yes(TranslationValidator.validateJaToNe("確認しますね。", "कृपया जाँच गर्नुहोस्।", null).toString().contains("HARD PERSON_REVERSED"), "self announcement rendered as request is hard");
         yes(TranslationValidator.validateJaToNe("私が対応します。", "तपाईं सम्हाल्नुहोस्।", null).toString().contains("PERSON_REVERSED"), "explicit 私 rendered as request");

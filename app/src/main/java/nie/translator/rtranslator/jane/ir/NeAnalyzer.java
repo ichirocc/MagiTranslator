@@ -75,7 +75,7 @@ public final class NeAnalyzer {
 
     // modality cover: lenient (any accepted form passes)
     private static final Pattern OBLIGATION = Pattern.compile("(पर्छ|पर्छन्|पर्ने|पर्यो|पर्‍यो|पर्थ्यो|पर्दछ|पर्नेछ|पर्नुहुन्छ|नुपर|चाहिन्छ|अनिवार्य)");
-    private static final Pattern REQUEST = Pattern.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|सक्छौ|ऊ(?![" + NE_CH + "])|ओ(?![" + NE_CH + "]))");
+    private static final Pattern REQUEST = Pattern.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|ऊ(?![" + NE_CH + "])|ओ(?![" + NE_CH + "]))");
     private static final Pattern CONJECTURE = Pattern.compile("(होला|ला(?![" + NE_CH + "])|सक्छ|सक्छन्|जस्तो|जस्तै|लाग्छ|लाग्यो|ठान्छु|सायद|शायद|पक्का|हुनुपर्छ|होइन र)");
     private static final Pattern PERMISSION = Pattern.compile("(हुन्छ|सकिन्छ|सक्नुहुन्छ|सक्छ|ठीक|ठिक|अनुमति|पाइन्छ|पर्दैन|मिल्छ)");
     /** past, perfect and negative past (गयो, गए, गएका छन्, थियो, गर्नुभयो, गएन). Vowel-sign ए (गरे) is not
@@ -96,6 +96,7 @@ public final class NeAnalyzer {
             if (NEG_WORD.matcher(w).find()) return true;
             if (w.length() >= 3 && NEG_PAST.matcher(w).find() && !NEG_PAST_NOT.contains(w)) return true;
             if (NEG_NN.matcher(w).find() && !NN_NOT_NEGATION.contains(w)) return true;
+            if (w.length() >= 4 && w.charAt(0) == 'न' && (w.endsWith("ईकन") || w.endsWith("इकन") || w.endsWith("ीकन"))) return true;   // नलुकाईकन "without hiding"
             if (w.length() >= 3 && NEG_PREFIX.matcher(w).find()) {
                 boolean excluded = false;
                 for (String x : NOT_NEGATION) if (w.startsWith(x)) { excluded = true; break; }
