@@ -60,3 +60,31 @@ Notes on what went wrong on the way (kept so they are not repeated): `model.gene
 PLaMo's remote code produces garbage (its cache path); training and the checks here do not use it. Full logits
 (batch x length x 107520) exhausted 15 GB of RAM: the output layer is applied to the target positions only, lengths
 are padded to multiples of 32 and freed memory is returned (`malloc_trim`); RAM stays at 2.7 GB.
+
+## Distillation, second attempt (in progress, 2026-11-27)
+
+What the first attempt taught: the teacher was not better than the trained student (untrained 2B + glossary:
+dev 57.8 / 49.0 vs 60.0 / 49.2) and its data was another domain (news, policy). Now:
+
+1. **A stronger teacher**: PLaMo 3 Translate 2B with the same dictionary LoRA (`train_lora.py`; on 15 GB of RAM:
+   `B=4 ACC=4 GC=1`, effective batch 16, gradient checkpointing; 6.5 GB, ~35 s per step on 4 CPU cores, 527 steps).
+2. **Conversational sources** (`kd_sources.py`): 900 ja + 900 ne sentence sources of the training pairs and 300
+   care-domain sentences; nothing within 3-gram Jaccard 0.5 of the dev, blind or test sets.
+3. **Token-level distillation** (`teacher_topk.py`, `kd_train.py`): the 2B and 0.8B share the tokenizer (107520
+   tokens), so the teacher's top-32 distribution at every position is kept, on the teacher's translations
+   (forward KL) and on the student's own greedy translations, the ones the app shows (generalized JSD, on-policy
+   distillation as in GKD, Agarwal et al. 2024), with the dictionary pairs as replay (cross-entropy).
+4. Evaluation as before: dev for the checkpoint, the blind set, the test set, paired bootstrap.
+
+Interim (the app's engine, Q4_K_M + adapter, greedy, dev 120 pairs):
+
+| | ja→ne chrF | ne→ja chrF | off-topic |
+|---|---|---|---|
+| 0.8B, no adapter | 47.8 | 43.7 | 6 / 6 |
+| 0.8B + dictionary adapter (step 600, the student) | 54.9 | 48.2 | 3 / 6 |
+| 2B + glossary, no adapter (first attempt's teacher) | 57.8 | 49.0 | 3 / 4 |
+| **2B + dictionary adapter, step 200 of 527 (the teacher)** | **58.0** | **51.5** | 2 / 3 |
+
+The new teacher is ahead of the student by 3.1 / 3.3 already at 38% of its training. Running two CPU-heavy jobs
+at once (training with 4 threads + generation with 2 on 4 cores) slowed the training more than 5 times: one at a
+time.
