@@ -875,8 +875,17 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
         return languages;
     }
 
+    /**
+     * Drops the chunks waiting for recognition. The queue is only touched under {@code lock}, which recognition holds
+     * for a whole utterance, so the clear runs on the recognizer's own thread (callers are on the main thread): chunks
+     * handed in before stop() are dropped, chunks handed in after it are kept. The utterance in progress finishes.
+     */
     public void stop(){
-        dataToRecognize.clear();
+        enqueueExecutor.execute(() -> {
+            synchronized (lock) {
+                dataToRecognize.clear();
+            }
+        });
     }
 
     public void destroy() {

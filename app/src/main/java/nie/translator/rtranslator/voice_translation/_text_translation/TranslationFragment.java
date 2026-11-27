@@ -294,13 +294,8 @@ public class TranslationFragment extends Fragment {
             @Override
             public void onClick(View view) {
                 String text = inputText.getText().toString();
-
-                if(text.length() <= 0){   //test code  todo: remove before release
-                    text = "Also unlike 2014, there aren’t nearly as many loopholes. You can’t just buy a 150-watt incandescent or a three-way bulb — the ban covers any normal bulb that generates less than 45 lumens per watt, which pretty much rules out both incandescent and halogen tech in their entirety.";
-                    inputText.setText(text);
-                }
-
-                if(!text.isEmpty()) {
+                //an empty field does nothing (it used to fill in and translate a fixed English test sentence)
+                if(!text.trim().isEmpty()) {
                     CustomLocale firstLanguage = global.getFirstTextLanguage(true);
                     CustomLocale secondLanguage = global.getSecondTextLanguage(true);
                     //we deactivate translate button
