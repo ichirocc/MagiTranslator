@@ -52,3 +52,38 @@ Tests: `python3 test_quantize_embed.py`, `python3 test_split_output_layer.py`.
 
 Old installations from `Madlad.zip` keep working (the app falls back to the 8-bit table and the single
 decoder file) and are not asked to download again.
+
+## The same two ideas for the other models (measured 2026-11-27: not used)
+
+Madlad-v2's gains came from Madlad's vocabulary: 256000 tokens, most of them other scripts, so a
+Japanese/Nepali output layer keeps 13%. For the models the app uses for Japanese <-> Nepali, what such a
+layer removes is mostly English words, and those appear in conversations (names, brands).
+
+**4-bit embedding table**: PLaMo's GGUF already stores `token_embd` in Q4_K. Whisper's embedding is
+int8 (38 MB); per token only one row is read, so 4 bits would only save download and RAM (about 19 MB).
+
+**Whisper, ja/ne output layer** (`whisper_vocab.py`, `split_whisper_head.py`, test
+`test_split_whisper_head.py`): proj_out is int8 with one scale per token, so the kept columns are exact;
+11550 of 51865 tokens kept (Japanese, Devanagari, byte pieces, ASCII up to 3 characters, the special
+tokens, every token the app allows for Nepali). The app's decoding (ja + ne at once) on FLEURS Japanese
+test audio (CC-BY 4.0), 150 utterances:
+
+| | original | ja/ne layer |
+|---|---|---|
+| same tokens (ja row / ne row) | | 147 / 148 of 150 |
+| language decision right | 150 | 150 (all the same) |
+| ONNX decoder time | 328.0 s | 312.6 s (-4.7%) |
+
+Java per step: 1.6 -> 0.4 ms (copy, argmax, two softmax over the vocabulary): about 8% in total. The 3
+differences are all one word, "Amazon" -> "Amazonger" / "Amazong": the English token was removed.
+Not worth it: a few percent, English words broken, and new files to publish.
+
+**PLaMo, ja/ne output layer**: the output layer is 22.8% of what 0.8B reads per token (Q6_K, 107520 rows;
+2B: 10.6%). A ja/ne layer would keep about 57000 rows (Japanese 49225, Devanagari only 78: Nepali is
+written mostly with byte pieces, ASCII up to 3 characters). Timed with the first 57000 rows (a timing
+experiment, not a real selection): 0.8B 39.2 / 43.3 -> 46.8 / 49.8 generated tokens/s (about +17%, PC,
+4 threads). In PLaMo's translations of the test sentences 3 of 9788 tokens were outside such a set
+(the ASCII token `", "`), but the removed rows are English words (46081 ASCII tokens longer than 3
+characters), so names and brands would break as with Whisper, and llama.cpp would need a patch (its
+logits buffer is sized by the vocabulary). Not used: translation quality first. If speed ever matters
+more, this is the next thing to try (as an option, with a check on sentences that contain English names).
