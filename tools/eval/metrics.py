@@ -462,6 +462,10 @@ def validate(src, hyp, direction, required_targets=None):
             issues.append(("GUIDANCE_REVERSED", True, None))
         if _O_WATCH.search(src) and not _O_WATCH_NE.search(hyp):
             issues.append(("WATCH_OVER_LOST", False, None))
+        if ((re.search(r"かゆ|痒", src) and not re.search(r"痛", src) and re.search(r"दुख", hyp) and not re.search(r"चिला", hyp))
+                or (re.search(r"飲ませ|食べさせ", src) and re.search(r"खानुहोस्|पिउनुहोस्", hyp) and not re.search(r"खुवा|पिला|लगाउ", hyp))
+                or (re.search(r"休憩", src) and not re.search(r"休み|休暇|有給", src) and re.search(r"बिदा", hyp))):
+            issues.append(("CARE_WORD_SWAPPED", True, None))
         # currency (TranslationValidator.checkCurrencyJaToNe)
         if "YEN" in s["cur"] and "YEN" not in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "येन"))

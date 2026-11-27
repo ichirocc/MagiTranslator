@@ -26,6 +26,7 @@
 | 19 | 非推奨 API（javac `-Xlint:deprecation` で 212 件、2026-11-27） | 置き換えが同じ動作になるもの 44 件は直した（`setColorFilter`→`PorterDuffColorFilter`、`Handler()`→`Handler(Looper.myLooper())`、`getColor/getDrawable(id, null)`、`stopForeground(STOP_FOREGROUND_REMOVE)`、型付きの `getSerializable(Extra)/getParcelable(Extra)`）。残りは構造の書き換えで、実機の会話モード（Bluetooth）で確かめられるまで触らない：Bluetooth GATT（`setValue`/`writeCharacteristic`/`notifyCharacteristicChanged`/`getDefaultAdapter`/`enable`）、`Parcel.readParcelable/readSerializable`（Bluetooth の受け渡し）、`AsyncTask`、`onActivityCreated`、`startActivityForResult/onActivityResult`、`setSystemUiVisibility` とウィンドウインセット、`overridePendingTransition`、`Locale(String)` |
 | 24 | ~~人称の逆転（主語省略）の検出・綴り揺れの吸収~~ | 済み（2026-11-27）：①日本語が話し手自身の動作（「私が〜します」「〜しますね」「〜てきます」）なのに訳が相手への命令（-नुहोस्）だけのとき「要確認」（`ir/Person`、Python 版も同じ判定）。マニュアル調の「〜を押します」は意味が両方あり得るので対象外。会話集4,548文で誤検出0件。②会話集のネ→日照合で ि/ी・ु/ू・ँ/ं・ZWJ の違いを同じ扱いに（増えた衝突は同義の1組だけ） |
 | 26 | ~~OJT 場面の取り違え検出~~ | 済み（2026-11-27）：「一人でやって」→ आफूखुसी（好き勝手に）、「慣れてきた」→ लापरवाही（雑になった）、「注意された」→ रिसाउनुभयो／गाली（怒られた）を「要確認」に。「見守る」が見張り・付き添いの語を欠いた訳は減点のみ（`ir/Traps`）。会話集で誤検出0件 |
+| 27 | ~~介護現場の取り違え検出（4層辞書 第4層）~~ | 済み（2026-11-27）：「かゆい」→ दुख्छ（痛い）、「飲ませて」→ खानुहोस्（あなたが飲んで）、「休憩」→ बिदा（休暇）を「要確認」に（`ir/Traps`）。会話集で誤検出0件。否定の脱落・数字の欠落は既存の検査で検出 |
 
 ## ユーザーにお願いすること
 | # | 項目 | メモ |

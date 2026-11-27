@@ -61,4 +61,23 @@ public final class Traps {
     public static boolean watchOverLost(String ja, String ne) {
         return JA_WATCH_OVER.matcher(ja).find() && !NE_WATCH_OVER.matcher(ne).find();
     }
+
+    // --- care-floor traps (owner's 4-layer dictionary, layer 4)
+    private static final Pattern JA_ITCH = Pattern.compile("かゆ|痒");
+    private static final Pattern JA_PAIN = Pattern.compile("痛");
+    private static final Pattern NE_PAIN = Pattern.compile("दुख");
+    private static final Pattern NE_ITCH = Pattern.compile("चिला");
+    private static final Pattern JA_CAUSATIVE = Pattern.compile("飲ませ|食べさせ");
+    private static final Pattern NE_SELF_EAT = Pattern.compile("खानुहोस्|पिउनुहोस्");
+    private static final Pattern NE_CAUSATIVE = Pattern.compile("खुवा|पिला|लगाउ");
+    private static final Pattern JA_BREAK = Pattern.compile("休憩");
+    private static final Pattern JA_DAY_OFF = Pattern.compile("休み|休暇|有給");
+    private static final Pattern NE_DAY_OFF = Pattern.compile("बिदा");
+
+    /** かゆい -> दुख्छ (pain), 飲ませて -> खानुहोस् (you eat it yourself), 休憩 -> बिदा (a day off) */
+    public static boolean careWordSwapped(String ja, String ne) {
+        if (JA_ITCH.matcher(ja).find() && !JA_PAIN.matcher(ja).find() && NE_PAIN.matcher(ne).find() && !NE_ITCH.matcher(ne).find()) return true;
+        if (JA_CAUSATIVE.matcher(ja).find() && NE_SELF_EAT.matcher(ne).find() && !NE_CAUSATIVE.matcher(ne).find()) return true;
+        return JA_BREAK.matcher(ja).find() && !JA_DAY_OFF.matcher(ja).find() && NE_DAY_OFF.matcher(ne).find();
+    }
 }
