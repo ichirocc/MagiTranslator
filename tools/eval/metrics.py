@@ -372,6 +372,33 @@ def _check_numbers(a, b, issues):
         issues.append(("NUMBER_ADDED", False, n))
 
 
+# --- speaker/listener reversal (ir/Person.java)
+_P_JA_SELF = re.compile(r"(します|いたします|致します|てきます|でてきます|ていきます|ておきます|てあげます|てみます|てまいります|まいります|伺います|[いきしちにびみりぎ]ます)(ね|よ|ね。|よ。)?[。！!]?$")
+_P_JA_BLOCK = re.compile(r"(ください|下さい|お願い|ませんか|ましょう|でしょう|か[。？?]?$|？|\?|[^私僕]が[^、]*ます[。！]?$|さんは|様は|方は|者は|ご家族は|看護師[がは]|先生[がは]|医師[がは]|失礼します)")
+_P_JA_STRONG = re.compile(r"(私|僕|わたし|わたくし|自分)[がはも]|ますね[。！]?$|(てきます|でてきます|てまいります|てきますね)[。！]?$")
+_P_NE_IMP = re.compile(r"(नुहोस्|नुहोला|नुस्)[!।\s]*$")
+_P_NE_FIRST = re.compile(r"(छु|छौं|छौँ|एँ|यौं|औं|औँ|उँला|ौंला|ुँला|थें|थिएँ)(?![\u0900-\u097F])")
+
+
+def _last(s, pat):
+    parts = [x.strip() for x in re.split(pat, s.strip()) if x.strip()]
+    return parts[-1] if parts else s.strip()
+
+
+def ja_states_own_action(ja):
+    if ja is None:
+        return False
+    last = _last(ja, r"(?<=[。！!？?])")
+    return bool(_P_JA_SELF.search(last)) and not _P_JA_BLOCK.search(last) and bool(_P_JA_STRONG.search(last))
+
+
+def ne_only_listener_imperative(ne):
+    if ne is None:
+        return False
+    last = _last(ne, r"(?<=[।!?])\s*")
+    return bool(_P_NE_IMP.search(last)) and not _P_NE_FIRST.search(last)
+
+
 def validate(src, hyp, direction, required_targets=None):
     """Port of TranslationValidator.validateJaToNe / validateNeToJa: [(kind, hard, detail)] in Java order."""
     if hyp is None or not hyp.strip():
@@ -396,6 +423,8 @@ def validate(src, hyp, direction, required_targets=None):
                 issues.append((k + "_LOST", hard, None))
         if s["tense"] == "PAST" and t["tense"] != "PAST":
             issues.append(("PAST_LOST", True, None))
+        if ja_states_own_action(src) and ne_only_listener_imperative(hyp):
+            issues.append(("PERSON_REVERSED", True, None))
         # currency (TranslationValidator.checkCurrencyJaToNe)
         if "YEN" in s["cur"] and "YEN" not in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "येन"))

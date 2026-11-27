@@ -365,6 +365,14 @@ public class JaNeLibraryTest {
         eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("先生はもう帰られました。", "शिक्षक घर गएका छन् ।", null)), "jn14 raw perfect passes");
         eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("先生はもう帰られました。", "शिक्षक घर जानुभयो।", null)), "honorific past passes");
         yes(!TranslationValidator.validateJaToNe("昨日は行きませんでした。", "म हिजो गइनँ।", null).toString().contains("PAST_LOST"), "negative past is past");
+        yes(PhraseBook.keyNe("तपाईंलाई कस्तो छ?").equals(PhraseBook.keyNe("तपाइँलाई कस्तो छ")), "ne phrase key folds candrabindu and long/short i");
+        yes(PhraseBook.keyNe("धन्यवाद, ठीक छ।").equals(PhraseBook.keyNe("धन्यवाद, ठिक छ")), "ne phrase key folds ी/ि");
+        // speaker/listener reversal (ir/Person)
+        yes(TranslationValidator.validateJaToNe("確認しますね。", "कृपया जाँच गर्नुहोस्।", null).toString().contains("HARD PERSON_REVERSED"), "self announcement rendered as request is hard");
+        yes(TranslationValidator.validateJaToNe("私が対応します。", "तपाईं सम्हाल्नुहोस्।", null).toString().contains("PERSON_REVERSED"), "explicit 私 rendered as request");
+        yes(!TranslationValidator.validateJaToNe("確認しますね。", "म जाँच गर्छु है।", null).toString().contains("PERSON_REVERSED"), "first person kept");
+        yes(!TranslationValidator.validateJaToNe("「確認」を押します。", "पक्का बटन थिच्नुहोस्।", null).toString().contains("PERSON_REVERSED"), "manual instruction is ambiguous, not flagged");
+        yes(!TranslationValidator.validateJaToNe("おむつを替えますね。少し失礼します。", "डाइपर फेरिदिन्छु है। माफ गर्नुहोला।", null).toString().contains("PERSON_REVERSED"), "失礼します is a fixed phrase");
         eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("あなた。", "तपाईं।", null)), "あなた is not a past predicate");
         eq(1, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("明日の夕方、何時に会社へ行きますか？", "तपाईँ भोलि साँझ कम्पनीमा कहिले जानुहुन्छ?", null)), "jn19 何時 -> कहिले is WH_LOST");
         eq(0, TranslationValidator.hardCount(TranslationValidator.validateJaToNe("明日の夕方、何時に会社へ行きますか？", "तपाईँ भोलि साँझ कति बजे कम्पनी जानुहुन्छ ?", null)), "jn19 raw कति बजे passes");

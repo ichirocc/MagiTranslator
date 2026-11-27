@@ -47,7 +47,10 @@ public final class PhraseBook {
     }
 
     static String keyNe(String s) {
-        String t = Normalizer.normalize(s, Normalizer.Form.NFC).replace('|', '।').replace('ँ', 'ं');
+        // spelling variants Nepali writers mix freely: candrabindu/anusvara, long/short i and u, ZWJ/ZWNJ
+        String t = Normalizer.normalize(s, Normalizer.Form.NFC).replace('|', '।').replace('ँ', 'ं')
+                .replace('ी', 'ि').replace('ू', 'ु').replace('ई', 'इ').replace('ऊ', 'उ')
+                .replace("\u200C", "").replace("\u200D", "");
         t = SPACES.matcher(t).replaceAll(" ").trim();
         return NE_END_PUNCT.matcher(t).replaceAll("");
     }

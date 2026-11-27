@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import nie.translator.rtranslator.jane.ir.Person;
 import nie.translator.rtranslator.jane.ir.Currency;
 import nie.translator.rtranslator.jane.ir.IrText;
 import nie.translator.rtranslator.jane.ir.JaAnalyzer;
@@ -30,7 +31,9 @@ public final class TranslationValidator {
         // ne->ja meaning checks (checkNeToJaMeaning)
         QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
         /** ja->ne agreement (IR-lite, SPEC v2 part 2): the candidate dropped what the Japanese predicate states */
-        WH_LOST, OBLIGATION_LOST, REQUEST_LOST, PAST_LOST, CONJECTURE_LOST, PERMISSION_LOST, NAME_EXTRA_VOWEL }
+        WH_LOST, OBLIGATION_LOST, REQUEST_LOST, PAST_LOST, CONJECTURE_LOST, PERMISSION_LOST, NAME_EXTRA_VOWEL,
+        /** ja states the speaker's own action, the candidate tells the listener to do it (zero-pronoun reversal) */
+        PERSON_REVERSED }
 
     public static final class Issue {
         public final Kind kind;
@@ -128,6 +131,7 @@ public final class TranslationValidator {
         // past: hard only for a past statement/question whose candidate has no past/perfect form at all
         // (jn14 先生はもう帰られました -> "is at home")
         if (src.tense == Tense.PAST && tgt.tense != Tense.PAST) issues.add(new Issue(Kind.PAST_LOST, true, null));
+        if (Person.jaStatesOwnAction(src.originalText) && Person.neOnlyListenerImperative(tgt.originalText)) issues.add(new Issue(Kind.PERSON_REVERSED, true, null));
     }
 
     private static void checkNumbers(List<String> a, List<String> b, List<Issue> issues) {
