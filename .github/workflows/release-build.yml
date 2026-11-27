@@ -58,6 +58,14 @@ jobs:
             app/src/main/java/nie/translator/rtranslator/widgets/NestedRadioGroup.java \
             app/src/test/java/nie/translator/rtranslator/widgets/NestedRadioGroupTest.java
           java -cp /tmp/jtui nie.translator.rtranslator.widgets.NestedRadioGroupTest   # model radio buttons (replaces RadioGroupPlus)
+          # Java replacements of the native libraries that were not 16 KB aligned (onnxruntime-extensions, DJL tokenizers)
+          mkdir -p /tmp/jttok && javac -encoding UTF-8 -d /tmp/jttok \
+            app/src/main/java/nie/translator/rtranslator/voice_translation/neural_networks/voice/WhisperDetokenizer.java \
+            app/src/test/java/nie/translator/rtranslator/voice_translation/neural_networks/voice/WhisperDetokenizerTest.java \
+            app/src/main/java/nie/translator/rtranslator/voice_translation/neural_networks/translation/HyTokenizer.java \
+            app/src/test/java/nie/translator/rtranslator/voice_translation/neural_networks/translation/HyTokenizerTest.java
+          java -Dstdout.encoding=UTF-8 -cp /tmp/jttok nie.translator.rtranslator.voice_translation.neural_networks.voice.WhisperDetokenizerTest
+          java -Dstdout.encoding=UTF-8 -cp /tmp/jttok nie.translator.rtranslator.voice_translation.neural_networks.translation.HyTokenizerTest
           java -cp /tmp/jt nie.translator.rtranslator.tools.nn.UtilsTest   # beam search top-k == the old repeated scans
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.plamo.PlamoTest   # PLaMo prompts, glossary, history, license gate
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
@@ -111,9 +119,12 @@ jobs:
           bad=0
           for so in $(find /tmp/apk/lib -name '*.so'); do
             align=$("$readelf" -lW "$so" | awk '/LOAD/{print $NF}' | sort -u | head -1)
-            if [ $(( align )) -lt $(( 0x4000 )) ]; then echo "::warning::$(basename $so) LOAD align $align (<16KB)"; bad=1; else echo "ok $(basename $so) $align"; fi
+            if [ $(( align )) -lt $(( 0x4000 )) ]; then echo "::error::$(basename $so) LOAD align $align (<16KB)"; bad=1; else echo "ok $(basename $so) $align"; fi
           done
-          echo "16KB check done (bad=$bad)"
+          # every native library is 16 KB aligned (the prebuilt ones that were not are replaced by Java code):
+          # a new one that is not fails the build instead of adding a warning
+          [ "$bad" = 0 ] || { echo "::error::native libraries not aligned for 16 KB pages"; exit 1; }
+          echo "16KB check: all aligned"
 
       - name: No legacy support library left (Jetifier is off)
         shell: bash

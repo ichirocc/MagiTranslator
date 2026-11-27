@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import ai.djl.ModelException;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.FileTools;
 import nie.translator.rtranslator.tools.TextTools;
@@ -38,8 +37,8 @@ public class LanguageDetector {
     /**
      * Initializes the detector. Call this from a background thread during app startup.
      */
-    public void initialize(Context context, LanguageResourcesManager languageResourcesManager) throws IOException, ModelException {
-        //we eventually transfer the fasttext model file from the assets to the internal memory (because the fasttext djl lib can open model only via a path to internal or external memory)
+    public void initialize(Context context, LanguageResourcesManager languageResourcesManager) throws IOException {
+        //we eventually transfer the fasttext model file from the assets to the internal memory (because fasttext can open the model only via a path to internal or external memory)
         File outFileFastText = new File(context.getFilesDir(), "fasttext.ftz");
         if(!outFileFastText.exists()) {
             FileTools.copyAssetToInternalMemory(context, "fasttext.ftz");

@@ -87,3 +87,21 @@ experiment, not a real selection): 0.8B 39.2 / 43.3 -> 46.8 / 49.8 generated tok
 characters), so names and brands would break as with Whisper, and llama.cpp would need a patch (its
 logits buffer is sized by the vocabulary). Not used: translation quality first. If speed ever matters
 more, this is the next thing to try (as an option, with a check on sentences that contain English names).
+
+## Java instead of the native libraries that were not 16 KB aligned (2026-11-27)
+
+`libortextensions.so`, `libonnxruntime_extensions4j_jni.so` (onnxruntime-extensions 0.13.0) and
+`libdjl_tokenizer.so` (DJL 0.33.0) have 4 KB aligned segments and no newer Android release. Checked which
+model needs them: none of Madlad, NLLB, HY-MT (model_int8_final.onnx) or Whisper's initializer, encoder,
+cache initializers and decoder uses a custom operator; only `Whisper_detokenizer.onnx` (one `BpeDecoder`)
+needed onnxruntime-extensions, and only HY-MT's `tokenizer.json` needed DJL. Both are Java now:
+
+- `WhisperDetokenizer` reads the vocabulary, byte table, added tokens and special ids from the downloaded
+  Whisper_detokenizer.onnx. Against onnxruntime-extensions' BpeDecoder (Python 0.15.2): every single token
+  (51865) and 5000 random sequences, 52786 with valid UTF-8 output: 0 differences. Where BpeDecoder
+  returned invalid UTF-8 (a character cut by the token limit) Java gives U+FFFD, as the app already expected.
+- `HyTokenizer` reads HY-MT's tokenizer.json (byte-level BPE, 3 regex splits, 818 added tokens). Against
+  HuggingFace tokenizers 0.23.3 (encode as DJL called it, decode with special tokens kept): FLEURS test
+  sentences of 30 languages (21094), 2000 of them inside the app's two prompt formats, 3000 random strings
+  and edge cases (26107 texts): 0 different ids, 0 different decodes; 5000 random id sequences decoded:
+  0 differences. Load 0.5 s, encode 0.7 ms per sentence (PC).

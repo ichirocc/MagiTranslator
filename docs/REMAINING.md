@@ -17,7 +17,7 @@
 | 8 | ~~モデルを個別に選んで消す機能~~ | 済み：「モデル管理」画面の各モデルの削除ボタンは元からある。調べたら消し残しが2つあったので直した：①ロールバック用の旧版（`.previous/`、Madlad では zip 1.7 GB）と途中のダウンロード（`.staging/`）が残っていた →`ModelStore.deleteAll`（テストあり）、②PLaMo を消してもエンジンが削除済みファイルを mmap したままで、アプリ終了まで容量とメモリが空かなかった → 削除直後（翻訳中なら次の翻訳時）に閉じる |
 | 9 | 会話集に無い文での評価 | 198文は会話集由来で辞書ありが有利 |
 | 10 | ~~Jetifier の撤去~~ | 済み：RadioGroupPlus を自前の `widgets/NestedRadioGroup` に置き換え、`android.enableJetifier=false` |
-| 11 | ~~`libsqlite4java.so` の 16KB ページ対応~~ | 済み：SQLite を同梱ビルドに置き換え（9d534f8）。残る 4KB 整列は `libdjl_tokenizer.so`・`libortextensions.so`・`libonnxruntime_extensions4j_jni.so`（配布済みバイナリ、新版なし） |
+| 11 | ~~16KB ページ対応~~ | 済み：sqlite4java は SQLite 同梱ビルドに（9d534f8）。未整列だった残り3つ（`libdjl_tokenizer.so`・`libortextensions.so`・`libonnxruntime_extensions4j_jni.so`、新版なし）は Java 実装に置き換えて撤去（`HyTokenizer`・`WhisperDetokenizer`、出力が同じことを確認）。CI の整列検査は警告でなく失敗にした |
 | 12 | 多義語の文脈選択、主語・目的語の入れ替え検出 | 仕様書の未実装項目 |
 | 20 | Madlad-v2（4ビット埋め込み・出力層分割） | **使わない**（2026-11-27 決定）：より良い PLaMo がある（80文 chrF 日→ネ/ネ→日：PLaMo 2B 52.7/38.0、0.8B 45.3/34.1、個人アダプタ付き 53.1/44.4、Madlad 24.9/15.1。v2 は品質同じで小さく速いだけ）。ツールは `tools/models` に残す |
 | 22 | Madlad-v2 の改善（4ビット埋め込み・日ネ専用出力層）を他のモデルへ | **使わない**（2026-11-27 測定）：PLaMo の埋め込みは元から4ビット。Whisper の日ネ専用出力層は速さ約8%、FLEURS 日本語150文で英語の語が壊れた（Amazon→Amazonger、3文）。PLaMo は生成約17%速いが、削るのは英語の語で同じ壊れ方になる。詳細は `tools/models/README.md` |
