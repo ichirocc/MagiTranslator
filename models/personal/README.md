@@ -6,6 +6,7 @@ PLaMo Community License の「派生モデル」。使用・再配布はライ�
 | ファイル | 大きさ | 中身 | 使い方 |
 |---|---|---|---|
 | `plamo-2b_personal-dict_step527.gguf` | 37 MB | PLaMo 3 Translate **2B** 用 LoRA アダプタ（step 527） | アプリの「設定 → 辞書を読み込む」で取り込む。モデルは 2B（大）を選ぶ |
+| `plamo-0.8b_personal-dict_step600.gguf` | 15 MB | PLaMo 3 Translate **0.8B** 用 LoRA アダプタ（step 600、会話集4,874文・用語から10,634例、2026-11-27 学習） | 「辞書を読み込む」で取り込む。モデルは 0.8B（小）を選ぶ |
 | `plamo-3-translate-2b-personal-step527-Q4_K_M.gguf.part00`〜`part18` | 計 1.8 GB | 上のアダプタを 2B に焼き込んだ単体モデル（Q4_K_M） | 結合してから使う（下） |
 
 結合（PC）:
