@@ -113,7 +113,26 @@ public class Downloader {
         }
     }
 
+    // cancelDownloads() and the final move of a verified model are exclusive (ModelStore.Gate); the generation
+    // tells a verification thread whether a cancel happened after it started
+    private final Object installLock = new Object();
+    private int installGeneration = 0;   // guarded by installLock
+
+    private ModelStore.Gate installGate(final int generation) {
+        return new ModelStore.Gate() {
+            @Override public Object lock() { return installLock; }
+            @Override public boolean proceed() { return installGeneration == generation; }   // called holding installLock
+        };
+    }
+
     public void cancelDownloads(){
+        synchronized (installLock) {   // exclusive with the move at the end of verifyHashThenContinue's install
+            installGeneration++;
+            cancelDownloadsLocked();
+        }
+    }
+
+    private void cancelDownloadsLocked(){
         downloadsStarted = false;
         int currentDownloadIndex = downloadGroupInfo.getRunningDownloadIndex();
         if(currentDownloadIndex != -1) {
@@ -244,9 +263,13 @@ public class Downloader {
 
     private void verifyHashThenContinue(int runningDownloadIndex) {
         DownloadInfo download = downloadGroupInfo.downloadsInfo[runningDownloadIndex];
+        final int generation;
+        synchronized (installLock) { generation = installGeneration; }
         new Thread(() -> {
-            //verify the staged file and move it into place atomically; a wrong file never reaches the active name
-            ModelStore.Result r = ModelStore.install(download.getDestinationPath(), download.getName(), 0);
+            //verify the staged file and move it into place atomically; a wrong file never reaches the active name.
+            //A cancel during the hash check wins: the gate refuses the move (checked under installLock).
+            ModelStore.Result r = ModelStore.install(download.getDestinationPath(), download.getName(), 0, installGate(generation));
+            if (r == ModelStore.Result.CANCELLED) return;
             final boolean verified = r == ModelStore.Result.INSTALLED || r == ModelStore.Result.INSTALLED_WITH_PREVIOUS;
             mainHandler.post(() -> {
                 if (downloadGroupInfo.getRunningDownloadIndex() != runningDownloadIndex) return;   //cancelled meanwhile

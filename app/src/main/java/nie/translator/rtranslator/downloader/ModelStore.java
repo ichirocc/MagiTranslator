@@ -40,7 +40,7 @@ public final class ModelStore {
     /** keep a rollback copy only if at least this much stays free afterwards (2 GB) */
     public static final long PREVIOUS_KEEP_MARGIN_BYTES = 2L << 30;
 
-    public enum Result { INSTALLED, INSTALLED_WITH_PREVIOUS, SIZE_MISMATCH, HASH_MISMATCH, UNKNOWN_FILE, MISSING, IO_ERROR }
+    public enum Result { INSTALLED, INSTALLED_WITH_PREVIOUS, SIZE_MISMATCH, HASH_MISMATCH, UNKNOWN_FILE, MISSING, IO_ERROR, CANCELLED }
 
     public static File stagingDir(String dir) {
         return new File(dir, STAGING_DIR);
@@ -61,6 +61,23 @@ public final class ModelStore {
 
     /** Same as {@link #install(String, String, long)} with an explicit pin (package-private, for tests). */
     static Result install(String dir, String name, long expectedSizeBytes, String expected) {
+        return install(dir, name, expectedSizeBytes, expected, null);
+    }
+
+    /**
+     * Asked once the staged file is verified, right before it is moved into place. {@link #lock()} is held while it
+     * decides and while the file moves, so a caller that cancels while holding the same lock either
+     * runs before the decision (the install is refused: {@link Result#CANCELLED}, staged file deleted) or after
+     * the move (the cancel sees the installed file). Hashing, the long part, runs outside the lock.
+     */
+    public interface Gate { Object lock(); boolean proceed(); }
+
+    /** {@link #install(String, String, long)} that also asks {@code gate} before moving the file into place. */
+    public static Result install(String dir, String name, long expectedSizeBytes, Gate gate) {
+        return install(dir, name, expectedSizeBytes, ModelSources.expectedSha256(name), gate);
+    }
+
+    static Result install(String dir, String name, long expectedSizeBytes, String expected, Gate gate) {
         File staged = stagingFile(dir, name);
         if (!staged.isFile()) return Result.MISSING;
         if (expected == null) { discard(staged); return Result.UNKNOWN_FILE; }
@@ -81,6 +98,14 @@ public final class ModelStore {
             discard(staged);
             return Result.HASH_MISMATCH;
         }
+        if (gate == null) return moveIntoPlace(dir, name, staged);
+        synchronized (gate.lock()) {
+            if (!gate.proceed()) { discard(staged); return Result.CANCELLED; }
+            return moveIntoPlace(dir, name, staged);
+        }
+    }
+
+    private static Result moveIntoPlace(String dir, String name, File staged) {
         File active = new File(dir, name);
         boolean keptPrevious = false;
         try {

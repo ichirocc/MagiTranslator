@@ -25,12 +25,11 @@ ext {
 
 android {
     namespace = 'nie.translator.rtranslator'
-    //compileSdkVersion 33  //33
+    compileSdk = 36   // android-level setting (it was written inside defaultConfig, where Groovy only reached it by delegation)
     ndkVersion = "30.0.16248370"
     defaultConfig {
         applicationId = "com.magi.translator"
         targetSdk = 36
-        compileSdk = 36
         versionName = '3.0.0-magi.23'
         versionCode = 50
         minSdk = 36   //MagiTranslator: Android 16+ only

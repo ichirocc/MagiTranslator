@@ -78,6 +78,28 @@ public class ModelStoreTest {
         check(ModelStore.isFailed(d, name, sha("old good")), "rolled-back revision recorded as failed");
         check(!ModelStore.rollback(d, name), "no second rollback without a previous copy");
 
+        // a cancel during the hash check: the gate refuses the move, the active file and staging are untouched
+        String nc = "cancelled.bin";
+        File actC = new File(dir, nc);
+        write(actC, "old");
+        write(ModelStore.stagingFile(d, nc), "new");
+        final Object lock = new Object();
+        ModelStore.Gate refuse = new ModelStore.Gate() {
+            public Object lock() { return lock; }
+            public boolean proceed() { return Thread.holdsLock(lock) && false; }
+        };
+        check(ModelStore.install(d, nc, 3, sha("new"), refuse) == ModelStore.Result.CANCELLED, "cancelled before the move");
+        check(read(actC).equals("old") && !ModelStore.stagingFile(d, nc).exists(), "active kept, staged file deleted on cancel");
+        final boolean[] heldWhileAsked = {false};
+        ModelStore.Gate allow = new ModelStore.Gate() {
+            public Object lock() { return lock; }
+            public boolean proceed() { heldWhileAsked[0] = Thread.holdsLock(lock); return true; }
+        };
+        write(ModelStore.stagingFile(d, nc), "new");
+        ModelStore.Result rc = ModelStore.install(d, nc, 3, sha("new"), allow);
+        check((rc == ModelStore.Result.INSTALLED || rc == ModelStore.Result.INSTALLED_WITH_PREVIOUS) && read(actC).equals("new"), "gate allows: installed");
+        check(heldWhileAsked[0], "gate asked while holding its lock");
+
         // success path with an explicit pin: atomic move, previous copy kept when disk allows
         String nm = "pinned.bin";
         File act2 = new File(dir, nm);
