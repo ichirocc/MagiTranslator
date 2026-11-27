@@ -4,7 +4,7 @@
 
 | ファイル | 形式（1行目） | 行数 |
 |---|---|---:|
-| `ja_ne_terms.tsv` | `#!jane ja-ne-terms`（日本語<TAB>ネパール語） | 1,989 |
+| `ja_ne_terms.tsv` | `#!jane ja-ne-terms`（日本語<TAB>ネパール語） | 2,036（2026-11-27 に介護用語 47 語を追加。うち 10 語は Claude の下訳＝未確認） |
 | `ne_ja_terms.tsv` | `#!jane ne-ja-terms`（ネパール語<TAB>日本語） | 1,349 |
 | `phrases.tsv` | `#!jane phrases`（日本語<TAB>ネパール語[<TAB>ja>ne]） | 3,788（うち ja>ne 専用 387） |
 
