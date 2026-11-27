@@ -21,7 +21,7 @@
 | 12 | 多義語の文脈選択、主語・目的語の入れ替え検出 | 仕様書の未実装項目 |
 | 20 | Madlad-v2（4ビット埋め込み・出力層分割） | **使わない**（2026-11-27 決定）：より良い PLaMo がある（80文 chrF 日→ネ/ネ→日：PLaMo 2B 52.7/38.0、0.8B 45.3/34.1、個人アダプタ付き 53.1/44.4、Madlad 24.9/15.1。v2 は品質同じで小さく速いだけ）。ツールは `tools/models` に残す |
 | 22 | Madlad-v2 の改善（4ビット埋め込み・日ネ専用出力層）を他のモデルへ | **使わない**（2026-11-27 測定）：PLaMo の埋め込みは元から4ビット。Whisper の日ネ専用出力層は速さ約8%、FLEURS 日本語150文で英語の語が壊れた（Amazon→Amazonger、3文）。PLaMo は生成約17%速いが、削るのは英語の語で同じ壊れ方になる。詳細は `tools/models/README.md` |
-| 21 | PLaMo を Madlad なしで使えるようにする | 今はネパール語に「Madlad」選択が必須（`Translator.java` の Nepali チェック）で、PLaMo はその中で呼ばれる。そのため PLaMo だけ使いたくても Madlad（約1.5 GB）の取得が要り、PLaMo で訳している間も Madlad（約1.7 GB）がメモリに載る。案：日⇄ネは PLaMo を先に使い、Madlad は PLaMo が使えない時だけ読み込む |
+| 21 | ~~PLaMo を Madlad なしで使えるようにする~~ | 済み：日⇄ネは、モデルの選択・読み込みより前に PLaMo で訳す（使えない時だけ従来どおり Madlad へ。PLaMo を二度試さない）。Madlad を選んでいても、PLaMo が使える端末では起動時に Madlad（約1.7 GB）を読み込まず、必要になった最初の翻訳で読み込む（メモリ逼迫で解放した時と同じ仕組み）。PLaMo だけ使う場合、Madlad のダウンロードは不要（モデル選択には Mozilla など小さいものを選ぶ） |
 | 19 | 非推奨 API（javac `-Xlint:deprecation` で 212 件、2026-11-27） | 置き換えが同じ動作になるもの 44 件は直した（`setColorFilter`→`PorterDuffColorFilter`、`Handler()`→`Handler(Looper.myLooper())`、`getColor/getDrawable(id, null)`、`stopForeground(STOP_FOREGROUND_REMOVE)`、型付きの `getSerializable(Extra)/getParcelable(Extra)`）。残りは構造の書き換えで、実機の会話モード（Bluetooth）で確かめられるまで触らない：Bluetooth GATT（`setValue`/`writeCharacteristic`/`notifyCharacteristicChanged`/`getDefaultAdapter`/`enable`）、`Parcel.readParcelable/readSerializable`（Bluetooth の受け渡し）、`AsyncTask`、`onActivityCreated`、`startActivityForResult/onActivityResult`、`setSystemUiVisibility` とウィンドウインセット、`overridePendingTransition`、`Locale(String)` |
 
 ## ユーザーにお願いすること
