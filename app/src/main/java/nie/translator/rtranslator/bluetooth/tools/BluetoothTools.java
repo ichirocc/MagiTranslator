@@ -20,6 +20,16 @@ import java.util.Random;
  * may not work correctly.
  */
 public class BluetoothTools {
+    /** Integer sent by the peer as text, or {@code fallback} when it is not one (data from another device is not trusted). */
+    public static int parseIntOr(byte[] value, int fallback) {
+        if (value == null) return fallback;
+        try {
+            return Integer.parseInt(new String(value, java.nio.charset.StandardCharsets.UTF_8).trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
     /** The device's Bluetooth adapter, or null without Bluetooth (BluetoothAdapter.getDefaultAdapter() is deprecated). */
     @androidx.annotation.Nullable
     public static android.bluetooth.BluetoothAdapter getAdapter(android.content.Context context) {

@@ -127,6 +127,16 @@ public class Translator extends NeuralNetworkApi {
     public void setTranslationStatus(int modelMode, boolean useMozillaForVoiceTranslation, boolean useTatoeba, boolean useTranslationDicts, GeneralListener listener){
         final Thread t = new Thread("textTranslation") {
             public void run() {
+                //the model switch closes and creates the sessions a translation uses: never while one runs
+                translationLock.lock();
+                try {
+                    runLocked();
+                } finally {
+                    translationLock.unlock();
+                }
+            }
+
+            private void runLocked() {
                 try {
                     int oldMode = Translator.this.mode;
                     Translator.this.mode = modelMode;
@@ -150,7 +160,16 @@ public class Translator extends NeuralNetworkApi {
                                 android.util.Log.i("translation", "Madlad not loaded at start: PLaMo is installed");
                             } else {
                                 releasedMode = -1;
-                                onnxTranslationModelInitialization();
+                                try {
+                                    onnxTranslationModelInitialization();
+                                } catch (Exception initError) {
+                                    //no half-loaded model stays selected: free what was created, and let the next
+                                    //translation load the model again (as after a release on memory pressure)
+                                    closeSessionsQuietly();
+                                    Translator.this.mode = -1;
+                                    releasedMode = modelMode;
+                                    throw initError;
+                                }
                             }
                         }
                     }
@@ -496,6 +515,15 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
+    /** Closes every translation session field, ignoring nulls and sessions already closed (after a failed load). */
+    private void closeSessionsQuietly() {
+        for (OrtSession session : new OrtSession[]{encoderSession, decoderSession, cacheInitSession, embedSession, embedAndLmHeadSession}) {
+            if (session != null) {
+                try { session.close(); } catch (Exception ignored) {}
+            }
+        }
+    }
+
     private void onnxTranslationModelCleanup(int mode) throws OrtException {
         if (mode == NLLB || mode == NLLB_CACHE || mode == MADLAD || mode == MADLAD_CACHE) {
             encoderSession.close();
@@ -651,75 +679,74 @@ public class Translator extends NeuralNetworkApi {
         public abstract void onTranslatedText(String textToTranslate, String translatedText, @Nullable String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage);
     }
 
-    public void translateMessage(final ConversationMessage conversationMessageToTranslate, final CustomLocale languageOutput, int beamSize, final TranslateListener responseListener) {  // what the thread does
-        Thread t = new Thread("messageTranslationPerformer") {
-            public void run() {
-                synchronized (lock) {
-                    dataToTranslate.addLast(new DataContainer(conversationMessageToTranslate, languageOutput, beamSize, responseListener));
-                    if (dataToTranslate.size() >= 1 && !translatingMessages) {
-                        translateMessage();
-                    }
-                }
-            }
-        };
-        t.start();
+    /*
+     * Conversation-mode queue. The messages are translated one at a time, in arrival order, on a worker thread:
+     * - the queue and translatingMessages change only under lock (a message added while the last one finished
+     *   could be left in the queue with nobody translating it)
+     * - the next message starts when performTextTranslation returns, not from its callbacks: those are posted to
+     *   the main thread (the next translation then ran on the main thread), arrive once per streaming draft
+     *   (each draft started another message), and never arrive for a cancelled ticket (the queue stopped)
+     * - a failed language-resource load reports the failure and goes on with the next message (it stopped the queue)
+     */
+    public void translateMessage(final ConversationMessage conversationMessageToTranslate, final CustomLocale languageOutput, int beamSize, final TranslateListener responseListener) {
+        boolean start;
+        synchronized (lock) {
+            dataToTranslate.addLast(new DataContainer(conversationMessageToTranslate, languageOutput, beamSize, responseListener));
+            start = !translatingMessages;
+            if (start) translatingMessages = true;
+        }
+        if (start) continueMessages();
     }
 
-    private void translateMessage(){
-        translatingMessages = true;
-        Translator.DataContainer data = dataToTranslate.pollFirst();
-        if(data != null) {
+    private void continueMessages() {
+        new Thread(this::translateNextMessage, "messageTranslationPerformer").start();
+    }
+
+    /** Translates the queued messages until the queue is empty. Worker thread only. */
+    private void translateNextMessage() {
+        while (true) {
+            final Translator.DataContainer data;
+            synchronized (lock) {
+                data = dataToTranslate.pollFirst();
+                if (data == null) { translatingMessages = false; return; }
+            }
             final String text = data.conversationMessageToTranslate.getPayload().getText();
             final CustomLocale languageInput = data.conversationMessageToTranslate.getPayload().getLanguage();
-            if (!languageInput.equals(data.languageOutput)) {
-                Peer sender = data.conversationMessageToTranslate.getSender();
-                loadSrcLangResourcesForPeer(languageInput, sender, new GeneralListener() {
-                    @Override
-                    public void onSuccess() {
+            if (languageInput.equals(data.languageOutput)) {  // the message is already in our language
+                data.responseListener.onTranslatedText(text, text, null, incrementCurrentResultID(), true, TranslateListener.ResultType.NORMAL, languageInput, languageInput);
+                continue;
+            }
+            Peer sender = data.conversationMessageToTranslate.getSender();
+            loadSrcLangResourcesForPeer(languageInput, sender, new GeneralListener() {
+                @Override
+                public void onSuccess() {   // main thread: translate on a worker
+                    new Thread(() -> {
                         performTextTranslation(text, languageInput, data.languageOutput, data.beamSize, false, Global.RTranslatorMode.CONVERSATION_MODE, cancellation.newTicket(Global.RTranslatorMode.CONVERSATION_MODE.ordinal()), new TranslateListener() {
                             @Override
                             public void onTranslatedText(String textToTranslate, String translatedText, String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
-                                data.conversationMessageToTranslate.getPayload().setText(translatedText);
-                                data.conversationMessageToTranslate.getPayload().setLanguage(data.languageOutput);
-                                mainHandler.post(() -> data.responseListener.onTranslatedText(textToTranslate, translatedText, synonyms, resultID, isFinal, resultType, inputLanguage, outputLanguage));
-                                //we translate the next message in the queue
-                                if (dataToTranslate.size() >= 1) {
-                                    translateMessage();
-                                } else {
-                                    translatingMessages = false;
+                                if (isFinal) {
+                                    data.conversationMessageToTranslate.getPayload().setText(translatedText);
+                                    data.conversationMessageToTranslate.getPayload().setLanguage(data.languageOutput);
                                 }
+                                mainHandler.post(() -> data.responseListener.onTranslatedText(textToTranslate, translatedText, synonyms, resultID, isFinal, resultType, inputLanguage, outputLanguage));
                             }
 
                             @Override
                             public void onFailure(int[] reasons, long value) {
                                 data.responseListener.onFailure(reasons, value);
-
-                                //we translate the next message in the queue
-                                if (dataToTranslate.size() >= 1) {
-                                    translateMessage();
-                                } else {
-                                    translatingMessages = false;
-                                }
                             }
                         });
-                    }
-                });
-            } else {  // means that the language to be translated corresponds to ours
-                data.responseListener.onTranslatedText(text, text, null, incrementCurrentResultID(), true, TranslateListener.ResultType.NORMAL, languageInput, languageInput);
-                //we translate the next message in the queue
-                if (dataToTranslate.size() >= 1) {
-                    translateMessage();
-                } else {
-                    translatingMessages = false;
+                        translateNextMessage();
+                    }, "messageTranslationPerformer").start();
                 }
-            }
-        }else{
-            //we translate the next message in the queue
-            if (dataToTranslate.size() >= 1) {
-                translateMessage();
-            } else {
-                translatingMessages = false;
-            }
+
+                @Override
+                public void onFailure(int[] reasons, long value) {   // main thread
+                    data.responseListener.onFailure(reasons, value);
+                    continueMessages();
+                }
+            });
+            return;   // the listener continues the queue
         }
     }
 

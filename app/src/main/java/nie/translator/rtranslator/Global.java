@@ -1289,7 +1289,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
     private void releaseIdleModels(String reason) {
         boolean t = translator != null && translator.releaseIdleModel();
         boolean r = speechRecognizer != null && speechRecognizer.releaseIdleNeModel();
-        android.util.Log.i("memory", reason + ": translation model released=" + t + ", Nepali Whisper released=" + r);
+        android.util.Log.i("memory", reason + ": translation model released=" + t + ", Nepali Whisper release queued=" + r);
     }
 }
 

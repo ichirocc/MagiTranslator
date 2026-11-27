@@ -756,27 +756,34 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
         String dir = global.getFilesDir().getPath() + "/Whisper_ne/";
         String[] names = {"Whisper_encoder.onnx", "Whisper_cache_initializer.onnx", "Whisper_cache_initializer_batch.onnx", "Whisper_decoder.onnx"};
         for (String n : names) {
-            if (!new java.io.File(dir + n).exists()) return false;
+            if (!new java.io.File(dir + n).exists()) {
+                neModelTried = false;   //not installed (yet): look again next time, a later download is then used
+                return false;
+            }
         }
-        try {
-            OrtSession.SessionOptions enc = new OrtSession.SessionOptions();
+        OrtSession e = null, c = null, cb = null;
+        try (OrtSession.SessionOptions enc = new OrtSession.SessionOptions();
+             OrtSession.SessionOptions other = new OrtSession.SessionOptions()) {   //options are copied into the sessions
             enc.setCPUArenaAllocator(true);
             enc.setMemoryPatternOptimization(true);
             enc.setSymbolicDimensionValue("batch_size", 1);
             enc.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-            OrtSession.SessionOptions other = new OrtSession.SessionOptions();
             other.setCPUArenaAllocator(false);
             other.setMemoryPatternOptimization(false);
             other.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-            OrtSession e = onnxEnv.createSession(dir + names[0], enc);
-            OrtSession c = onnxEnv.createSession(dir + names[1], other);
-            OrtSession cb = onnxEnv.createSession(dir + names[2], other);
+            e = onnxEnv.createSession(dir + names[0], enc);
+            c = onnxEnv.createSession(dir + names[1], other);
+            cb = onnxEnv.createSession(dir + names[2], other);
             OrtSession d = onnxEnv.createSession(dir + names[3], other);
             neEncoderSession = e; neCacheInitSession = c; neCacheInitBatchSession = cb; neDecoderSession = d;
             android.util.Log.i("recognizer", "Nepali Whisper loaded");
             return true;
         } catch (Exception ex) {
             ex.printStackTrace();
+            //a broken file: free the sessions already created (native memory), the base model is used from now on
+            for (OrtSession partial : new OrtSession[]{e, c, cb}) {
+                if (partial != null) try { partial.close(); } catch (Exception ignored) {}
+            }
             return false;
         }
     }
@@ -957,9 +964,21 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      * Closes the optional Nepali Whisper sessions when nothing is being recognised; ensureNeModel() reloads them
      * on the next Nepali utterance. The base model stays loaded (it serves every language). Never waits.
      */
+    /**
+     * Asks for the Nepali Whisper sessions to be released when the recognizer is idle. Called from onTrimMemory /
+     * onLowMemory on the main thread: recognition runs while holding {@code lock}, so waiting for the lock here
+     * blocked the main thread for a whole utterance. The release now runs on the recognizer's own queue (after the
+     * utterance in progress) and this returns at once: true when the Nepali model is loaded and a release was queued.
+     */
     public boolean releaseIdleNeModel() {
+        if (neDecoderSession == null) return false;   //racy read, only to skip an obviously useless request
+        enqueueExecutor.execute(this::releaseIdleNeModelNow);
+        return true;
+    }
+
+    private void releaseIdleNeModelNow() {
         synchronized (lock) {
-            if (recognizing || !dataToRecognize.isEmpty() || neDecoderSession == null) return false;
+            if (recognizing || !dataToRecognize.isEmpty() || neDecoderSession == null) return;
             try {
                 neEncoderSession.close();
                 neCacheInitSession.close();
@@ -974,7 +993,6 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
             neDecoderSession = null;
             neModelTried = false;   //allow the lazy reload
             android.util.Log.i("recognizer", "Nepali Whisper released on memory pressure");
-            return true;
         }
     }
 }

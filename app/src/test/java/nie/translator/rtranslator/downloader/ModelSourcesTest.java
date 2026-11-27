@@ -27,6 +27,10 @@ public class ModelSourcesTest {
     }
 
     public static void main(String[] args) throws Exception {
+        // a direct (publisher) file is downloaded from its publisher, a mirrored one from the mirror
+        check(ModelSources.downloadUrl("plamo-3-translate-0.8b-Q4_K_M.gguf").startsWith("https://huggingface.co/pfnet/"), "PLaMo 0.8B from the publisher");
+        check(ModelSources.downloadUrl("plamo-3-translate-2b-Q4_K_M.gguf").equals(ModelSources.directUrl("plamo-3-translate-2b-Q4_K_M.gguf")), "PLaMo 2B from the publisher");
+        check(ModelSources.downloadUrl("Whisper_encoder.onnx").equals(ModelSources.url("Whisper_encoder.onnx")), "Whisper from the mirror");
         Map<String, String> tsv = new HashMap<>();
         for (String line : Files.readAllLines(Paths.get("models/models.tsv"), StandardCharsets.UTF_8)) {
             if (line.isEmpty() || line.startsWith("#")) continue;

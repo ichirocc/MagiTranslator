@@ -93,6 +93,7 @@ public class Downloader {
     }
 
     public void pauseDownloads(){
+        stopGeneration++;   // integrity results of the run being paused are stale from now on
         int currentDownloadIndex = downloadGroupInfo.getRunningDownloadIndex();
         if(currentDownloadIndex != -1) {
             int downloadId = downloadGroupInfo.downloadsInfo[currentDownloadIndex].getDownloadId();
@@ -117,6 +118,8 @@ public class Downloader {
     // tells a verification thread whether a cancel happened after it started
     private final Object installLock = new Object();
     private int installGeneration = 0;   // guarded by installLock
+    // bumped (main thread) by pause and cancel: a result of the integrity test started before is ignored
+    private int stopGeneration = 0;
 
     private ModelStore.Gate installGate(final int generation) {
         return new ModelStore.Gate() {
@@ -133,6 +136,7 @@ public class Downloader {
     }
 
     private void cancelDownloadsLocked(){
+        stopGeneration++;
         downloadsStarted = false;
         int currentDownloadIndex = downloadGroupInfo.getRunningDownloadIndex();
         if(currentDownloadIndex != -1) {
@@ -206,7 +210,8 @@ public class Downloader {
         java.io.File stagingDir = ModelStore.stagingDir(downloadGroupInfo.downloadsInfo[index].getDestinationPath());
         //noinspection ResultOfMethodCallIgnored
         stagingDir.mkdirs();
-        downloadId = PRDownloader.download(ModelSources.url(downloadGroupInfo.downloadsInfo[index].getName()), stagingDir.getAbsolutePath(), downloadGroupInfo.downloadsInfo[index].getName())
+        downloadId = PRDownloader.download(ModelSources.downloadUrl(downloadGroupInfo.downloadsInfo[index].getName()),   //PLaMo comes from its publisher, not the mirror
+                 stagingDir.getAbsolutePath(), downloadGroupInfo.downloadsInfo[index].getName())
                 .build()
                 .setOnStartOrResumeListener(new OnStartOrResumeListener() {
                     @Override
@@ -357,10 +362,12 @@ public class Downloader {
             downloadGroupInfo.getRunningDownload().setCurrentError(-1);
             DownloadInfo finishedDownload = downloadGroupInfo.downloadsInfo[runningDownloadIndex];
             callback.onProgress(downloadGroupInfo, downloadGroupInfo.downloadsInfo[runningDownloadIndex], percentageTotalProgress, 100, false, true);
+            final int generation = stopGeneration;
             NeuralNetworkApi.InitListener listener = new NeuralNetworkApi.InitListener() {
                 @Override
                 public void onInitializationFinished() {
                     mainHandler.post(() -> {
+                        if (generation != stopGeneration) return;   // paused or cancelled meanwhile: no next download
                         testIntegrityThread = null;
                         downloadGroupInfo.downloadsInfo[runningDownloadIndex].setIntegrityTested(true);
                         callback.onIntegrityTestCompleted(downloadGroupInfo, downloadGroupInfo.downloadsInfo[runningDownloadIndex]);
@@ -371,6 +378,7 @@ public class Downloader {
                 @Override
                 public void onError(int[] reasons, long value) {
                     mainHandler.post(() -> {
+                        if (generation != stopGeneration) return;   // paused or cancelled meanwhile
                         testIntegrityThread = null;
                         int runningDownloadIndex1 = downloadGroupInfo.getRunningDownloadIndex();
                         if (runningDownloadIndex1 >= 0) {
@@ -551,8 +559,13 @@ public class Downloader {
                             success = false;
                         }
 
-                        // If we stopped due to an interrupt, exit without deleting the zip or calling listeners
-                        if (Thread.currentThread().isInterrupted()) return;
+                        // If we stopped due to an interrupt, exit without deleting the zip or calling listeners;
+                        // the field is cleared so that a resume can start the extraction again (it stayed set)
+                        if (Thread.currentThread().isInterrupted()) {
+                            final Thread self = Thread.currentThread();
+                            mainHandler.post(() -> { if (unzipThread == self) unzipThread = null; });
+                            return;
+                        }
 
                         if (success) {
                             try {

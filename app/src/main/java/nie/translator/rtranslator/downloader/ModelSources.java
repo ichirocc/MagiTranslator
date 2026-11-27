@@ -82,6 +82,12 @@ public final class ModelSources {
         return d == null ? null : d[0];
     }
 
+    /** Where the app downloads {@code fileName}: the publisher's pinned URL for a direct file (PLaMo), the mirror otherwise. */
+    public static String downloadUrl(String fileName) {
+        String direct = directUrl(fileName);
+        return direct != null ? direct : url(fileName);
+    }
+
     /** Expected SHA-256 of a model file, or null when the file is not a known model file. */
     public static String expectedSha256(String fileName) {
         String h = SHA256.get(fileName);
