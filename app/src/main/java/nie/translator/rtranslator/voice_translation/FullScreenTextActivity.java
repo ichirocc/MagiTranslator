@@ -24,7 +24,7 @@ public class FullScreenTextActivity extends AppCompatActivity {
 
         // Retrieve the passed text and language
         String passedText = getIntent().getStringExtra(EXTRA_TEXT);
-        CustomLocale passedLanguage = (CustomLocale) getIntent().getSerializableExtra(EXTRA_LANGUAGE);
+        CustomLocale passedLanguage = getIntent().getSerializableExtra(EXTRA_LANGUAGE, CustomLocale.class);
 
         // Set the passed text
         TextView textView = findViewById(R.id.fullscreen_text_view);

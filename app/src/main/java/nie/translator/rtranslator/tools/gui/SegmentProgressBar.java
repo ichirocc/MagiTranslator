@@ -221,7 +221,7 @@ public class SegmentProgressBar extends View {
 
         // Draw redLine
         if(redLineValue >= 0){
-            paint.setColor(getResources().getColor(R.color.red));
+            paint.setColor(getResources().getColor(R.color.red, null));
             float redLineWidth = (progressWidth / maxProgress) * 0.5F;
             float segmentHorizontalPosition = (progressWidth / maxProgress) * redLineValue;
             drawRoundRect(
@@ -240,7 +240,7 @@ public class SegmentProgressBar extends View {
 
         // Draw orangeLine
         if(orangeLineValue >= 0){
-            paint.setColor(getResources().getColor(R.color.orange));
+            paint.setColor(getResources().getColor(R.color.orange, null));
             float orangeLineWidth = (progressWidth / maxProgress) * 0.5F;
             float segmentHorizontalPosition = (progressWidth / maxProgress) * orangeLineValue;
             drawRoundRect(

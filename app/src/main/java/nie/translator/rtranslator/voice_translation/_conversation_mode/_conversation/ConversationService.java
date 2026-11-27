@@ -61,7 +61,7 @@ public class ConversationService extends VoiceTranslationService {
     //private BluetoothHelper mBluetoothHelper;
     private Global global;
     private ConversationBluetoothCommunicator.Callback communicationCallback;
-    private static Handler mHandler = new Handler();
+    private static Handler mHandler = new Handler(Looper.myLooper());
     private Handler mainHandler;
     public static boolean isRunning = false;
 
@@ -115,7 +115,7 @@ public class ConversationService extends VoiceTranslationService {
                 ConversationService.super.notifyVolumeLevel(volumeLevel);
             }
         };
-        clientHandler = new Handler(new Handler.Callback() {
+        clientHandler = new Handler(Looper.myLooper(), new Handler.Callback() {
             @Override
             public boolean handleMessage(final android.os.Message message) {
                 int command = message.getData().getInt("command", -1);
@@ -384,7 +384,7 @@ public class ConversationService extends VoiceTranslationService {
     public static class ConversationServiceCommunicator extends VoiceTranslationServiceCommunicator {
         public ConversationServiceCommunicator(int id) {
             super(id);
-            super.serviceHandler = new Handler(new Handler.Callback() {
+            super.serviceHandler = new Handler(Looper.myLooper(), new Handler.Callback() {
                 @Override
                 public boolean handleMessage(android.os.Message msg) {
                     msg.getData().setClassLoader(Peer.class.getClassLoader());

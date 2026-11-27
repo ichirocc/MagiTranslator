@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.voice_translation._walkie_talkie_mode._walkie_talkie;
 
+import android.os.Looper;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -84,7 +85,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
         speechRecognizer = ((Global) getApplication()).getSpeechRecognizer();
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         isAudioMute = !sharedPreferences.getBoolean("walkieTalkieAutoTTS", true);
-        clientHandler = new Handler(new Handler.Callback() {
+        clientHandler = new Handler(Looper.myLooper(), new Handler.Callback() {
             @Override
             public boolean handleMessage(@NonNull android.os.Message message) {
                 int command = message.getData().getInt("command", -1);
@@ -111,13 +112,13 @@ public class WalkieTalkieService extends VoiceTranslationService {
                                 break;
                             }
                             case CHANGE_FIRST_LANGUAGE:
-                                CustomLocale newFirstLanguage = (CustomLocale) message.getData().getSerializable("language");
+                                CustomLocale newFirstLanguage = message.getData().getSerializable("language", CustomLocale.class);
                                 if (!firstLanguage.equals(newFirstLanguage)) {
                                     firstLanguage = newFirstLanguage;
                                 }
                                 break;
                             case CHANGE_SECOND_LANGUAGE:
-                                CustomLocale newSecondLanguage = (CustomLocale) message.getData().getSerializable("language");
+                                CustomLocale newSecondLanguage = message.getData().getSerializable("language", CustomLocale.class);
                                 if (!secondLanguage.equals(newSecondLanguage)) {
                                     secondLanguage = newSecondLanguage;
                                 }
@@ -440,8 +441,8 @@ public class WalkieTalkieService extends VoiceTranslationService {
         final CustomLocale finalSecondLanguage = this.secondLanguage;
 
         //getGroup the languages
-        firstLanguage = (CustomLocale) intent.getSerializableExtra("firstLanguage");
-        secondLanguage = (CustomLocale) intent.getSerializableExtra("secondLanguage");
+        firstLanguage = intent.getSerializableExtra("firstLanguage", CustomLocale.class);
+        secondLanguage = intent.getSerializableExtra("secondLanguage", CustomLocale.class);
 
         if(finalFirstLanguage==null || finalSecondLanguage==null ) {  //se è il primo avvio
             //we attach the speech recognition callbacks
@@ -534,7 +535,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
 
         public WalkieTalkieServiceCommunicator(int id) {
             super(id);
-            super.serviceHandler = new Handler(new Handler.Callback() {
+            super.serviceHandler = new Handler(Looper.myLooper(), new Handler.Callback() {
                 @Override
                 public boolean handleMessage(@NonNull android.os.Message msg) {
                     msg.getData().setClassLoader(Peer.class.getClassLoader());
@@ -543,14 +544,14 @@ public class WalkieTalkieService extends VoiceTranslationService {
                     if(!executeCallback(callbackMessage,data)){
                         switch (callbackMessage){
                             case ON_FIRST_LANGUAGE:{
-                                CustomLocale language = (CustomLocale) data.getSerializable("language");
+                                CustomLocale language = data.getSerializable("language", CustomLocale.class);
                                 while (!firstLanguageListeners.isEmpty()) {
                                     firstLanguageListeners.remove(0).onLanguage(language);
                                 }
                                 break;
                             }
                             case ON_SECOND_LANGUAGE:{
-                                CustomLocale language = (CustomLocale) data.getSerializable("language");
+                                CustomLocale language = data.getSerializable("language", CustomLocale.class);
                                 while (!secondLanguageListeners.isEmpty()) {
                                     secondLanguageListeners.remove(0).onLanguage(language);
                                 }

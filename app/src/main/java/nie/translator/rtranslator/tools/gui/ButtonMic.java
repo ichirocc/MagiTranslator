@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.tools.gui;
 
+import android.graphics.PorterDuffColorFilter;
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.content.Context;
@@ -148,12 +149,12 @@ public class ButtonMic extends DeactivableButton {
                 if (micInput != null) {
                     // animation micInput (TextView under the mic) and enlargement of the microphone after the change of icon from send to mic
                     Drawable icon = getDrawable(R.drawable.mic_icon);
-                    icon.setColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN);
+                    icon.setColorFilter(new PorterDuffColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN));
                     animator.animateIconToMicAndIconChange(context, this, micInput, icon);
                 } else {
                     // microphone enlargement animation
                     Drawable icon = getDrawable(R.drawable.mic_icon);
-                    icon.setColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN);
+                    icon.setColorFilter(new PorterDuffColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN));
                     animator.animateIconToMicAndIconChange(context, this, icon);
                 }
             }
@@ -179,7 +180,7 @@ public class ButtonMic extends DeactivableButton {
             } else if (oldState == STATE_SEND) {
                 // change icon animation
                 Drawable icon = getDrawable(R.drawable.mic_icon);
-                icon.setColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN);
+                icon.setColorFilter(new PorterDuffColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN));
                 animator.animateIconChange(this, icon);
             }
             // change accessibility description
@@ -187,8 +188,8 @@ public class ButtonMic extends DeactivableButton {
         } else if (state == STATE_SEND) {
             // change icon animation
             Drawable icon = getDrawable(R.drawable.send_icon);
-            icon.setColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN);
-            //icon.setColorFilter(context.getResources().getColorStateList(R.color.primary_very_dark, null).getDefaultColor(), PorterDuff.Mode.SRC_IN);
+            icon.setColorFilter(new PorterDuffColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN));
+            //icon.setColorFilter(new PorterDuffColorFilter(context.getResources().getColorStateList(R.color.primary_very_dark, null).getDefaultColor(), PorterDuff.Mode.SRC_IN));
             animator.animateIconChange(this, icon);
             //this.setImageDrawable(icon);
             // change accessibility description
@@ -218,7 +219,7 @@ public class ButtonMic extends DeactivableButton {
         if (state == STATE_NORMAL) {
             if (mute) {
                 if(leftLine != null && centerLine != null && rightLine != null){
-                    getDrawable().setColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN);  //we make the mic icon visible
+                    getDrawable().setColorFilter(new PorterDuffColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN));  //we make the mic icon visible
                     leftLine.setVisibility(GONE);
                     centerLine.setVisibility(GONE);
                     rightLine.setVisibility(GONE);
@@ -240,7 +241,7 @@ public class ButtonMic extends DeactivableButton {
             isListening = true;
             if(!isMute) {
                 if(leftLine != null && centerLine != null && rightLine != null){
-                    getDrawable().setColorFilter(GuiTools.getTransparentColorStateList(context).getDefaultColor(), PorterDuff.Mode.SRC_IN);  //we make the mic icon invisible
+                    getDrawable().setColorFilter(new PorterDuffColorFilter(GuiTools.getTransparentColorStateList(context).getDefaultColor(), PorterDuff.Mode.SRC_IN));  //we make the mic icon invisible
                     leftLine.setVisibility(VISIBLE);
                     centerLine.setVisibility(VISIBLE);
                     rightLine.setVisibility(VISIBLE);
@@ -254,7 +255,7 @@ public class ButtonMic extends DeactivableButton {
         isListening = false;
         if (!isMute) {
             if(leftLine != null && centerLine != null && rightLine != null){
-                getDrawable().setColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN);  //we make the mic icon visible
+                getDrawable().setColorFilter(new PorterDuffColorFilter(currentColor.iconColor.getDefaultColor(), PorterDuff.Mode.SRC_IN));  //we make the mic icon visible
                 leftLine.setVisibility(GONE);
                 centerLine.setVisibility(GONE);
                 rightLine.setVisibility(GONE);
@@ -267,7 +268,7 @@ public class ButtonMic extends DeactivableButton {
     public void updateVolumeLevel(float volumeLevel){
         if(isListening){
             //we make the mic icon invisible (we do this also here because otherwise when the onVoiceStart is called during another animation the icon will not disappear)
-            getDrawable().setColorFilter(GuiTools.getTransparentColorStateList(context).getDefaultColor(), PorterDuff.Mode.SRC_IN);
+            getDrawable().setColorFilter(new PorterDuffColorFilter(GuiTools.getTransparentColorStateList(context).getDefaultColor(), PorterDuff.Mode.SRC_IN));
         }
         if(this.volumeLevel == -1 || this.animationVoice == null || !this.animationVoice.isRunning()) {
             animationVoice = updateVolumeLevel(volumeLevel, new CustomAnimator.EndListener() {

@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.settings;
 
+import android.os.Looper;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
@@ -66,7 +67,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private SupportTtsQualityPreference supportTtsQualityPreference;
     private LanguagePreference languagePreference;
 
-    private Handler selfHandler = new Handler(new Handler.Callback() {
+    private Handler selfHandler = new Handler(Looper.myLooper(), new Handler.Callback() {
         @Override
         public boolean handleMessage(Message message) {
             final Bundle data = message.getData();

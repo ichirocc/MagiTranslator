@@ -207,7 +207,7 @@ public abstract class BluetoothHeadsetUtils {
                 ////d(TAG, "\nAction = " + action + "\nState = " + state); //$NON-NLS-1$ //$NON-NLS-2$
                 if (state == BluetoothHeadset.STATE_CONNECTED) {
 
-                    connectScoAudio((BluetoothDevice) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
+                    connectScoAudio(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class));
 
                     ////d(TAG, "Start count down"); //$NON-NLS-1$
                 } else if (state == BluetoothHeadset.STATE_DISCONNECTED) {

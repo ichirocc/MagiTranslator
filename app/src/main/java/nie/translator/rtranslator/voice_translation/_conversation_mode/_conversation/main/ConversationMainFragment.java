@@ -17,6 +17,7 @@
 package nie.translator.rtranslator.voice_translation._conversation_mode._conversation.main;
 
 
+import android.os.Looper;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.Editable;
@@ -64,7 +65,7 @@ public class ConversationMainFragment extends VoiceTranslationFragment {
     private ButtonSound sound;
     private EditText editText;
     private ImageButton micPlaceHolder;
-    private Handler mHandler = new Handler();
+    private Handler mHandler = new Handler(Looper.myLooper());
     //connection
     protected VoiceTranslationService.VoiceTranslationServiceCommunicator conversationServiceCommunicator;
     protected VoiceTranslationService.VoiceTranslationServiceCallback conversationServiceCallback;

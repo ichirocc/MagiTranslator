@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.voice_translation._walkie_talkie_mode._walkie_talkie;
 
+import android.os.Looper;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -87,7 +88,7 @@ public class WalkieTalkieFragment extends VoiceTranslationFragment {
     private ButtonSound sound;
     private long lastPressedLeftMic = -1;
     private long lastPressedRightMic = -1;
-    private Handler mHandler = new Handler();
+    private Handler mHandler = new Handler(Looper.myLooper());
     //connection
     protected WalkieTalkieService.WalkieTalkieServiceCommunicator walkieTalkieServiceCommunicator;
     protected VoiceTranslationService.VoiceTranslationServiceCallback walkieTalkieServiceCallback;
