@@ -194,3 +194,8 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.2.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 }
+
+// javac: name each use of a deprecated API (otherwise only "Some input files use or override a deprecated API")
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ['-Xlint:deprecation', '-Xmaxwarns', '1000']
+}
