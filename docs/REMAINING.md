@@ -19,7 +19,7 @@
 | 10 | ~~Jetifier の撤去~~ | 済み：RadioGroupPlus を自前の `widgets/NestedRadioGroup` に置き換え、`android.enableJetifier=false` |
 | 11 | ~~`libsqlite4java.so` の 16KB ページ対応~~ | 済み：SQLite を同梱ビルドに置き換え（9d534f8）。残る 4KB 整列は `libdjl_tokenizer.so`・`libortextensions.so`・`libonnxruntime_extensions4j_jni.so`（配布済みバイナリ、新版なし） |
 | 12 | 多義語の文脈選択、主語・目的語の入れ替え検出 | 仕様書の未実装項目 |
-| 19 | 非推奨 API（javac `-Xlint:deprecation` で 212 件、2026-11-27） | 置き換えが同じ動作になるもの 55 件は直した（`setColorFilter`→`PorterDuffColorFilter`、`Handler()`→`Handler(Looper.myLooper())`、`getColor/getDrawable(id, null)`、`stopForeground(STOP_FOREGROUND_REMOVE)`、型付きの `getSerializable(Extra)/getParcelable(Extra)`）。残りは構造の書き換えで、実機の会話モード（Bluetooth）で確かめられるまで触らない：Bluetooth GATT（`setValue`/`writeCharacteristic`/`notifyCharacteristicChanged`/`getDefaultAdapter`/`enable`）、`Parcel.readParcelable/readSerializable`（Bluetooth の受け渡し）、`AsyncTask`、`onActivityCreated`、`startActivityForResult/onActivityResult`、`setSystemUiVisibility` とウィンドウインセット、`overridePendingTransition`、`Locale(String)` |
+| 19 | 非推奨 API（javac `-Xlint:deprecation` で 212 件、2026-11-27） | 置き換えが同じ動作になるもの 44 件は直した（`setColorFilter`→`PorterDuffColorFilter`、`Handler()`→`Handler(Looper.myLooper())`、`getColor/getDrawable(id, null)`、`stopForeground(STOP_FOREGROUND_REMOVE)`、型付きの `getSerializable(Extra)/getParcelable(Extra)`）。残りは構造の書き換えで、実機の会話モード（Bluetooth）で確かめられるまで触らない：Bluetooth GATT（`setValue`/`writeCharacteristic`/`notifyCharacteristicChanged`/`getDefaultAdapter`/`enable`）、`Parcel.readParcelable/readSerializable`（Bluetooth の受け渡し）、`AsyncTask`、`onActivityCreated`、`startActivityForResult/onActivityResult`、`setSystemUiVisibility` とウィンドウインセット、`overridePendingTransition`、`Locale(String)` |
 
 ## ユーザーにお願いすること
 | # | 項目 | メモ |
