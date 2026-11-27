@@ -247,6 +247,7 @@ public class Translator extends NeuralNetworkApi {
     @Nullable
     private String translateJaNeWithPlamo(String text, CustomLocale in, CustomLocale out) {
         java.io.File model = nie.translator.rtranslator.plamo.PlamoModels.usable(global.getFilesDir());
+        if (model == null && plamoEngine != null) closePlamo();   //deleted in the model manager: unmap it, so its space and memory are freed now
         if (model == null || janeGlossary == null) return null;
         try {
             if (plamoEngine == null || !model.equals(plamoModelFile)) {
@@ -2339,6 +2340,20 @@ public class Translator extends NeuralNetworkApi {
         if (m == HY_MT) return new java.io.File(base + "/Translation/HY-MT");
         if (m == NLLB || m == NLLB_CACHE) return new java.io.File(base + "/NLLB_decoder.onnx");   //rough: the decoder dominates
         return null;
+    }
+
+    /**
+     * After a model was deleted in the model manager: closes PLaMo when its model file is gone, so the
+     * memory-mapped file's space and memory are freed now and not when the app ends. Never waits (main
+     * thread); when a translation holds the lock, that translation's next PLaMo call closes it instead.
+     */
+    public void releaseDeletedModels() {
+        if (plamoEngine == null || !translationLock.tryLock()) return;
+        try {
+            if (nie.translator.rtranslator.plamo.PlamoModels.usable(global.getFilesDir()) == null) closePlamo();
+        } finally {
+            translationLock.unlock();
+        }
     }
 
     /**
