@@ -111,7 +111,9 @@ public class Translator extends NeuralNetworkApi {
     private final Object langResourcesLock = new Object();
     private final int EMPTY_BATCH_SIZE = 1;
     private boolean translatingMessages = false;
-    private boolean translating = false;
+    // text translations in flight (a counter: with two at once, the first to finish reset a boolean to false
+    // while the second ran, and the translate button came back early); read from the UI thread
+    private final java.util.concurrent.atomic.AtomicInteger translating = new java.util.concurrent.atomic.AtomicInteger();
     private LanguageResourcesManager languageResourcesManager;
 
 
@@ -650,11 +652,14 @@ public class Translator extends NeuralNetworkApi {
 
     public void translate(final String textToTranslate, final CustomLocale languageInput, final CustomLocale languageOutput, int beamSize, boolean saveResults, Global.RTranslatorMode rtranslatorMode) {
         final TranslationCancellation.Ticket ticket = cancellation.newTicket(rtranslatorMode.ordinal());   //taken at submit time
+        translating.incrementAndGet();   //counted from submission, as the UI may ask right after
         final Thread t = new Thread("textTranslation") {
             public void run() {
-                translating = true;
-                performTextTranslation(textToTranslate, languageInput, languageOutput, beamSize, saveResults, rtranslatorMode, ticket, null);
-                translating = false;
+                try {
+                    performTextTranslation(textToTranslate, languageInput, languageOutput, beamSize, saveResults, rtranslatorMode, ticket, null);
+                } finally {
+                    translating.decrementAndGet();
+                }
             }
         };
         t.start();
@@ -793,7 +798,7 @@ public class Translator extends NeuralNetworkApi {
     }
 
     public boolean isTranslating(){
-        return translating;
+        return translating.get() > 0;
     }
 
     public void detectLanguage(final NeuralNetworkApiResult result, boolean forceResult, CustomLocale[] languages, final DetectLanguageListener responseListener) {
@@ -805,7 +810,7 @@ public class Translator extends NeuralNetworkApi {
             @Override
             public void onSuccess(String languageCode) {
                 if (languageCode == null || languageCode.equals("und")) {
-                    responseListener.onFailure(new int[ErrorCodes.LANGUAGE_UNKNOWN], 0);
+                    responseListener.onFailure(new int[]{ErrorCodes.LANGUAGE_UNKNOWN}, 0);   //was new int[LANGUAGE_UNKNOWN]: an array of zeros, not the code
                     Log.i("language detection", "Can't identify language.");
                 } else {
                     result.setLanguage(new CustomLocale(languageCode));
@@ -1095,9 +1100,9 @@ public class Translator extends NeuralNetworkApi {
             if(("ne".equals(inputLanguage.getCode()) || "ne".equals(outputLanguage.getCode())) && performMode != MADLAD && performMode != MADLAD_CACHE){
                 Log.e("translation_error", "Nepali requires the Madlad model, download it in Models Manager");
                 if (responseListener != null) {
-                    mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_MISSING_MADLAD}, 0));
+                    mainHandler.post(() -> { if (!ticket.isCancelled()) responseListener.onFailure(new int[]{ErrorCodes.ERROR_MISSING_MADLAD}, 0); });   //not for a cancelled request
                 } else {
-                    mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_MISSING_MADLAD}, 0));
+                    mainHandler.post(() -> { if (!ticket.isCancelled()) notifyError(new int[]{ErrorCodes.ERROR_MISSING_MADLAD}, 0); });   //not for a cancelled request
                 }
                 return;
             }
@@ -1122,9 +1127,9 @@ public class Translator extends NeuralNetworkApi {
                     Log.e("translation_error", "languages not supported");
                     // if the performMode and mode models don't support the input or output language we interrupt the translation and launch an error
                     if (responseListener != null) {
-                        mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0));
+                        mainHandler.post(() -> { if (!ticket.isCancelled()) responseListener.onFailure(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0); });   //not for a cancelled request
                     } else {
-                        mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0));
+                        mainHandler.post(() -> { if (!ticket.isCancelled()) notifyError(new int[]{ErrorCodes.ERROR_LANGUAGE_NOT_SUPPORTED}, 0); });   //not for a cancelled request
                     }
                     return;
                 }
