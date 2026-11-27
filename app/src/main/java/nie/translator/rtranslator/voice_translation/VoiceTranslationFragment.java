@@ -65,6 +65,7 @@ public abstract class VoiceTranslationFragment extends Fragment implements Micro
         GuiTools.setDescriptionOptimizationForAccessibility(description);
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
@@ -93,6 +94,7 @@ public abstract class VoiceTranslationFragment extends Fragment implements Micro
 
     public abstract void restoreAttributesFromService();
 
+    @SuppressWarnings("deprecation")  // adjustResize kept: replacing it needs IME inset handling in every layout
     @Override
     public void onStart() {
         super.onStart();

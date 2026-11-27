@@ -66,6 +66,7 @@ public class MozillaManagerFragment  extends Fragment {
         recyclerView = view.findViewById(R.id.recycler_view);
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);

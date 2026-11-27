@@ -27,12 +27,7 @@ public class ImageActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.image_conversation);
 
-        View decorView = getWindow().getDecorView();
-        decorView.setSystemUiVisibility(
-                decorView.getSystemUiVisibility()
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        );
+        getWindow().setDecorFitsSystemWindows(false);  // drawn behind the status bar (was SYSTEM_UI_FLAG_LAYOUT_STABLE | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
     }
 
     @Override

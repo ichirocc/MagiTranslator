@@ -131,6 +131,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         image.requestFocus();*/
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);

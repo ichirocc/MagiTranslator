@@ -51,6 +51,7 @@ public abstract class PairingToolbarFragment extends Fragment {
         loading = view.findViewById(R.id.progressBar2);
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);

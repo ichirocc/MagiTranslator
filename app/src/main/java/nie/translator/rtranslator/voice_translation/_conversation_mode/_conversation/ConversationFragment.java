@@ -105,6 +105,7 @@ public class ConversationFragment extends PairingToolbarFragment {
         pager = view.findViewById(R.id.tabs);
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);

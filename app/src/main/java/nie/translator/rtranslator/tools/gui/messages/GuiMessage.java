@@ -94,7 +94,7 @@ public class GuiMessage implements Parcelable {
     };
 
     private GuiMessage(Parcel in) {
-        message = in.readParcelable(Message.class.getClassLoader());
+        message = in.readParcelable(Message.class.getClassLoader(), Message.class);
         messageID = in.readLong();
         isMine = in.readByte() != 0;
         isFinal = in.readByte() != 0;

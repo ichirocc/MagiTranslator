@@ -151,6 +151,7 @@ public abstract class GeneralActivity extends AppCompatActivity {
      * is disabled meanwhile so that the dispatcher performs the default action instead of calling the
      * override a second time (which ran the subclass logic twice).
      */
+    @SuppressWarnings("deprecation")  // the bridge between the predictive-back callback and the subclasses\x27 onBackPressed overrides (see above)
     @Override
     public void onBackPressed() {
         backCallback.setEnabled(false);

@@ -295,6 +295,7 @@ public class PairingFragment extends PairingToolbarFragment {
         settingsButton = view.findViewById(R.id.settingsButton);
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
@@ -361,7 +362,7 @@ public class PairingFragment extends PairingToolbarFragment {
     public void onStart() {
         super.onStart();
         //we request to turn on bluetooth to the user
-        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        BluetoothAdapter bluetoothAdapter = nie.translator.rtranslator.bluetooth.tools.BluetoothTools.getAdapter(requireContext());
         if(bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, 2);

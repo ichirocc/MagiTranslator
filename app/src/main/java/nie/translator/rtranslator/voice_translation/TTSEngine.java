@@ -48,6 +48,7 @@ public class TTSEngine {
                             speak();
                         }
 
+                        @SuppressWarnings("deprecation")  // abstract in UtteranceProgressListener: must be overridden
                         @Override
                         public void onError(String utteranceId) {
                             stop();

@@ -140,6 +140,7 @@ public class ConversationMainFragment extends VoiceTranslationFragment {
         container.setVisibility(View.INVISIBLE);  //we make the UI invisible until the restore of the attributes from the service (to avoid instant changes of the UI).
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);

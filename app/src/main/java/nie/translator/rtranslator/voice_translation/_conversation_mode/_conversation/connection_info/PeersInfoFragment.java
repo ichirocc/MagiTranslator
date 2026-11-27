@@ -327,6 +327,7 @@ public class PeersInfoFragment extends Fragment {
         GuiTools.setDescriptionOptimizationForAccessibility(discoveryDescription);
     }
 
+    @SuppressWarnings("deprecation")  // kept: moving these bodies to onViewCreated reorders base/subclass initialisation
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);

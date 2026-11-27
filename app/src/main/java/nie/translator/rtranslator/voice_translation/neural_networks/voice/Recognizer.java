@@ -322,7 +322,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                     //execution of pre ops
                     long time = System.currentTimeMillis();
                     long startTimeInMs = SystemClock.elapsedRealtime();
-                    Map initInputs = (Map) (new LinkedHashMap());
+                    Map<String, OnnxTensor> initInputs = new LinkedHashMap<>();
                     initInputs.put("audio_pcm", audioTensor);
                     OrtSession.Result outputsInit = initSession.run(initInputs);
                     OnnxTensor outputInit = (OnnxTensor) outputsInit.get(0);
@@ -330,7 +330,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                     audioTensor.close();
 
                     //execution of the encoder
-                    Map inputs = (Map) (new LinkedHashMap());
+                    Map<String, OnnxTensor> inputs = new LinkedHashMap<>();
                     inputs.put("input_features", outputInit);
                     OrtSession.Result outputs = encSession.run(inputs);
                     OnnxTensor outputEncoder = (OnnxTensor) outputs.get(0);

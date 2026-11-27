@@ -195,5 +195,5 @@ dependencies {
 
 // list each deprecated or unchecked use instead of the summary note, so new ones are seen in the CI log
 tasks.withType(JavaCompile).configureEach {
-    options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked']
+    options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked', '-Xmaxwarns', '10000']
 }

@@ -18,11 +18,14 @@ package nie.translator.rtranslator.voice_translation._conversation_mode.communic
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.Room;
 import java.util.ArrayList;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import nie.translator.rtranslator.databases.general.AppDatabase;
 import nie.translator.rtranslator.databases.general.dao.MyDao;
 import nie.translator.rtranslator.databases.general.entities.RecentPeerEntity;
@@ -95,42 +98,25 @@ public class RecentPeersDataManager {
 
     public void getRecentPeers(final RecentPeersListener responseListener) {
         if (cachedRecentPeers == null) {
-            new ObtainRecentPeersTask(responseListener).execute(database.myDao());
+            obtainRecentPeers(database.myDao(), responseListener);
         } else {
             responseListener.onRecentPeersObtained(cachedRecentPeers);
         }
     }
 
-    private static class ObtainRecentPeersTask extends AsyncTask<MyDao, Void, ArrayList<RecentPeer>> {
-        private RecentPeersListener responseListener;
+    // one background thread, results on the main thread: what AsyncTask.execute did (AsyncTask is deprecated)
+    private static final Executor DB_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
-        private ObtainRecentPeersTask(RecentPeersListener responseListener) {
-            this.responseListener = responseListener;
-        }
-
-        @Override
-        protected ArrayList<RecentPeer> doInBackground(MyDao... myDaos) {
-            RecentPeerEntity[] recentPeersArrayEntity;
+    private static void obtainRecentPeers(@Nullable final MyDao myDao, final RecentPeersListener responseListener) {
+        DB_EXECUTOR.execute(() -> {
+            if (myDao == null) return;
             ArrayList<RecentPeer> recentPeers = new ArrayList<>();
-
-            if (myDaos[0] != null) {
-                recentPeersArrayEntity = myDaos[0].loadRecentPeers();
-                for (RecentPeerEntity aRecentPeersArrayEntity : recentPeersArrayEntity) {
-                    recentPeers.add(aRecentPeersArrayEntity.getRecentPeer());
-                }
-                return recentPeers;
-            } else {
-                return null;
+            for (RecentPeerEntity aRecentPeersArrayEntity : myDao.loadRecentPeers()) {
+                recentPeers.add(aRecentPeersArrayEntity.getRecentPeer());
             }
-        }
-
-        @Override
-        protected void onPostExecute(@Nullable ArrayList<RecentPeer> recentPeers) {
-            super.onPostExecute(recentPeers);
-            if (recentPeers != null) {
-                responseListener.onRecentPeersObtained(recentPeers);
-            }
-        }
+            MAIN.post(() -> responseListener.onRecentPeersObtained(recentPeers));
+        });
     }
 
     public interface RecentPeersListener {
@@ -140,7 +126,7 @@ public class RecentPeersDataManager {
 
     public void getRecentPeer(final String deviceID, final RecentPeerListener responseListener) {
         if (cachedRecentPeers == null) {
-            new ObtainRecentPeerTask(deviceID, responseListener).execute(database.myDao());
+            obtainRecentPeer(database.myDao(), deviceID, responseListener);
         } else {
             int index = cachedRecentPeers.indexOf(new RecentPeer(deviceID));
             if (index != -1) {
@@ -151,43 +137,18 @@ public class RecentPeersDataManager {
         }
     }
 
-    private static class ObtainRecentPeerTask extends AsyncTask<MyDao, Void, RecentPeer> {
-        private RecentPeerListener responseListener;
-        private String deviceID;
-
-        private ObtainRecentPeerTask(String deviceID, RecentPeerListener responseListener) {
-            if (deviceID == null) {
-                this.deviceID = "";
-            } else {
-                this.deviceID = deviceID;
-            }
-            this.responseListener = responseListener;
-        }
-
-        @Override
-        protected RecentPeer doInBackground(MyDao... myDaos) {
-            if (myDaos[0] != null) {
-                RecentPeerEntity recentPeerEntity = myDaos[0].loadRecentPeer(deviceID);
-                if (recentPeerEntity != null) {
-                    return recentPeerEntity.getRecentPeer();
-                } else {
-                    return null;
-                }
-            } else {
-                return null;
-            }
-        }
-
-        @Override
-        protected void onPostExecute(@Nullable RecentPeer recentPeer) {
-            super.onPostExecute(recentPeer);
-            responseListener.onRecentPeerObtained(recentPeer);
-        }
+    private static void obtainRecentPeer(@Nullable final MyDao myDao, @Nullable String key, final RecentPeerListener responseListener) {
+        final String k = key == null ? "" : key;
+        DB_EXECUTOR.execute(() -> {
+            RecentPeerEntity recentPeerEntity = myDao != null ? myDao.loadRecentPeer(k) : null;
+            RecentPeer recentPeer = recentPeerEntity != null ? recentPeerEntity.getRecentPeer() : null;
+            MAIN.post(() -> responseListener.onRecentPeerObtained(recentPeer));
+        });
     }
 
     public void getRecentPeerByName(final String uniqueName, final RecentPeerListener responseListener) {
         if (cachedRecentPeers == null) {
-            new ObtainRecentPeerByNameTask(uniqueName, responseListener).execute(database.myDao());
+            obtainRecentPeerByName(database.myDao(), uniqueName, responseListener);
         } else {
             int index=-1;
             for (int i = 0; i < cachedRecentPeers.size(); i++) {
@@ -206,38 +167,13 @@ public class RecentPeersDataManager {
         }
     }
 
-    private static class ObtainRecentPeerByNameTask extends AsyncTask<MyDao, Void, RecentPeer> {
-        private RecentPeerListener responseListener;
-        private String uniqueName;
-
-        private ObtainRecentPeerByNameTask(String uniqueName, RecentPeerListener responseListener) {
-            if (uniqueName == null) {
-                this.uniqueName = "";
-            } else {
-                this.uniqueName = uniqueName;
-            }
-            this.responseListener = responseListener;
-        }
-
-        @Override
-        protected RecentPeer doInBackground(MyDao... myDaos) {
-            if (myDaos[0] != null) {
-                RecentPeerEntity recentPeerEntity = myDaos[0].loadRecentPeerByName(uniqueName);
-                if (recentPeerEntity != null) {
-                    return recentPeerEntity.getRecentPeer();
-                } else {
-                    return null;
-                }
-            } else {
-                return null;
-            }
-        }
-
-        @Override
-        protected void onPostExecute(RecentPeer recentPeer) {
-            super.onPostExecute(recentPeer);
-            responseListener.onRecentPeerObtained(recentPeer);
-        }
+    private static void obtainRecentPeerByName(@Nullable final MyDao myDao, @Nullable String key, final RecentPeerListener responseListener) {
+        final String k = key == null ? "" : key;
+        DB_EXECUTOR.execute(() -> {
+            RecentPeerEntity recentPeerEntity = myDao != null ? myDao.loadRecentPeerByName(k) : null;
+            RecentPeer recentPeer = recentPeerEntity != null ? recentPeerEntity.getRecentPeer() : null;
+            MAIN.post(() -> responseListener.onRecentPeerObtained(recentPeer));
+        });
     }
 
     public interface RecentPeerListener {

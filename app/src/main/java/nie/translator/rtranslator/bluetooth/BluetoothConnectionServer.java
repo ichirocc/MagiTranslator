@@ -160,6 +160,7 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
             public synchronized void onCharacteristicWriteRequest(final BluetoothDevice device, final int requestId, final BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, final int offset, final byte[] value) {
                 super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
                 mainHandler.post(new Runnable() {
+                    @SuppressWarnings("deprecation")  // GATT setValue/getValue kept: onCharacteristicWrite reads back the written value from the characteristic, the value-passing replacements would change the conversation-mode protocol (untestable without two devices)
                     @Override
                     public void run() {
                         synchronized (channelsLock) {

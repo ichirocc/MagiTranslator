@@ -124,7 +124,7 @@ public class TTS {
 
     public int setLanguage(CustomLocale loc, Context context) {
         if (isActive()) {
-            return tts.setLanguage(new Locale(loc.getLocale().getLanguage()));
+            return tts.setLanguage(Locale.of(loc.getLocale().getLanguage()));
         }
         return TextToSpeech.ERROR;
     }

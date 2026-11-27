@@ -314,7 +314,7 @@ public class Message implements Parcelable, Cloneable {
     };
 
     private Message(Parcel in) {
-        sender = in.readParcelable(Peer.class.getClassLoader());
+        sender = in.readParcelable(Peer.class.getClassLoader(), Peer.class);
         header = in.readString();
         in.readByteArray(this.data);
     }

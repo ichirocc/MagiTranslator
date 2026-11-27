@@ -44,8 +44,8 @@ public class ConversationMessage implements Parcelable, Cloneable {
         Parcel parcel = Parcel.obtain();
         parcel.unmarshall(bytes, 0, bytes.length);
         parcel.setDataPosition(0); // This is extremely important!
-        sender = parcel.readParcelable(Peer.class.getClassLoader());
-        payload = (NeuralNetworkApiResult) parcel.readSerializable();
+        sender = parcel.readParcelable(Peer.class.getClassLoader(), Peer.class);
+        payload = parcel.readSerializable(NeuralNetworkApiResult.class.getClassLoader(), NeuralNetworkApiResult.class);
         parcel.recycle();
     }
 
@@ -92,8 +92,8 @@ public class ConversationMessage implements Parcelable, Cloneable {
     };
 
     protected ConversationMessage(Parcel in) {
-        sender = in.readParcelable(Peer.class.getClassLoader());
-        payload = (NeuralNetworkApiResult) in.readSerializable();
+        sender = in.readParcelable(Peer.class.getClassLoader(), Peer.class);
+        payload = in.readSerializable(NeuralNetworkApiResult.class.getClassLoader(), NeuralNetworkApiResult.class);
     }
 
     @Override
