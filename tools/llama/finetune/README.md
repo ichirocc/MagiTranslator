@@ -93,6 +93,27 @@ Interim (the app's engine, Q4_K_M + adapter, greedy, dev 120 pairs):
 | 2B + glossary, no adapter (first attempt's teacher) | 57.8 | 49.0 | 3 / 4 |
 | **2B + dictionary adapter, step 200 of 527 (the teacher)** | **58.0** | **51.5** | 2 / 3 |
 
-The new teacher is ahead of the student by 3.1 / 3.3 already at 38% of its training. Running two CPU-heavy jobs
+| 2B + dictionary adapter, step 400 | 57.3 | 51.7 | 4 / 3 |
+| **2B + dictionary adapter, step 527 (end; the teacher used)** | **57.8** | **52.7** | 2 / 2 |
+
+The teacher is ahead of the student by 2.9 / 4.5 (step 527, best mean of the two directions on dev).
+
+Data for the distillation (`kd2_build.py`): the teacher's and the student's greedy translations of the 2100
+sources, 4175 examples after dropping empty, cut (U+FFFD) and 4x-length outputs (2092 teacher, 2083 student);
+the teacher's top-32 distributions took 0.37 s per example (2B bf16 with the adapter merged, 4 cores). The
+distillation (`kd_train.py`, 300 steps from the student's step 600, LR 1e-4, ~10 s per step) runs against a
+control with the same steps and dictionary batches but no distillation (`KD_W=0`): the difference is the
+effect of the distillation, not of more training.
+
+How far ja <-> ne is from ja <-> en (FLEURS test, the same 100 sentences in Japanese, English and Nepali, no
+adapter, the same metric; FLEURS is Wikipedia-style text, not conversation):
+
+| chrF | ja→en | ja→ne | en→ja | ne→ja |
+|---|---|---|---|---|
+| PLaMo 0.8B | 65.8 | 50.6 | 50.9 | 38.7 |
+| PLaMo 2B | 66.2 | 51.9 | 51.4 | 41.8 |
+
+Into Japanese (the same target language, so comparable): Nepali sources are 12.2 (0.8B) / 9.6 (2B) points
+below English ones; the larger model gains mostly on the Nepali side (ne→ja +3.1, ja→en +0.4). Running two CPU-heavy jobs
 at once (training with 4 threads + generation with 2 on 4 cores) slowed the training more than 5 times: one at a
 time.

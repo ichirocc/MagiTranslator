@@ -17,6 +17,7 @@ M, INIT, REAL, KD, OUT = sys.argv[1:6]
 STEPS = int(sys.argv[6])
 LR = float(os.environ.get('LR', '1e-4'))
 ALPHA_CE = float(os.environ.get('ALPHA_CE', '1.0'))   # weight of the real-pair cross-entropy
+KD_W = float(os.environ.get('KD_W', '1.0'))   # 0: control run (the same steps and real batches, no distillation)
 torch.manual_seed(0)
 torch.set_num_threads(int(os.environ.get('THREADS', '4')))
 _libc = ctypes.CDLL('libc.so.6')
@@ -31,13 +32,14 @@ real = []
 for l in open(REAL, encoding='utf-8'):
     r = json.loads(l)
     p = tok(r['prompt'], add_special_tokens=True)['input_ids']; t = tok(r['target'], add_special_tokens=False)['input_ids']
+    if len(p) >= 250 or not t: continue   # a prompt over the length limit leaves no target to learn
     real.append(((p + t)[:256], len(p)))
 kd = []
 for l in open(KD, encoding='utf-8'):
     r = json.loads(l)
     p = tok(r['prompt'], add_special_tokens=True)['input_ids']
     ids = p + r['ids']
-    if len(ids) > 320: continue
+    if len(ids) > 320 or not r['ids']: continue
     kd.append((ids, len(p), r['kind'], r['tk_ids'], r['tk_lp']))
 print(f'{len(real)} real, {len(kd)} kd ({sum(1 for x in kd if x[2] == "teacher")} teacher, {sum(1 for x in kd if x[2] == "student")} student)', flush=True)
 
@@ -89,8 +91,11 @@ t0 = time.time(); hist = []
 for step in range(1, STEPS + 1):
     kb = rnd.sample(kd, 8); kb.sort(key=lambda x: len(x[0]))
     rb = rnd.sample(real, 8); rb.sort(key=lambda x: len(x[0]))
-    lk, fkl, jsd = kd_loss(kb[:4]); (lk / 2).backward()
-    lk2, fkl2, jsd2 = kd_loss(kb[4:]); (lk2 / 2).backward()
+    if KD_W > 0:
+        lk, fkl, jsd = kd_loss(kb[:4]); (KD_W * lk / 2).backward()
+        lk2, fkl2, jsd2 = kd_loss(kb[4:]); (KD_W * lk2 / 2).backward()
+    else:
+        lk = lk2 = torch.tensor(0.0); fkl = jsd = fkl2 = jsd2 = []
     lr_ = real_loss(rb); (ALPHA_CE * lr_).backward()
     torch.nn.utils.clip_grad_norm_(params, 1.0)
     opt.step(); sched.step(); opt.zero_grad(set_to_none=True)
