@@ -70,7 +70,8 @@ class GlossaryTest(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err):
             T.main(["glossary", write(SAMPLE_GLOSSARY), "--out", out])
-        lines = open(out, encoding="utf-8").read().splitlines()
+        with open(out, encoding="utf-8") as f:
+            lines = f.read().splitlines()
         self.assertEqual(lines[0], "#!jane ja-ne-terms")
         entries = [l for l in lines if l and not l.startswith("#")]
         self.assertEqual(entries, ["入浴介助\tनुहाउन सहयोग", "食事介助\tखाना खुवाउन सहयोग", "車椅子\tह्वीलचियर",

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.!
 
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)   # CMake 4 warns below 3.10; nothing here needs older behaviour
 project(rtranslator_native)
 
 add_subdirectory(libs/sentencepiece)
@@ -52,6 +52,7 @@ set(protobuf_SHARED_OR_STATIC STATIC) # Usually best to build as static for Andr
 # Include ONLY the lite library definition
 # This file defines the 'libprotobuf-lite' target and its source list
 include("${protobuf_cmake_dir}/libprotobuf-lite.cmake")
+set_property(TARGET libprotobuf-lite PROPERTY SYSTEM TRUE)   # its headers as system headers in DictionaryTranslator (vendored)
 
 
 target_include_directories(dictionary_translator_interface PRIVATE
@@ -79,6 +80,33 @@ target_link_libraries(cache_container_native
 
 add_subdirectory(bergamot_translator)
 add_subdirectory(fasttext)
+
+# ---- MagiTranslator: warnings of vendored code ----
+# Third-party sources (marian / zlib / yaml-cpp / pathie in bergamot, sentencepiece, fastText) produced about
+# 300 compiler warnings per build that nobody fixes upstream; they buried the warnings of our own code. They are
+# switched off for the vendored targets only (-w); our JNI wrappers and plamo keep their warnings. The vendored
+# sources themselves are not modified (docs/VENDORED.md).
+function(magi_quiet_vendored dir)
+    get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(t IN LISTS targets)
+        get_target_property(type ${t} TYPE)
+        if(type MATCHES "^(STATIC_LIBRARY|SHARED_LIBRARY|MODULE_LIBRARY|OBJECT_LIBRARY|EXECUTABLE)$")
+            target_compile_options(${t} PRIVATE -w)
+            # their headers also reach our wrappers (BergamotTranslator.cpp includes marian / yaml-cpp / pathie):
+            # consumers get the include directories of these targets as system ones (CMake 3.25+), so warnings
+            # inside vendored headers are not reported while our own code's warnings still are
+            if(NOT type STREQUAL "EXECUTABLE")
+                set_property(TARGET ${t} PROPERTY SYSTEM TRUE)
+            endif()
+        endif()
+    endforeach()
+    get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
+    foreach(d IN LISTS subdirs)
+        magi_quiet_vendored("${d}")
+    endforeach()
+endfunction()
+magi_quiet_vendored("${CMAKE_CURRENT_SOURCE_DIR}/bergamot_translator/libs/bergamot")
+magi_quiet_vendored("${CMAKE_CURRENT_SOURCE_DIR}/libs/sentencepiece")
 # ---- MagiTranslator: PLaMo 3 Translate on the CPU (llama.cpp, see tools/llama/) ----
 # Built for Armv8.6-A with dotprod, i8mm and fp16 (Tensor G3/G4/G5 and other Armv9 phones): llama.cpp
 # repacks the Q4_K weights at load time for its i8mm matrix kernels. The Java side checks the CPU

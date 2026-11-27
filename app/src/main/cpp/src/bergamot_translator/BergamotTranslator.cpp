@@ -5,12 +5,13 @@
 #include <jni.h>
 #include <string>
 #include <android/log.h>
-#include "libs/bergamot/src/translator/byte_array_util.h"
-#include "libs/bergamot/src/translator/parser.h"
-#include "libs/bergamot/src/translator/response.h"
-#include "libs/bergamot/src/translator/response_options.h"
-#include "libs/bergamot/src/translator/service.h"
-#include "libs/bergamot/src/translator/utils.h"
+// bergamot headers through its include directory, a system one for this target (CMakeLists.txt: SYSTEM)
+#include <translator/byte_array_util.h>
+#include <translator/parser.h>
+#include <translator/response.h>
+#include <translator/response_options.h>
+#include <translator/service.h>
+#include <translator/utils.h>
 #include <string>
 using namespace marian::bergamot;
 #include <unordered_map>
