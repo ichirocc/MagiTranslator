@@ -397,6 +397,19 @@ _T_MED = re.compile(r"薬[^。]*飲")
 _T_MED_NE = re.compile(r"औषधि[^।]{0,15}पि(उ|औं|ए|इ|यो)")
 
 
+_O_ALONE = re.compile(r"一人で|ひとりで|自分で")
+_O_SELFWILL_JA = re.compile(r"勝手|好き")
+_O_SELFWILL_NE = re.compile(r"आफूखुसी|मनपरी")
+_O_USED = re.compile(r"慣れ")
+_O_CARELESS_JA = re.compile(r"油断|不注意|雑")
+_O_CARELESS_NE = re.compile(r"लापरवाही|हेलचेक्र्याइँ")
+_O_ADVISED = re.compile(r"注意され|注意した|注意を受け|指導され")
+_O_ANGER_JA = re.compile(r"怒|叱")
+_O_ANGER_NE = re.compile(r"रिसा|रिस उठ|गाली")
+_O_WATCH = re.compile(r"見守")
+_O_WATCH_NE = re.compile(r"निगरानी|रेखदेख|छेउ|नजिक|साथ|सहयोग|ध्यान|सुरक्षा")
+
+
 def ja_states_own_action(ja):
     if ja is None:
         return False
@@ -443,6 +456,12 @@ def validate(src, hyp, direction, required_targets=None):
             issues.append(("DIRECTION_REVERSED", True, None))
         if _T_MED.search(src) and _T_MED_NE.search(hyp):
             issues.append(("MEDICINE_VERB", False, None))
+        if ((_O_ALONE.search(src) and not _O_SELFWILL_JA.search(src) and _O_SELFWILL_NE.search(hyp))
+                or (_O_USED.search(src) and not _O_CARELESS_JA.search(src) and _O_CARELESS_NE.search(hyp))
+                or (_O_ADVISED.search(src) and not _O_ANGER_JA.search(src) and _O_ANGER_NE.search(hyp))):
+            issues.append(("GUIDANCE_REVERSED", True, None))
+        if _O_WATCH.search(src) and not _O_WATCH_NE.search(hyp):
+            issues.append(("WATCH_OVER_LOST", False, None))
         # currency (TranslationValidator.checkCurrencyJaToNe)
         if "YEN" in s["cur"] and "YEN" not in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "येन"))

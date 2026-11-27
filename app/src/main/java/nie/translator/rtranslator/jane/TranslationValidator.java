@@ -36,7 +36,9 @@ public final class TranslationValidator {
         /** ja states the speaker's own action, the candidate tells the listener to do it (zero-pronoun reversal) */
         PERSON_REVERSED,
         /** everyday traps: もう少し as finished, 貸す/借りる swapped (hard); medicine with पिउनु (soft) */
-        ADVERB_REVERSED, DIRECTION_REVERSED, MEDICINE_VERB }
+        ADVERB_REVERSED, DIRECTION_REVERSED, MEDICINE_VERB,
+        /** OJT traps: guidance turned into its opposite (hard); 見守る reduced to a plain look (soft) */
+        GUIDANCE_REVERSED, WATCH_OVER_LOST }
 
     public static final class Issue {
         public final Kind kind;
@@ -139,6 +141,8 @@ public final class TranslationValidator {
         if (Traps.adverbReversed(sj, tn)) issues.add(new Issue(Kind.ADVERB_REVERSED, true, null));
         if (Traps.directionReversed(sj, tn)) issues.add(new Issue(Kind.DIRECTION_REVERSED, true, null));
         if (Traps.medicineDrink(sj, tn)) issues.add(new Issue(Kind.MEDICINE_VERB, false, null));
+        if (Traps.guidanceReversed(sj, tn)) issues.add(new Issue(Kind.GUIDANCE_REVERSED, true, null));
+        if (Traps.watchOverLost(sj, tn)) issues.add(new Issue(Kind.WATCH_OVER_LOST, false, null));
     }
 
     private static void checkNumbers(List<String> a, List<String> b, List<Issue> issues) {

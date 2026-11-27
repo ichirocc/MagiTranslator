@@ -449,7 +449,7 @@ public final class JaNeTranslator {
             case EMPTY: return 1000;
             case NUMBER_LOST: case NEGATION_LOST: return 250;   // above two currency or place issues
             case CURRENCY_MISMATCH: case PLACE_ADDED: case PLACE_MISSING: return 100;
-            case QUESTION_WORD_LOST: case WH_LOST: case REPETITION: case UNTRANSLATED_SOURCE_SCRIPT: case PERSON_REVERSED: case ADVERB_REVERSED: case DIRECTION_REVERSED: return 60;
+            case QUESTION_WORD_LOST: case WH_LOST: case REPETITION: case UNTRANSLATED_SOURCE_SCRIPT: case PERSON_REVERSED: case ADVERB_REVERSED: case DIRECTION_REVERSED: case GUIDANCE_REVERSED: return 60;
             case OBLIGATION_LOST: case REQUEST_LOST: case PAST_LOST: case QUESTION_LOST: return 40;
             case TERM_MISSING: return 30;
             case NAME_EXTRA_VOWEL: return 10;

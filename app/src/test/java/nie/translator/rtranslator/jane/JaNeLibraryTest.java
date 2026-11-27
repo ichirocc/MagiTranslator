@@ -371,6 +371,11 @@ public class JaNeLibraryTest {
         yes(TranslationValidator.validateJaToNe("ペンを貸してください。", "कलम सापटी लिनुहोस्।", null).toString().contains("HARD DIRECTION_REVERSED"), "lend request as borrow");
         yes(!TranslationValidator.validateJaToNe("ペンを貸してください。", "कलम सापटी दिनुहोस्।", null).toString().contains("DIRECTION_REVERSED"), "lend kept");
         yes(TranslationValidator.validateJaToNe("薬を飲みましょう。", "औषधि पिऔं।", null).toString().contains("soft MEDICINE_VERB"), "medicine with drink is soft");
+        yes(TranslationValidator.validateJaToNe("今度は一人でやってみましょう。", "अब आफूखुसी गर्नुहोस्।", null).toString().contains("HARD GUIDANCE_REVERSED"), "一人で as self-will");
+        yes(TranslationValidator.validateJaToNe("仕事に慣れてきましたね。", "काममा लापरवाही भयो।", null).toString().contains("GUIDANCE_REVERSED"), "慣れ as careless");
+        yes(TranslationValidator.validateJaToNe("先輩に注意されました。", "सिनियर रिसाउनुभयो।", null).toString().contains("GUIDANCE_REVERSED"), "注意 as anger");
+        yes(TranslationValidator.validateJaToNe("食事を見守ってください。", "खाना हेर्नुहोस्।", null).toString().contains("soft WATCH_OVER_LOST"), "見守る as plain look is soft");
+        yes(!TranslationValidator.validateJaToNe("食事を見守ってください。", "खाना खाँदा छेउमा बसेर निगरानी गर्नुहोस्।", null).toString().contains("WATCH_OVER_LOST"), "見守る kept");
         // speaker/listener reversal (ir/Person)
         yes(TranslationValidator.validateJaToNe("確認しますね。", "कृपया जाँच गर्नुहोस्।", null).toString().contains("HARD PERSON_REVERSED"), "self announcement rendered as request is hard");
         yes(TranslationValidator.validateJaToNe("私が対応します。", "तपाईं सम्हाल्नुहोस्।", null).toString().contains("PERSON_REVERSED"), "explicit 私 rendered as request");

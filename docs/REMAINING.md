@@ -25,6 +25,7 @@
 | 21 | ~~PLaMo を Madlad なしで使えるようにする~~ | 済み：日⇄ネは、モデルの選択・読み込みより前に PLaMo で訳す（使えない時だけ従来どおり Madlad へ。PLaMo を二度試さない）。Madlad を選んでいても、PLaMo が使える端末では起動時に Madlad（約1.7 GB）を読み込まず、必要になった最初の翻訳で読み込む（メモリ逼迫で解放した時と同じ仕組み）。PLaMo だけ使う場合、Madlad のダウンロードは不要（モデル選択には Mozilla など小さいものを選ぶ） |
 | 19 | 非推奨 API（javac `-Xlint:deprecation` で 212 件、2026-11-27） | 置き換えが同じ動作になるもの 44 件は直した（`setColorFilter`→`PorterDuffColorFilter`、`Handler()`→`Handler(Looper.myLooper())`、`getColor/getDrawable(id, null)`、`stopForeground(STOP_FOREGROUND_REMOVE)`、型付きの `getSerializable(Extra)/getParcelable(Extra)`）。残りは構造の書き換えで、実機の会話モード（Bluetooth）で確かめられるまで触らない：Bluetooth GATT（`setValue`/`writeCharacteristic`/`notifyCharacteristicChanged`/`getDefaultAdapter`/`enable`）、`Parcel.readParcelable/readSerializable`（Bluetooth の受け渡し）、`AsyncTask`、`onActivityCreated`、`startActivityForResult/onActivityResult`、`setSystemUiVisibility` とウィンドウインセット、`overridePendingTransition`、`Locale(String)` |
 | 24 | ~~人称の逆転（主語省略）の検出・綴り揺れの吸収~~ | 済み（2026-11-27）：①日本語が話し手自身の動作（「私が〜します」「〜しますね」「〜てきます」）なのに訳が相手への命令（-नुहोस्）だけのとき「要確認」（`ir/Person`、Python 版も同じ判定）。マニュアル調の「〜を押します」は意味が両方あり得るので対象外。会話集4,548文で誤検出0件。②会話集のネ→日照合で ि/ी・ु/ू・ँ/ं・ZWJ の違いを同じ扱いに（増えた衝突は同義の1組だけ） |
+| 26 | ~~OJT 場面の取り違え検出~~ | 済み（2026-11-27）：「一人でやって」→ आफूखुसी（好き勝手に）、「慣れてきた」→ लापरवाही（雑になった）、「注意された」→ रिसाउनुभयो／गाली（怒られた）を「要確認」に。「見守る」が見張り・付き添いの語を欠いた訳は減点のみ（`ir/Traps`）。会話集で誤検出0件 |
 
 ## ユーザーにお願いすること
 | # | 項目 | メモ |

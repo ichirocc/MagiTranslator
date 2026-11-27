@@ -35,4 +35,30 @@ public final class Traps {
     public static boolean medicineDrink(String ja, String ne) {
         return JA_MEDICINE.matcher(ja).find() && NE_DRINK_MEDICINE.matcher(ne).find();
     }
+
+    // --- OJT traps (owner's OJT dictionary, layer 4)
+    private static final Pattern JA_ALONE = Pattern.compile("一人で|ひとりで|自分で");
+    private static final Pattern JA_SELFWILL = Pattern.compile("勝手|好き");
+    private static final Pattern NE_SELFWILL = Pattern.compile("आफूखुसी|मनपरी");
+    private static final Pattern JA_USED_TO = Pattern.compile("慣れ");
+    private static final Pattern JA_CARELESS = Pattern.compile("油断|不注意|雑");
+    private static final Pattern NE_CARELESS = Pattern.compile("लापरवाही|हेलचेक्र्याइँ");
+    private static final Pattern JA_ADVISED = Pattern.compile("注意され|注意した|注意を受け|指導され");
+    private static final Pattern JA_ANGER = Pattern.compile("怒|叱");
+    private static final Pattern NE_ANGER = Pattern.compile("रिसा|रिस उठ|गाली");
+    private static final Pattern JA_WATCH_OVER = Pattern.compile("見守");
+    private static final Pattern NE_WATCH_OVER = Pattern.compile("निगरानी|रेखदेख|छेउ|नजिक|साथ|सहयोग|ध्यान|सुरक्षा");
+
+    /** 一人でやって (on your own) -> आफूखुसी (as you please), 慣れた (used to it) -> लापरवाही (careless),
+     *  注意された (was advised) -> रिसाउनुभयो/गाली (was scolded in anger): each turns guidance into its opposite */
+    public static boolean guidanceReversed(String ja, String ne) {
+        if (JA_ALONE.matcher(ja).find() && !JA_SELFWILL.matcher(ja).find() && NE_SELFWILL.matcher(ne).find()) return true;
+        if (JA_USED_TO.matcher(ja).find() && !JA_CARELESS.matcher(ja).find() && NE_CARELESS.matcher(ne).find()) return true;
+        return JA_ADVISED.matcher(ja).find() && !JA_ANGER.matcher(ja).find() && NE_ANGER.matcher(ne).find();
+    }
+
+    /** 見守る (watch over for safety) rendered as a plain "look" with no supervision / staying-near word */
+    public static boolean watchOverLost(String ja, String ne) {
+        return JA_WATCH_OVER.matcher(ja).find() && !NE_WATCH_OVER.matcher(ne).find();
+    }
 }
