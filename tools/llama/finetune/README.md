@@ -4,9 +4,11 @@ Trains a small LoRA adapter (about 15 MB) for PLaMo 3 Translate 0.8B on your off
 `#!jane phrases` / `ja-ne-terms` / `ne-ja-terms` files), on a PC. The phone only uses it: import the `.gguf`
 in Settings → "import dictionary" (the same button as the dictionaries). The base model is not modified.
 
-**Keep the adapter private.** It is derived from PLaMo (a "derived model" under the PLaMo Community License)
-and from the material of your dictionary (for example copyrighted textbooks). It is used on your device only:
-never commit it, upload it or share it. "Delete imported dictionaries" in Settings deletes it too.
+**An adapter is a derived model** of PLaMo (PLaMo Community License: keep the license with it and show
+"Built with PLaMo") and of the dictionary it was trained on. The owner published the dictionaries in
+`dictionaries/`, and on 2026-11-27 the adapters trained on them (`models/personal/`) and the training and
+evaluation data (`data/`). An adapter trained on material that is not published stays on your device.
+"Delete imported dictionaries" in Settings deletes the imported adapter too.
 
 ## Steps
 
@@ -68,3 +70,52 @@ Notes on what went wrong on the way (kept so they are not repeated): `model.gene
 PLaMo's remote code produces garbage (its cache path); training and the checks here do not use it. Full logits
 (batch x length x 107520) exhausted 15 GB of RAM: the output layer is applied to the target positions only, lengths
 are padded to multiples of 32 and freed memory is returned (`malloc_trim`); RAM stays at 2.7 GB.
+
+## Distillation, second attempt (in progress, 2026-11-27)
+
+What the first attempt taught: the teacher was not better than the trained student (untrained 2B + glossary:
+dev 57.8 / 49.0 vs 60.0 / 49.2) and its data was another domain (news, policy). Now:
+
+1. **A stronger teacher**: PLaMo 3 Translate 2B with the same dictionary LoRA (`train_lora.py`; on 15 GB of RAM:
+   `B=4 ACC=4 GC=1`, effective batch 16, gradient checkpointing; 6.5 GB, ~35 s per step on 4 CPU cores, 527 steps).
+2. **Conversational sources** (`kd_sources.py`): 900 ja + 900 ne sentence sources of the training pairs and 300
+   care-domain sentences; nothing within 3-gram Jaccard 0.5 of the dev, blind or test sets.
+3. **Token-level distillation** (`teacher_topk.py`, `kd_train.py`): the 2B and 0.8B share the tokenizer (107520
+   tokens), so the teacher's top-32 distribution at every position is kept, on the teacher's translations
+   (forward KL) and on the student's own greedy translations, the ones the app shows (generalized JSD, on-policy
+   distillation as in GKD, Agarwal et al. 2024), with the dictionary pairs as replay (cross-entropy).
+4. Evaluation as before: dev for the checkpoint, the blind set, the test set, paired bootstrap.
+
+Interim (the app's engine, Q4_K_M + adapter, greedy, dev 120 pairs):
+
+| | ja→ne chrF | ne→ja chrF | off-topic |
+|---|---|---|---|
+| 0.8B, no adapter | 47.8 | 43.7 | 6 / 6 |
+| 0.8B + dictionary adapter (step 600, the student) | 54.9 | 48.2 | 3 / 6 |
+| 2B + glossary, no adapter (first attempt's teacher) | 57.8 | 49.0 | 3 / 4 |
+| **2B + dictionary adapter, step 200 of 527 (the teacher)** | **58.0** | **51.5** | 2 / 3 |
+
+| 2B + dictionary adapter, step 400 | 57.3 | 51.7 | 4 / 3 |
+| **2B + dictionary adapter, step 527 (end; the teacher used)** | **57.8** | **52.7** | 2 / 2 |
+
+The teacher is ahead of the student by 2.9 / 4.5 (step 527, best mean of the two directions on dev).
+
+Data for the distillation (`kd2_build.py`): the teacher's and the student's greedy translations of the 2100
+sources, 4175 examples after dropping empty, cut (U+FFFD) and 4x-length outputs (2092 teacher, 2083 student);
+the teacher's top-32 distributions took 0.37 s per example (2B bf16 with the adapter merged, 4 cores). The
+distillation (`kd_train.py`, 300 steps from the student's step 600, LR 1e-4, ~10 s per step) runs against a
+control with the same steps and dictionary batches but no distillation (`KD_W=0`): the difference is the
+effect of the distillation, not of more training.
+
+How far ja <-> ne is from ja <-> en (FLEURS test, the same 100 sentences in Japanese, English and Nepali, no
+adapter, the same metric; FLEURS is Wikipedia-style text, not conversation):
+
+| chrF | ja→en | ja→ne | en→ja | ne→ja |
+|---|---|---|---|---|
+| PLaMo 0.8B | 65.8 | 50.6 | 50.9 | 38.7 |
+| PLaMo 2B | 66.2 | 51.9 | 51.4 | 41.8 |
+
+Into Japanese (the same target language, so comparable): Nepali sources are 12.2 (0.8B) / 9.6 (2B) points
+below English ones; the larger model gains mostly on the Nepali side (ne→ja +3.1, ja→en +0.4). Running two CPU-heavy jobs
+at once (training with 4 threads + generation with 2 on 4 cores) slowed the training more than 5 times: one at a
+time.
