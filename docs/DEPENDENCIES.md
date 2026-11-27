@@ -33,14 +33,15 @@
 | androidx.cardview | 1.0.0 | 1.0.0 | 最新 |
 | androidx.lifecycle:lifecycle-extensions | 2.2.0 | 2.2.0 | 廃止済みの最終版。置換はコード変更を伴うため別作業 |
 | com.microsoft.onnxruntime:onnxruntime-android | 1.30.0 | **1.31.1** | 1.32.0 は公開13日で見送り。`RunOptions.setTerminate`・`run(Map, RunOptions)` は存続（javac 通過）。arm64 .so の LOAD は 0x4000 整列（16KB ページ） |
-| onnxruntime-extensions-android | 0.13.0 | 0.13.0 | 最新 |
+| ~~onnxruntime-extensions-android~~ | 0.13.0 | **撤去** | 使っていたのは Whisper_detokenizer.onnx の BpeDecoder だけ。ネイティブライブラリが 16KB 未整列（新版なし）のため Java の `WhisperDetokenizer` に置き換え（同じ出力を確認） |
 | com.google.code.gson:gson | 2.14.0 | **2.15.0** | |
 | com.google.protobuf:protobuf-javalite | 4.33.5 | **4.36.2** | 4.37.0 は RC |
 | org.bouncycastle:bcprov-jdk15to18 | 1.83 | **1.87** | |
-| ai.djl.android:core / tokenizer-native、ai.djl.huggingface:tokenizers | 0.33.0 | 0.33.0 | tokenizers は 0.40.0 があるが Android ネイティブ（tokenizer-native）は 0.33.0 止まり。JNI の版ずれを避け据え置き |
+| ~~ai.djl.android:core / tokenizer-native、ai.djl.huggingface:tokenizers~~ | 0.33.0 | **撤去** | 使っていたのは HY-MT の tokenizer.json だけ。`libdjl_tokenizer.so` が 16KB 未整列（Android 版は 0.33.0 止まり）のため Java の `HyTokenizer` に置き換え（同じ ID を確認） |
+| commons-io:commons-io | （間接） | 2.18.0 | FileUtils / FilenameUtils。宣言なしで他のライブラリ経由で入っていたので明示（DJL 撤去で消えないように） |
 | com.github.pemistahl:lingua | 1.2.2 | 1.2.2 | 最新 |
 | com.github.gkonovalov.android-vad:silero | 2.0.10 | 2.0.10 | 最新 |
-| PRDownloader / RadioGroupPlus（JitPack） | 1.0.2 / 1.0.1 | 同 | 最新（更新停止） |
+| PRDownloader（JitPack） | 1.0.2 | 同 | 最新（更新停止）。RadioGroupPlus は撤去（`widgets/NestedRadioGroup`） |
 
 ## GitHub Actions
 
@@ -69,4 +70,4 @@ NDK r28 の対応 API は 35 まで（minSdk 36 のネイティブ部分は 35 �
 
 ## 今後（AGP 10 で削除予定の警告）
 - ~~`android.nonFinalResIds=false`~~ → 削除済み（R の id を switch / アノテーション / static final に使う箇所なし）
-- `android.enableJetifier=true` → **維持**：`com.github.worker8:RadioGroupPlus:1.0.1` の POM が `com.android.support:appcompat-v7` に依存（AGP 10 で Jetifier が無くなる前に RadioGroupPlus の置き換えが必要）
+- `android.enableJetifier=false` → **撤去済み**：最後の依存元 `com.github.worker8:RadioGroupPlus:1.0.1`（`com.android.support:appcompat-v7`）を自前の `widgets/NestedRadioGroup` に置き換えた。`./gradlew checkJetifier` で他に旧サポートライブラリ依存は無い

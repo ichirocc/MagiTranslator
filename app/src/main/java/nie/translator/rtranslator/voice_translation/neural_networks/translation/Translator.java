@@ -140,7 +140,18 @@ public class Translator extends NeuralNetworkApi {
                         /** INITIALIZATION **/
                         // translation onnx model initialization
                         if (mode != MOZILLA) {
-                            onnxTranslationModelInitialization();
+                            if ((mode == MADLAD || mode == MADLAD_CACHE)
+                                    && nie.translator.rtranslator.plamo.PlamoModels.usable(global.getFilesDir()) != null
+                                    && nie.translator.rtranslator.plamo.PlamoEngine.loadLibrary()) {
+                                //MagiTranslator: PLaMo translates ja<->ne, so Madlad (~1.7 GB) is not loaded now; the
+                                //first translation that needs it loads it, as after a release on memory pressure
+                                releasedMode = mode;
+                                Translator.this.mode = -1;
+                                android.util.Log.i("translation", "Madlad not loaded at start: PLaMo is installed");
+                            } else {
+                                releasedMode = -1;
+                                onnxTranslationModelInitialization();
+                            }
                         }
                     }
 
@@ -247,6 +258,7 @@ public class Translator extends NeuralNetworkApi {
     @Nullable
     private String translateJaNeWithPlamo(String text, CustomLocale in, CustomLocale out) {
         java.io.File model = nie.translator.rtranslator.plamo.PlamoModels.usable(global.getFilesDir());
+        if (model == null && plamoEngine != null) closePlamo();   //deleted in the model manager: unmap it, so its space and memory are freed now
         if (model == null || janeGlossary == null) return null;
         try {
             if (plamoEngine == null || !model.equals(plamoModelFile)) {
@@ -275,7 +287,13 @@ public class Translator extends NeuralNetworkApi {
                 pt.setPhraseBook(janePhraseBook);
                 plamoTranslator = pt;
             }
-            nie.translator.rtranslator.jane.JaNeTranslator.Result r = pt.translate(text, in.getCode(), out.getCode());
+            pt.setDraftListener(plamoDraft);   //the text as PLaMo writes it, shown before the checked result
+            nie.translator.rtranslator.jane.JaNeTranslator.Result r;
+            try {
+                r = pt.translate(text, in.getCode(), out.getCode());
+            } finally {
+                pt.setDraftListener(null);
+            }
             if (nie.translator.rtranslator.tools.PrivacyLog.isDebuggable()) {
                 long[] st = plamoEngine.lastStats();   //counts and times only, no text
                 Log.i("plamo", r.candidates.isEmpty() ? "empty" : r.candidates.get(0).label + " prompt=" + st[0] + " reused=" + st[1] + " generated=" + st[2] + " promptMs=" + st[3] / 1000 + " genMs=" + st[4] / 1000);
@@ -318,7 +336,13 @@ public class Translator extends NeuralNetworkApi {
     private volatile java.util.function.Consumer<String> janeFirstDraft = null;
     private volatile String janeDraftInput = null;
 
-    private String translateJaNeWithLibrary(String text, CustomLocale in, CustomLocale out, int beamSize) {
+    private static final int JANE_ALL = 0, JANE_PLAMO_ONLY = 1, JANE_WITHOUT_PLAMO = 2;
+    /** Set while a ja<->ne translation runs on PLaMo: receives its text as it is generated. */
+    private volatile java.util.function.Consumer<String> plamoDraft = null;
+
+    /** JANE_PLAMO_ONLY: the dictionaries and PLaMo, null when PLaMo cannot translate (Madlad not touched);
+     *  JANE_WITHOUT_PLAMO: PLaMo was already tried for this text, go straight to Madlad. */
+    private String translateJaNeWithLibrary(String text, CustomLocale in, CustomLocale out, int beamSize, int which) {
         try {
             File user = new File(global.getFilesDir(), "jane_glossary.tsv");   //optional user terminology: ja<TAB>ne
             File userDictDir = new File(global.getFilesDir(), nie.translator.rtranslator.jane.UserDictionary.DIR_NAME);   //imported user dictionaries (Settings)
@@ -360,8 +384,9 @@ public class Translator extends NeuralNetworkApi {
                 plamoTranslator = null;   //rebuilt with the new dictionaries on the next PLaMo call
                 janeGlossaryStamp = stamp;   //only after a successful (re)build, so a failed read is retried
             }
-            String plamo = translateJaNeWithPlamo(text, in, out);
+            String plamo = which == JANE_WITHOUT_PLAMO ? null : translateJaNeWithPlamo(text, in, out);
             if (plamo != null) return plamo;
+            if (which == JANE_PLAMO_ONLY) return null;
             janeBeamSize = beamSize;
             nie.translator.rtranslator.jane.JaNeTranslator.Result r = janeTranslator.translate(text, in.getCode(), out.getCode());
             if (nie.translator.rtranslator.tools.PrivacyLog.isDebuggable()) for (nie.translator.rtranslator.jane.JaNeTranslator.Candidate c : r.candidates) Log.i("jane", c.toString());
@@ -1003,6 +1028,34 @@ public class Translator extends NeuralNetworkApi {
                 performMode = MOZILLA;
             }
 
+            //MagiTranslator: ja<->ne with PLaMo first, before a model is chosen (and loaded): when PLaMo translates,
+            //Madlad is neither required nor loaded (REMAINING 21). Only when PLaMo cannot (not installed, license,
+            //CPU, error) the path below runs, and that path still needs Madlad for Nepali.
+            String plamoDirect = null;
+            final boolean plamoTried = isJaNePair(inputLanguage, outputLanguage) && nie.translator.rtranslator.plamo.PlamoModels.usable(global.getFilesDir()) != null;
+            if (plamoTried) {
+                //drafts: shown at once with this result's ID (isFinal=false) and replaced by the checked result;
+                //at most one update per 100 ms
+                final long draftID = currentResultID;
+                final CustomLocale draftIn = inputLanguage, draftOut = outputLanguage;
+                final long[] lastDraftAt = {0};
+                plamoDraft = draft -> {
+                    long now = android.os.SystemClock.uptimeMillis();
+                    if (draft == null || draft.trim().isEmpty() || ticket.isCancelled() || now - lastDraftAt[0] < 100) return;
+                    lastDraftAt[0] = now;
+                    if (responseListener != null) mainHandler.post(() -> { if (!ticket.isCancelled()) responseListener.onTranslatedText(textToTranslate, draft, null, draftID, false, TranslateListener.ResultType.NORMAL, draftIn, draftOut); });
+                    else mainHandler.post(() -> { if (!ticket.isCancelled()) notifyResult(textToTranslate, draft, null, draftID, false, TranslateListener.ResultType.NORMAL, draftIn, draftOut); });
+                };
+                try {
+                    plamoDirect = translateJaNeWithLibrary(textToTranslate, inputLanguage, outputLanguage, beamSize, JANE_PLAMO_ONLY);
+                } finally {
+                    plamoDraft = null;
+                }
+                ticket.throwIfCancelled();
+            }
+            if (plamoDirect != null) {
+                finalResult = plamoDirect;
+            } else {
             //MagiTranslator: pick the model from the language pair (ne -> Madlad, ja<->vi -> HY-MT when available)
             boolean preferMozilla = performMode == MOZILLA && global.isUseMozillaForVoiceTranslation()
                     && (rtranslatorMode == Global.RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == Global.RTranslatorMode.WALKIE_TALKIE_MODE);
@@ -1078,7 +1131,7 @@ public class Translator extends NeuralNetworkApi {
                         else mainHandler.post(() -> { if (!draftTicket.isCancelled()) notifyResult(textToTranslate, draft, null, draftID, false, TranslateListener.ResultType.NORMAL, draftIn, draftOut); });
                     };
                     try {
-                        janeResult = translateJaNeWithLibrary(textToTranslate, inputLanguage, outputLanguage, beamSize);
+                        janeResult = translateJaNeWithLibrary(textToTranslate, inputLanguage, outputLanguage, beamSize, plamoTried ? JANE_WITHOUT_PLAMO : JANE_ALL);
                     } finally {
                         janeFirstDraft = null;
                         janeDraftInput = null;
@@ -1184,6 +1237,7 @@ public class Translator extends NeuralNetworkApi {
                     isDictionaryResult = true;
                 }
             }
+            }   //end of the path without PLaMo
             android.util.Log.i("performance", "TRANSLATION DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
             if (saveResults) {
                 lastOutputText = new GuiMessage(new Message(global, finalResult), inputLanguage, outputLanguage, currentResultID, false, true);
@@ -2339,6 +2393,20 @@ public class Translator extends NeuralNetworkApi {
         if (m == HY_MT) return new java.io.File(base + "/Translation/HY-MT");
         if (m == NLLB || m == NLLB_CACHE) return new java.io.File(base + "/NLLB_decoder.onnx");   //rough: the decoder dominates
         return null;
+    }
+
+    /**
+     * After a model was deleted in the model manager: closes PLaMo when its model file is gone, so the
+     * memory-mapped file's space and memory are freed now and not when the app ends. Never waits (main
+     * thread); when a translation holds the lock, that translation's next PLaMo call closes it instead.
+     */
+    public void releaseDeletedModels() {
+        if (plamoEngine == null || !translationLock.tryLock()) return;
+        try {
+            if (nie.translator.rtranslator.plamo.PlamoModels.usable(global.getFilesDir()) == null) closePlamo();
+        } finally {
+            translationLock.unlock();
+        }
     }
 
     /**

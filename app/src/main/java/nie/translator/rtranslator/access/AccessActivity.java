@@ -253,7 +253,7 @@ public class AccessActivity extends GeneralActivity {
         MaterialButton cancelButton = editDialogLayout.findViewById(R.id.cancel_button);
 
         //set icon
-        icon.setImageDrawable(getResources().getDrawable(R.drawable.notification_icon));
+        icon.setImageDrawable(getResources().getDrawable(R.drawable.notification_icon, null));
 
         //set text
         text.setText(getString(R.string.description_permission_notification));

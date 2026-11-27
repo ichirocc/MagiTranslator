@@ -43,7 +43,7 @@ public abstract class GeneralService extends Service {
     protected boolean executeCommand(int command, Bundle data) {
         switch (command) {
             case INITIALIZE_COMMUNICATION: {
-                clientMessenger = data.getParcelable("messenger");
+                clientMessenger = data.getParcelable("messenger", Messenger.class);
                 return true;
             }
         }

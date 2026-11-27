@@ -12,4 +12,12 @@ public interface TextCompletion {
     default String complete(int slot, String prompt, int maxTokens, String... stops) throws Exception {
         return complete(prompt, maxTokens, stops);
     }
+
+    /**
+     * Same, and {@code draft} (may be null) receives the text generated so far while the model generates, so
+     * it can be shown before the end. Default: no drafts.
+     */
+    default String complete(int slot, String prompt, int maxTokens, java.util.function.Consumer<String> draft, String... stops) throws Exception {
+        return complete(slot, prompt, maxTokens, stops);
+    }
 }

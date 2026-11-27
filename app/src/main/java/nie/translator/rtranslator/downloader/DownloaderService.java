@@ -435,7 +435,7 @@ public class DownloaderService extends Service {
 
     private void checkAndStopService() {
         if (areAllDownloadsFinished()) {
-            stopForeground(true);
+            stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
         }
     }

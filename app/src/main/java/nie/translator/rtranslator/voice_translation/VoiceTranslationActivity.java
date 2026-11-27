@@ -430,9 +430,9 @@ public class VoiceTranslationActivity extends GeneralActivity {
 
         //set icon
         if(mode == PAIRING_FRAGMENT){
-            icon.setImageDrawable(getResources().getDrawable(R.drawable.bluetooth));
+            icon.setImageDrawable(getResources().getDrawable(R.drawable.bluetooth, null));
         }else{
-            icon.setImageDrawable(getResources().getDrawable(R.drawable.mic));
+            icon.setImageDrawable(getResources().getDrawable(R.drawable.mic, null));
         }
 
         //set text

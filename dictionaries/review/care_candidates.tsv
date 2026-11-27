@@ -1,0 +1,40 @@
+# Care / medical terms: decisions and what is still open.
+# On 2026-11-25 every open term was decided by recommendation (the user asked to adopt the recommended
+# choice). They are in the dictionaries now; a native Nepali speaker (ideally a caregiver in Japan)
+# should still check them. Columns: japanese <TAB> nepali <TAB> basis <TAB> note
+#
+# ---- decided by recommendation
+介護 (wording)	हेरचाह	plain Nepali, understood by everyone	study text uses नर्सिङ केयर; ne->ja accepts both
+福祉用具 (wording)	सहायक उपकरण	natural Nepali for assistive device	study text uses कल्याण उपकरण; ne->ja accepts both
+介護福祉士	सर्टिफाइड केयर वर्कर	study text: the association's Nepali name	
+特定技能	निर्दिष्ट सीप	study text title	
+技能実習	प्राविधिक इन्टर्न तालिम	English name Technical Intern Training	
+訪問介護	होम हेल्प सर्भिस	study text p.22 (ホームヘルプサービス)	
+訪問介護員 / ホームヘルパー	होम हेल्पर	loanword, like होम हेल्प सर्भिस	
+ショートステイ / ケアプラン	सर्ट स्टे / केयर प्लान	loanwords, like डे सर्भिस / केयर म्यानेजर	
+介護計画 / アセスメント	हेरचाह योजना / मूल्याङ्कन	plain Nepali	मूल्याङ्कन only ja->ne (also "evaluation")
+介護老人保健施設	वृद्धवृद्धाको स्वास्थ्य सेवा नर्सिङ होम	pattern of 特養 in the study text	老健 (abbreviation) not listed
+要介護 / 要支援	हेरचाह आवश्यक / सहयोग आवश्यक	study text: "नर्सिङ केयर आवश्यक व्यक्ति"	
+食事介助	खाना खान सहयोग	pattern of नुहाउन सहयोग / हिँड्न सहयोग	
+移乗	स्थानान्तरण	standard word for transfer	only ja->ne (also job transfer)
+体位変換	शरीरको पोजिसन फेर्ने	study text p.127	
+転倒	लड्ने	study text p.25	only ja->ne (also "to fight")
+見守り	निगरानी	plain Nepali	only ja->ne
+夜勤 / 申し送り	नाइट ड्युटी / ह्यान्डओभर	loanwords used at work	
+看取り	जीवनको अन्तिम हेरचाह	end-of-life care	
+リハビリ	रिह्याबिलिटेसन	loanword; फिजियोथेरापी is narrower	
+整容	व्यक्तिगत सरसफाइ	personal grooming / hygiene	
+身体清拭 / 清拭	शरीर पुछ्ने	wiping of body	
+失禁	पिसाब वा दिसा चुहिने	study text p.157 (both kinds)	
+中核症状	मुख्य लक्षणहरू	"core symptoms"	study text: महत्त्वपूर्ण लक्षणहरू ("important") is misleading
+ボディメカニクス	बडी मेकानिक्स	loanword	
+受診	डाक्टरलाई देखाउने	seeing a doctor	
+熱中症 / 熱射病	हिट स्ट्रोक	loanword in common use	Wikidata अतिताप not used
+処方箋	प्रेस्क्रिप्सन	loanword in common use	
+救急外来	इमर्जेन्सी	used in Nepali hospitals	only ja->ne
+心不全	हृदय विफलता	standard term	Wikidata हृदयघात means heart attack
+胃炎	ग्यास्ट्राइटिस	loanword in common use	Wikidata अम्लपित्त means acidity
+#
+# ---- not added
+腹	-	single character; お腹 -> पेट is in the dictionary	
+中毒	-	poisoning (विषाक्तता) and addiction are different words in Nepali	open

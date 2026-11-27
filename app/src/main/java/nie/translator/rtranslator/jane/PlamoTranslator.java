@@ -57,6 +57,15 @@ public final class PlamoTranslator {
         historyMaxTurns = Math.max(historyTurns, max);
     }
 
+    /** Receives the translation as it is generated (first model call of each translation only); null = none. */
+    private volatile java.util.function.Consumer<String> draftListener;
+    /** set while the first candidate of a translation is generated: drafts are reported then only */
+    private java.util.function.Consumer<String> activeDraft;
+    private final StringBuilder draftPrefix = new StringBuilder();
+
+    /** Draft listener for the following translations (null: none). Drafts are raw model text, before checks. */
+    public void setDraftListener(java.util.function.Consumer<String> listener) { draftListener = listener; }
+
     /** Forgets the conversation (new conversation, language change). */
     public synchronized void clearConversation() { turns.clear(); }
 
@@ -106,15 +115,24 @@ public final class PlamoTranslator {
         for (Glossary.Term g : terms) if (g.required && !required.contains(g.target)) required.add(g.target);
         List<PlamoPrompt.Turn> history = history(src);
         JaNeTranslator.Candidate first = null;
+        activeDraft = draftListener;   // drafts during the first model call only: a retry is not shown half-done
+        draftPrefix.setLength(0);
         if (!history.isEmpty()) {
             try {
                 first = candidate("plamo+history", src, tgt, text, history, terms, required);
+                activeDraft = null;
                 if (first.hard() == 0) return first;
             } catch (java.io.IOException tooLong) {
                 first = null;   // prompt over the context budget: translate without history below
+                draftPrefix.setLength(0);
             }
         }
-        JaNeTranslator.Candidate plain = candidate("plamo", src, tgt, text, Collections.emptyList(), terms, required);
+        JaNeTranslator.Candidate plain;
+        try {
+            plain = candidate("plamo", src, tgt, text, Collections.emptyList(), terms, required);
+        } finally {
+            activeDraft = null;
+        }
         if (first == null) return plain;
         return JaNeTranslator.better(plain, first) ? plain : first;
     }
@@ -136,6 +154,7 @@ public final class PlamoTranslator {
             if (o.isEmpty()) continue;
             if (out.length() > 0 && "ne".equals(tgt)) out.append(' ');
             out.append(o);
+            if (activeDraft != null) { draftPrefix.setLength(0); draftPrefix.append(out).append("ne".equals(tgt) ? " " : ""); }
         }
         return out.toString();
     }
@@ -148,7 +167,12 @@ public final class PlamoTranslator {
 
     private String complete(String src, String tgt, String text, List<PlamoPrompt.Turn> history, List<Glossary.Term> terms) throws Exception {
         String prompt = PlamoPrompt.build(src, tgt, text, history, terms, polite);
-        String out = model.complete("ja".equals(src) ? SLOT_JA_NE : SLOT_NE_JA, prompt, maxTokens(text), PlamoPrompt.STOPS);
+        java.util.function.Consumer<String> draft = activeDraft;
+        String prefix = draftPrefix.toString();
+        String out = draft == null
+                ? model.complete("ja".equals(src) ? SLOT_JA_NE : SLOT_NE_JA, prompt, maxTokens(text), PlamoPrompt.STOPS)
+                : model.complete("ja".equals(src) ? SLOT_JA_NE : SLOT_NE_JA, prompt, maxTokens(text),
+                        part -> draft.accept(prefix + PlamoPrompt.clean(Normalizer.normalize(part, Normalizer.Form.NFC))), PlamoPrompt.STOPS);
         return PlamoPrompt.clean(Normalizer.normalize(out == null ? "" : out, Normalizer.Form.NFC));
     }
 

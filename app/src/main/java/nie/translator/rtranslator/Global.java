@@ -113,7 +113,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
     @Nullable
     private AccessActivity accessActivity;
     private Handler mainHandler;
-    private static Handler mHandler = new Handler();
+    private static Handler mHandler = new Handler(Looper.myLooper());
     private final Object lock = new Object();
     private boolean useTatoeba;
     private boolean useTranslationDictionaries;

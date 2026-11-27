@@ -124,6 +124,25 @@ public class ModelStoreTest {
         String c = new String(ManifestSignature.canonical(new TreeMap<>(h)), StandardCharsets.UTF_8);
         check(c.startsWith("magi-models-manifest-v1\n") && c.split("\n").length == h.size() + 1, "canonical format");
 
+        // deleting a model frees everything kept for it: active, rollback copy, partial download
+        File del = Files.createTempDirectory("modeldelete").toFile();
+        String dd = del.getAbsolutePath();
+        String m = "Madlad.zip";
+        write(new File(del, m), "active");
+        write(new File(new File(del, ModelStore.PREVIOUS_DIR), m), "rollback copy");
+        write(ModelStore.stagingFile(dd, m), "partial");
+        write(new File(ModelStore.stagingDir(dd), m + ".temp"), "prdownloader temp");
+        write(new File(del, "Other.onnx"), "another model");
+        write(new File(new File(del, ModelStore.PREVIOUS_DIR), "Other.onnx"), "its rollback");
+        ModelStore.recordFailure(dd, m, "0123");
+        long freed = ModelStore.deleteAll(dd, m);
+        check(freed == "active".length() + "rollback copy".length() + "partial".length() + "prdownloader temp".length(), "deleteAll: bytes freed " + freed);
+        check(!new File(del, m).exists() && !new File(new File(del, ModelStore.PREVIOUS_DIR), m).exists()
+                && !ModelStore.stagingFile(dd, m).exists() && !new File(ModelStore.stagingDir(dd), m + ".temp").exists(), "deleteAll: active, rollback and partial files gone");
+        check(new File(del, "Other.onnx").exists() && new File(new File(del, ModelStore.PREVIOUS_DIR), "Other.onnx").exists(), "deleteAll: other models untouched");
+        check(ModelStore.isFailed(dd, m, "0123"), "deleteAll: failure record kept (a refused revision stays refused)");
+        check(ModelStore.deleteAll(dd, m) == 0, "deleteAll again: nothing left, 0 bytes");
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         if (failures != 0) System.exit(1);
     }

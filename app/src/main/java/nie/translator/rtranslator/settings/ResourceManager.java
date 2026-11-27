@@ -243,6 +243,8 @@ public class ResourceManager implements MozillaLanguagesAdapter.ResourceManagerI
                 dialog.dismiss();
                 setState(ResourceManagerView.State.EMPTY, animateDeletion);
                 downloadManager.cancelDownload(downloadInfo);
+                nie.translator.rtranslator.voice_translation.neural_networks.translation.Translator translator = ((Global) activity.getApplication()).getTranslator();
+                if(translator != null) translator.releaseDeletedModels();   //PLaMo keeps its file mapped until closed
                 if(clientListener != null) clientListener.onResourceDeleted();
             }
         });

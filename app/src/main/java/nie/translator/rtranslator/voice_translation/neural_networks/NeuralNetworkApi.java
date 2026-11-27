@@ -27,7 +27,6 @@ import java.util.Collection;
 
 import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtSession;
-import ai.onnxruntime.extensions.OrtxPackage;
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.tools.ErrorCodes;
 
@@ -56,8 +55,14 @@ public class NeuralNetworkApi {
             if(modelFile.exists()) {
                 if (FilenameUtils.getExtension(testModelPath).equals("onnx")) {
                     OrtEnvironment onnxEnv = OrtEnvironment.getEnvironment();
+                    if (testModelPath.contains("detokenizer.onnx")) {
+                        //read by Java (WhisperDetokenizer), not by onnxruntime: its BpeDecoder operator needed onnxruntime-extensions
+                        nie.translator.rtranslator.voice_translation.neural_networks.voice.WhisperDetokenizer.load(modelFile);
+                        isVerifying = false;
+                        initListener.onInitializationFinished();
+                        return;
+                    }
                     try (OrtSession.SessionOptions testOptions = new OrtSession.SessionOptions()) {
-                        testOptions.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
                         testOptions.setMemoryPatternOptimization(false);
                         testOptions.setCPUArenaAllocator(false);
                         if (!testModelPath.contains("detokenizer.onnx")) {   //for Whisper_detokenizer.onnx we test with OnnxRuntime optimization because we do it that way in the Recognizer
@@ -87,13 +92,14 @@ public class NeuralNetworkApi {
             File dir = new File(testFolderPath);
             Collection<File> files = FileUtils.listFiles(dir, null, true);
             try(OrtSession.SessionOptions testOptions = new OrtSession.SessionOptions()) {
-                testOptions.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
                 testOptions.setMemoryPatternOptimization(false);
                 testOptions.setCPUArenaAllocator(false);
                 OrtEnvironment onnxEnv = OrtEnvironment.getEnvironment();
                 for (File modelFile : files) {
                     if (Thread.currentThread().isInterrupted()) break;
-                    if (modelFile.exists() && FilenameUtils.getExtension(modelFile.getPath()).equals("onnx")) {
+                    if (modelFile.exists() && modelFile.getPath().contains("detokenizer.onnx")) {
+                        nie.translator.rtranslator.voice_translation.neural_networks.voice.WhisperDetokenizer.load(modelFile);   //read by Java
+                    } else if (modelFile.exists() && FilenameUtils.getExtension(modelFile.getPath()).equals("onnx")) {
                         if (!modelFile.getPath().contains("detokenizer.onnx")) {   //for Whisper_detokenizer.onnx we test with OnnxRuntime optimization because we do it that way in the Recognizer
                             testOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
                         }else{

@@ -169,6 +169,39 @@ public class PlamoTest {
             check(!ModelSources.expectedHashes().containsKey(v.fileName), "not in the mirrored list (models.tsv): " + v);
         }
 
+        // ---- drafts: the text as the model writes it, during the first model call only ----
+        final class Streaming implements TextCompletion {
+            final List<String> outputs = new ArrayList<>(Arrays.asList(
+                    "दुई बजे आउँछु।",          // first call (no history yet): fine
+                    "तीन बजे आउँछु।",          // next translation, with history: number lost -> retried
+                    "दुई बजे आउँछु।",          // the retry without history
+                    "हो।"));                    // a translation without a draft listener
+            @Override public String complete(String prompt, int maxTokens, String... stops) { throw new AssertionError(); }
+            @Override public String complete(int slot, String prompt, int maxTokens, java.util.function.Consumer<String> draft, String... stops) {
+                String out = outputs.remove(0);
+                if (draft != null) for (int k = 1; k <= out.length(); k++) draft.accept(out.substring(0, k));
+                return out;
+            }
+            @Override public String complete(int slot, String prompt, int maxTokens, String... stops) {
+                return complete(slot, prompt, maxTokens, (java.util.function.Consumer<String>) null, stops);
+            }
+        }
+        PlamoTranslator ts = new PlamoTranslator(new Streaming(), Glossary.withDefaults());
+        List<String> drafts = new ArrayList<>();
+        ts.setDraftListener(drafts::add);
+        JaNeTranslator.Result rs = ts.translate("2時に来ます。", "ja", "ne");
+        check(!drafts.isEmpty() && drafts.get(drafts.size() - 1).equals("दुई बजे आउँछु।") && drafts.get(0).length() == 1, "drafts grow to the model text: " + drafts.size());
+        check(rs.text.equals("दुई बजे आउँछु।"), "result unchanged by drafts");
+        drafts.clear();
+        JaNeTranslator.Result rs2 = ts.translate("2時に来ます。", "ja", "ne");
+        check(drafts.size() == "तीन बजे आउँछु।".length() && drafts.get(drafts.size() - 1).equals("तीन बजे आउँछु।"),
+                "drafts of the first call only, not of the retry: " + drafts.size());
+        check(rs2.text.equals("दुई बजे आउँछु।"), "the checked result replaces the draft (retry kept the number)");
+        ts.setDraftListener(null);
+        drafts.clear();
+        ts.translate("はい。", "ja", "ne");
+        check(drafts.isEmpty(), "no listener, no drafts");
+
         // CPU features line of /proc/cpuinfo
         check(CpuFeatures.hasAll("fp asimd evtstrm aes asimddp sha512 i8mm bf16", "asimddp", "i8mm"), "features found");
         check(!CpuFeatures.hasAll("fp asimd asimddp", "asimddp", "i8mm"), "missing i8mm detected");

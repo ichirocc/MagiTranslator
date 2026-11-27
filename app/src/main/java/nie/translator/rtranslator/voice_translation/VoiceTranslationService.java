@@ -182,7 +182,7 @@ public abstract class VoiceTranslationService extends GeneralService {
             return super.onStartCommand(null, flags, startId);
         }
         if (notification == null) {
-            notification = intent.getParcelableExtra("notification");
+            notification = intent.getParcelableExtra("notification", Notification.class);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             int serviceType;
@@ -356,7 +356,7 @@ public abstract class VoiceTranslationService extends GeneralService {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stopForeground(Service.STOP_FOREGROUND_REMOVE);
         } else {
-            stopForeground(true);
+            stopForeground(STOP_FOREGROUND_REMOVE);
         }
         //reset translator last input and last output text
         /*if(((Global) getApplication())!=null){
@@ -547,7 +547,7 @@ public abstract class VoiceTranslationService extends GeneralService {
             if (callback != -1) {
                 switch (callback) {
                     case ON_ATTRIBUTES: {
-                        ArrayList<GuiMessage> messages = data.getParcelableArrayList("messages");
+                        ArrayList<GuiMessage> messages = data.getParcelableArrayList("messages", GuiMessage.class);
                         boolean isMicMute = data.getBoolean("isMicMute");
                         boolean isAudioMute = data.getBoolean("isAudioMute");
                         boolean isTTSError = data.getBoolean("isTTSError");
@@ -609,7 +609,7 @@ public abstract class VoiceTranslationService extends GeneralService {
                         return true;
                     }
                     case ON_MESSAGE: {
-                        GuiMessage message = data.getParcelable("message");
+                        GuiMessage message = data.getParcelable("message", GuiMessage.class);
                         for (int i = 0; i < clientCallbacks.size(); i++) {
                             clientCallbacks.get(i).onMessage(message);
                         }

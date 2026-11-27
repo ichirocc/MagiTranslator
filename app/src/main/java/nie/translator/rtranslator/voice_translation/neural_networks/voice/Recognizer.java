@@ -26,7 +26,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 import java.io.IOException;
 import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,7 +39,6 @@ import ai.onnxruntime.OnnxTensor;
 import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
-import ai.onnxruntime.extensions.OrtxPackage;
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.R;
 import androidx.annotation.Nullable;
@@ -174,7 +172,7 @@ public class Recognizer extends NeuralNetworkApi {
     private OrtSession cacheInitSession;
     private OrtSession cacheInitBatchSession;
     private OrtSession decoderSession;
-    private OrtSession detokenizerSession;
+    private WhisperDetokenizer detokenizer;   //token ids -> text in Java (no onnxruntime-extensions: its .so files are not 16 KB aligned)
     // MagiTranslator: optional Nepali fine-tuned Whisper-small (files/Whisper_ne/*). Same vocabulary and log-mel,
     // so the initializer and detokenizer sessions are shared with the base model.
     private OrtSession neEncoderSession, neCacheInitSession, neCacheInitBatchSession, neDecoderSession;
@@ -198,7 +196,6 @@ public class Recognizer extends NeuralNetworkApi {
             public void run() {
                 try {
                     OrtSession.SessionOptions initSessionOptions = new OrtSession.SessionOptions();
-                    initSessionOptions.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
                     initSessionOptions.setCPUArenaAllocator(false);
                     initSessionOptions.setMemoryPatternOptimization(false);
                     initSessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
@@ -207,7 +204,6 @@ public class Recognizer extends NeuralNetworkApi {
                     initializeEncoderSession();
 
                     OrtSession.SessionOptions cacheSessionOptions = new OrtSession.SessionOptions();
-                    cacheSessionOptions.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
                     cacheSessionOptions.setCPUArenaAllocator(false);
                     cacheSessionOptions.setMemoryPatternOptimization(false);
                     cacheSessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
@@ -215,18 +211,12 @@ public class Recognizer extends NeuralNetworkApi {
                     cacheInitBatchSession = onnxEnv.createSession(cacheInitBatchPath, cacheSessionOptions);
 
                     OrtSession.SessionOptions decoderSessionOptions = new OrtSession.SessionOptions();
-                    decoderSessionOptions.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
                     decoderSessionOptions.setCPUArenaAllocator(false);
                     decoderSessionOptions.setMemoryPatternOptimization(false);
                     decoderSessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
                     decoderSession = onnxEnv.createSession(decoderPath, decoderSessionOptions);
 
-                    OrtSession.SessionOptions detokenizerSessionOptions = new OrtSession.SessionOptions();
-                    detokenizerSessionOptions.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
-                    detokenizerSessionOptions.setCPUArenaAllocator(false);
-                    detokenizerSessionOptions.setMemoryPatternOptimization(false);
-                    //detokenizerSessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-                    detokenizerSession = onnxEnv.createSession(detokenizerPath, detokenizerSessionOptions);
+detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vocabulary read from the downloaded Whisper_detokenizer.onnx
 
                     initListener.onInitializationFinished();
                 } catch (Exception e) {
@@ -245,7 +235,6 @@ public class Recognizer extends NeuralNetworkApi {
         // encoder session initialization
         String encoderPath = global.getFilesDir().getPath() + "/Whisper_encoder.onnx";
         OrtSession.SessionOptions encoderSessionOptions = new OrtSession.SessionOptions();
-        encoderSessionOptions.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
         if(global.isWhisperReducedRam()){
             encoderSessionOptions.setCPUArenaAllocator(false);
             encoderSessionOptions.setMemoryPatternOptimization(false);
@@ -315,7 +304,7 @@ public class Recognizer extends NeuralNetworkApi {
         final OrtSession cInitSession = useNeModel ? neCacheInitSession : cacheInitSession;
         final OrtSession cInitBatchSession = useNeModel ? neCacheInitBatchSession : cacheInitBatchSession;
         final OrtSession decSession = useNeModel ? neDecoderSession : decoderSession;
-        if (initSession != null && encoderSession != null && cacheInitSession != null && decoderSession != null && detokenizerSession != null) {
+        if (initSession != null && encoderSession != null && cacheInitSession != null && decoderSession != null && detokenizer != null) {
             if (data != null) {
                 //we convert data in an audioTensor and start the transcription
                 try {
@@ -545,16 +534,11 @@ public class Recognizer extends NeuralNetworkApi {
                     }
 
                     //execution of the detokenizer
-                    Map detokenizerInputs = (Map) (new LinkedHashMap());
                     if(batchSize == 1) {
                         String finalText = UNDEFINED_TEXT;
                         if(!execution1HitMaxLength) {
                             int[] sequences = completeOutput.stream().mapToInt(i -> i).toArray();
-                            detokenizerInputs.put("sequences", TensorUtils.createInt32Tensor(onnxEnv, sequences, new long[]{1, 1, sequences.length}));
-                            OrtSession.Result detokenizerOutputs = this.detokenizerSession.run(detokenizerInputs);
-                            Object finalTextResult = detokenizerOutputs.get(0).getValue();
-                            finalText = ((String[][]) finalTextResult)[0][0];
-                            detokenizerOutputs.close();
+                            finalText = detokenizer.decode(sequences);
                         }
                         android.util.Log.i("result", "result: " + nie.translator.rtranslator.tools.PrivacyLog.text(correctText(finalText)));
                         android.util.Log.i("score", "score: " + outputProbability1);
@@ -575,22 +559,13 @@ public class Recognizer extends NeuralNetworkApi {
                         String firstText = UNDEFINED_TEXT;
                         if(!execution1HitMaxLength) {
                             int[] sequence1 = completeOutput.stream().mapToInt(i -> i).toArray();
-                            detokenizerInputs.put("sequences", OnnxTensor.createTensor(onnxEnv, IntBuffer.wrap(sequence1), TensorUtils.tensorShape(1, 1, sequence1.length)));
-                            OrtSession.Result detokenizerOutputs = this.detokenizerSession.run(detokenizerInputs);
-                            Object firstTextResult = detokenizerOutputs.get(0).getValue();
-                            firstText = ((String[][]) firstTextResult)[0][0];
-                            detokenizerOutputs.close();
+                            firstText = detokenizer.decode(sequence1);
                         }
 
                         String secondText = UNDEFINED_TEXT;
                         if(!execution2HitMaxLength) {
                             int[] sequence2 = completeOutput2.stream().mapToInt(i -> i).toArray();
-                            detokenizerInputs = (Map) (new LinkedHashMap());
-                            detokenizerInputs.put("sequences", OnnxTensor.createTensor(onnxEnv, IntBuffer.wrap(sequence2), TensorUtils.tensorShape(1, 1, sequence2.length)));
-                            OrtSession.Result detokenizerOutputs2 = this.detokenizerSession.run(detokenizerInputs);
-                            Object secondTextResult = detokenizerOutputs2.get(0).getValue();
-                            secondText = ((String[][]) secondTextResult)[0][0];
-                            detokenizerOutputs2.close();
+                            secondText = detokenizer.decode(sequence2);
                         }
 
                         android.util.Log.i("result", "result 1: " + nie.translator.rtranslator.tools.PrivacyLog.text(correctText(firstText)));
@@ -783,13 +758,11 @@ public class Recognizer extends NeuralNetworkApi {
         }
         try {
             OrtSession.SessionOptions enc = new OrtSession.SessionOptions();
-            enc.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
             enc.setCPUArenaAllocator(true);
             enc.setMemoryPatternOptimization(true);
             enc.setSymbolicDimensionValue("batch_size", 1);
             enc.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
             OrtSession.SessionOptions other = new OrtSession.SessionOptions();
-            other.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
             other.setCPUArenaAllocator(false);
             other.setMemoryPatternOptimization(false);
             other.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);

@@ -16,6 +16,8 @@
 
 package nie.translator.rtranslator.tools.gui.animations;
 
+import android.os.Looper;
+import android.graphics.PorterDuffColorFilter;
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ArgbEvaluator;
@@ -69,7 +71,7 @@ import nie.translator.rtranslator.voice_translation._text_translation.Translatio
 public class CustomAnimator {
     private final float iconSizeInDp=24;
     private final float micSizeInDp=50;
-    private Handler eventHandler= new Handler();
+    private Handler eventHandler= new Handler(Looper.myLooper());
     private Interpolator reverseInterpolator=new Interpolator() {
         private AccelerateDecelerateInterpolator interpolator= new AccelerateDecelerateInterpolator();
         @Override
@@ -287,10 +289,10 @@ public class CustomAnimator {
             buttonMic.setLayoutParams(layoutParams);
 
             // change color of icon
-            buttonMic.getDrawable().setColorFilter(finalColorIcon, PorterDuff.Mode.SRC_IN);
+            buttonMic.getDrawable().setColorFilter(new PorterDuffColorFilter(finalColorIcon, PorterDuff.Mode.SRC_IN));
 
             // change color of background
-            buttonMic.getBackground().setColorFilter(finalColor, PorterDuff.Mode.SRC_IN);
+            buttonMic.getBackground().setColorFilter(new PorterDuffColorFilter(finalColor, PorterDuff.Mode.SRC_IN));
         }
     }
 
@@ -327,10 +329,10 @@ public class CustomAnimator {
             buttonMic.setLayoutParams(layoutParams);
 
             // change color of icon
-            buttonMic.getDrawable().setColorFilter(finalColorIcon, PorterDuff.Mode.SRC_IN);
+            buttonMic.getDrawable().setColorFilter(new PorterDuffColorFilter(finalColorIcon, PorterDuff.Mode.SRC_IN));
 
             // change color of background
-            buttonMic.getBackground().setColorFilter(finalColor, PorterDuff.Mode.SRC_IN);
+            buttonMic.getBackground().setColorFilter(new PorterDuffColorFilter(finalColor, PorterDuff.Mode.SRC_IN));
         }
     }
 
@@ -1762,7 +1764,7 @@ public class CustomAnimator {
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animator) {
-                drawable.setColorFilter((int) animator.getAnimatedValue(),PorterDuff.Mode.SRC_IN);
+                drawable.setColorFilter(new PorterDuffColorFilter((int) animator.getAnimatedValue(), PorterDuff.Mode.SRC_IN));
             }
         });
         animator.setDuration(duration);

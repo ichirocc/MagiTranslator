@@ -103,6 +103,22 @@ public final class ModelStore {
         return keptPrevious ? Result.INSTALLED_WITH_PREVIOUS : Result.INSTALLED;
     }
 
+    /**
+     * Deletes everything kept for {@code name} in {@code dir}: the active file, its rollback copy in
+     * .previous/ and a partial download in .staging/ (also PRDownloader's &lt;name&gt;.temp). The failure
+     * record stays (a revision refused once is not taken again). Returns the bytes freed.
+     */
+    public static long deleteAll(String dir, String name) {
+        long freed = 0;
+        File staging = stagingDir(dir);
+        for (File f : new File[]{new File(dir, name), new File(new File(dir, PREVIOUS_DIR), name),
+                new File(staging, name), new File(staging, name + ".temp")}) {
+            long size = f.isFile() ? f.length() : 0;
+            if (f.isFile() && f.delete()) freed += size;
+        }
+        return freed;
+    }
+
     /** True when a rollback copy of {@code name} exists. */
     public static boolean canRollback(String dir, String name) {
         return new File(new File(dir, PREVIOUS_DIR), name).isFile();

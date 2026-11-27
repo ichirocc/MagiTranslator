@@ -130,7 +130,27 @@ bool Engine::feed(int slot, const std::vector<int> &toks, size_t from, size_t to
     return true;
 }
 
-bool Engine::complete(int slot, const std::string &prompt, int max_tokens, const std::vector<std::string> &stops, std::string *out) {
+// Length of the part of text that can be shown: no possible start of a stop string at the end and no
+// incomplete UTF-8 character.
+static size_t shown_length(const std::string &text, const std::vector<std::string> &stops) {
+    size_t n = text.size();
+    for (const auto &s : stops) {
+        for (size_t k = std::min(s.size() - (s.empty() ? 0 : 1), text.size()); k > 0; k--) {
+            if (text.compare(text.size() - k, k, s, 0, k) == 0) { n = std::min(n, text.size() - k); break; }
+        }
+    }
+    size_t i = n;   // back to the start of the last character, then keep it only if it is complete
+    while (i > 0 && (static_cast<unsigned char>(text[i - 1]) & 0xC0) == 0x80) i--;
+    if (i > 0) {
+        unsigned char lead = static_cast<unsigned char>(text[i - 1]);
+        size_t need = lead < 0x80 ? 1 : (lead >> 5) == 0x6 ? 2 : (lead >> 4) == 0xE ? 3 : (lead >> 3) == 0x1E ? 4 : 1;
+        if (n - (i - 1) < need) n = i - 1;
+    }
+    return n;
+}
+
+bool Engine::complete(int slot, const std::string &prompt, int max_tokens, const std::vector<std::string> &stops, std::string *out,
+                      const std::function<void(const std::string &)> &on_text) {
     out->clear();
     if (slot < 0 || slot >= SLOTS || max_tokens < 0) return false;
     long long t0 = now_us();
@@ -151,6 +171,7 @@ bool Engine::complete(int slot, const std::string &prompt, int max_tokens, const
 
     const int n_vocab = llama_vocab_n_tokens(vocab_);
     int generated = 0;
+    size_t shown = 0;
     bool ok = true;
     for (; generated < max_tokens; generated++) {
         const float *logits = llama_get_logits_ith(ctx_, -1);
@@ -165,6 +186,10 @@ bool Engine::complete(int slot, const std::string &prompt, int max_tokens, const
             if (at != std::string::npos) { out->resize(at); stop = true; break; }
         }
         if (stop) break;
+        if (on_text) {
+            size_t n = shown_length(*out, stops);
+            if (n > shown) { shown = n; on_text(out->substr(0, n)); }
+        }
         llama_batch_ext_clear(batch_);
         int32_t idx = llama_batch_ext_add_token(batch_, slot, t);
         llama_pos pos = (llama_pos) cached.size();

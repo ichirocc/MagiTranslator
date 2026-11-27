@@ -120,10 +120,9 @@ public class DownloaderTools {
     public static void deleteDownloadedFiles(DownloadGroupInfo downloadGroup){
         // we delete the already downloaded files of this group of download
         for (int i = 0; i < downloadGroup.downloadsInfo.length; i++){
-            File file = new File(downloadGroup.downloadsInfo[i].getDestinationCompletePath());
-            if (file.exists()) {
-                file.delete();
-            }
+            // the file, its rollback copy (.previous/, up to the size of the model: Madlad's zip is 1.7 GB)
+            // and a partial download (.staging/): deleting a model frees all of its space
+            nie.translator.rtranslator.downloader.ModelStore.deleteAll(downloadGroup.downloadsInfo[i].getDestinationPath(), downloadGroup.downloadsInfo[i].getName());
             // in the case the download is an extracted download we delete the extracted (or partially extracted) internal folder and its content (instead of just a single file)
             String internalFolder = downloadGroup.downloadsInfo[i].getInternalFolder();
             if (internalFolder != null && !internalFolder.isEmpty()){

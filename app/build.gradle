@@ -142,6 +142,7 @@ dependencies {
     //implementation fileTree(include: ['*.jar'], dir: 'libs')
     // Support libraries
     implementation 'com.google.code.gson:gson:2.15.0'
+    implementation 'commons-io:commons-io:2.18.0'   // FileUtils / FilenameUtils: explicit (it came in through another library)
     implementation "com.google.android.material:material:1.14.0"
     implementation "androidx.cardview:cardview:1.0.0"
     implementation "androidx.recyclerview:recyclerview:1.4.0"
@@ -149,13 +150,9 @@ dependencies {
     implementation "androidx.preference:preference:1.2.1"
     implementation "androidx.core:core-splashscreen:1.2.0"
     implementation "androidx.lifecycle:lifecycle-extensions:2.2.0"
-    implementation "com.github.worker8:RadioGroupPlus:1.0.1"
     //Download library
     implementation 'com.github.amitshekhariitbhu:PRDownloader:1.0.2'
-    // DJL HuggingFace tokenizers wrapper
-    implementation "ai.djl.android:core:0.33.0"
-    implementation "ai.djl.huggingface:tokenizers:0.33.0"
-    implementation "ai.djl.android:tokenizer-native:0.33.0"
+    // (no DJL: HY-MT's tokenizer is HyTokenizer.java; DJL's native library was not 16 KB page aligned)
     //protobuf
     implementation "com.google.protobuf:protobuf-javalite:4.36.2"
     // bouncycastle crypto lib
@@ -173,7 +170,7 @@ dependencies {
     //implementation 'com.github.niedev:GalleryImageSelector:1.0.7'
     //ONNX Runtime
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.31.1'  //latest.release
-    implementation 'com.microsoft.onnxruntime:onnxruntime-extensions-android:0.13.0'   //latest.release
+    // (no onnxruntime-extensions: Whisper's detokenizer is WhisperDetokenizer.java; its native libraries were not 16 KB aligned)
     //JWS parser
     //Room library (database)
     // explicit: Room 2.1's room-guava used to bring these in transitively (TensorUtils uses Guava primitives,
