@@ -5,11 +5,12 @@ upstream; a line whose URL is `build:<script>` is built by `.github/workflows/mi
 
 ## Madlad-v2.zip (Nepali)
 
-> **Status: not built, not published, not used by the app yet.** The tools and their tests are here; the
-> `build:` line in `models/models.tsv`, the CI build and the app side (loading the 4-bit table and the two
-> heads, `Translator.java`) are in `archive/work-2026-11` (commits f81a474, 20076e8) and wait for the owner's
-> decision to publish the file to the models-v1 release (a published file cannot be replaced: its hash is
-> pinned). Until then the app downloads and uses `Madlad.zip`.
+> **Status: not used (decided 2026-11-27).** The owner's rule: if something better than Madlad-v2 exists, do
+> not use Madlad-v2. For Japanese <-> Nepali, PLaMo 3 Translate is far better on the same 80 test sentences
+> (chrF ja->ne / ne->ja: PLaMo 2B 52.7 / 38.0, PLaMo 0.8B 45.3 / 34.1, with the personal adapter 53.1 / 44.4;
+> Madlad 24.9 / 15.1, and Madlad-v2 has the same quality: it only makes Madlad smaller and faster). So
+> Madlad-v2 is not built or published; the tools and their tests stay here in case Madlad matters again.
+> The app keeps `Madlad.zip` for the languages PLaMo does not translate and as the fallback.
 
 
 Built from `Madlad.zip` by `build_madlad_v2.py`. The encoder, the cache initializer and `spiece.model`
