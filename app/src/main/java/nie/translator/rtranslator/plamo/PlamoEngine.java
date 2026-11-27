@@ -63,11 +63,17 @@ public final class PlamoEngine implements TextCompletion, Closeable {
 
     /** Like {@link #complete(String, int, String...)} in the given slot (keeps that slot's prefix cache). */
     public synchronized String complete(int slot, String prompt, int maxTokens, String... stops) throws IOException {
+        return complete(slot, prompt, maxTokens, (java.util.function.Consumer<String>) null, stops);
+    }
+
+    /** With drafts: {@code draft} gets the text so far after each generated token (complete characters, no stop string). */
+    @Override
+    public synchronized String complete(int slot, String prompt, int maxTokens, java.util.function.Consumer<String> draft, String... stops) throws IOException {
         if (handle == 0) throw new IOException("engine closed");
         if (slot < 0 || slot >= SLOTS) throw new IllegalArgumentException("slot " + slot);
         byte[][] s = new byte[stops.length][];
         for (int i = 0; i < stops.length; i++) s[i] = stops[i].getBytes(StandardCharsets.UTF_8);
-        byte[] out = nativeComplete(handle, slot, prompt.getBytes(StandardCharsets.UTF_8), maxTokens, s);
+        byte[] out = nativeComplete(handle, slot, prompt.getBytes(StandardCharsets.UTF_8), maxTokens, s, draft == null ? null : new DraftBridge(draft));
         if (out == null) throw new IOException("PLaMo generation failed (prompt too long or decode error)");
         return new String(out, StandardCharsets.UTF_8);
     }
@@ -93,7 +99,19 @@ public final class PlamoEngine implements TextCompletion, Closeable {
 
     private static native int nativePerformanceCores();
     private static native long nativeLoad(String path, int threads, int contextTokens);
-    private static native byte[] nativeComplete(long handle, int slot, byte[] prompt, int maxTokens, byte[][] stops);
+    private static native byte[] nativeComplete(long handle, int slot, byte[] prompt, int maxTokens, byte[][] stops, Object draftListener);
+
+    /** Called from the native generation loop (plamo_engine.cpp looks up onPartial([B)V). */
+    private static final class DraftBridge {
+        private final java.util.function.Consumer<String> draft;
+
+        DraftBridge(java.util.function.Consumer<String> draft) { this.draft = draft; }
+
+        @SuppressWarnings("unused")
+        void onPartial(byte[] utf8) {
+            draft.accept(new String(utf8, StandardCharsets.UTF_8));
+        }
+    }
     private static native long[] nativeLastStats(long handle);
     private static native boolean nativeSetAdapter(long handle, String path, float scale);
     private static native void nativeFree(long handle);

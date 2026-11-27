@@ -287,7 +287,13 @@ public class Translator extends NeuralNetworkApi {
                 pt.setPhraseBook(janePhraseBook);
                 plamoTranslator = pt;
             }
-            nie.translator.rtranslator.jane.JaNeTranslator.Result r = pt.translate(text, in.getCode(), out.getCode());
+            pt.setDraftListener(plamoDraft);   //the text as PLaMo writes it, shown before the checked result
+            nie.translator.rtranslator.jane.JaNeTranslator.Result r;
+            try {
+                r = pt.translate(text, in.getCode(), out.getCode());
+            } finally {
+                pt.setDraftListener(null);
+            }
             if (nie.translator.rtranslator.tools.PrivacyLog.isDebuggable()) {
                 long[] st = plamoEngine.lastStats();   //counts and times only, no text
                 Log.i("plamo", r.candidates.isEmpty() ? "empty" : r.candidates.get(0).label + " prompt=" + st[0] + " reused=" + st[1] + " generated=" + st[2] + " promptMs=" + st[3] / 1000 + " genMs=" + st[4] / 1000);
@@ -331,6 +337,8 @@ public class Translator extends NeuralNetworkApi {
     private volatile String janeDraftInput = null;
 
     private static final int JANE_ALL = 0, JANE_PLAMO_ONLY = 1, JANE_WITHOUT_PLAMO = 2;
+    /** Set while a ja<->ne translation runs on PLaMo: receives its text as it is generated. */
+    private volatile java.util.function.Consumer<String> plamoDraft = null;
 
     /** JANE_PLAMO_ONLY: the dictionaries and PLaMo, null when PLaMo cannot translate (Madlad not touched);
      *  JANE_WITHOUT_PLAMO: PLaMo was already tried for this text, go straight to Madlad. */
@@ -1026,7 +1034,23 @@ public class Translator extends NeuralNetworkApi {
             String plamoDirect = null;
             final boolean plamoTried = isJaNePair(inputLanguage, outputLanguage) && nie.translator.rtranslator.plamo.PlamoModels.usable(global.getFilesDir()) != null;
             if (plamoTried) {
-                plamoDirect = translateJaNeWithLibrary(textToTranslate, inputLanguage, outputLanguage, beamSize, JANE_PLAMO_ONLY);
+                //drafts: shown at once with this result's ID (isFinal=false) and replaced by the checked result;
+                //at most one update per 100 ms
+                final long draftID = currentResultID;
+                final CustomLocale draftIn = inputLanguage, draftOut = outputLanguage;
+                final long[] lastDraftAt = {0};
+                plamoDraft = draft -> {
+                    long now = android.os.SystemClock.uptimeMillis();
+                    if (draft == null || draft.trim().isEmpty() || ticket.isCancelled() || now - lastDraftAt[0] < 100) return;
+                    lastDraftAt[0] = now;
+                    if (responseListener != null) mainHandler.post(() -> { if (!ticket.isCancelled()) responseListener.onTranslatedText(textToTranslate, draft, null, draftID, false, TranslateListener.ResultType.NORMAL, draftIn, draftOut); });
+                    else mainHandler.post(() -> { if (!ticket.isCancelled()) notifyResult(textToTranslate, draft, null, draftID, false, TranslateListener.ResultType.NORMAL, draftIn, draftOut); });
+                };
+                try {
+                    plamoDirect = translateJaNeWithLibrary(textToTranslate, inputLanguage, outputLanguage, beamSize, JANE_PLAMO_ONLY);
+                } finally {
+                    plamoDraft = null;
+                }
                 ticket.throwIfCancelled();
             }
             if (plamoDirect != null) {

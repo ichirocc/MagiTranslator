@@ -2,6 +2,7 @@
 // same code is tested on a PC and on aarch64 under QEMU; plamo_engine.cpp is the JNI layer on top.
 #pragma once
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -29,7 +30,10 @@ public:
     // Greedy continuation of prompt (UTF-8, PFML3 markers are parsed as special tokens) in a slot. Stops at
     // an end-of-generation token, before any of the stop strings, or after max_tokens. False on error
     // (prompt longer than the slot, decode failure); the slot's cache is then dropped.
-    bool complete(int slot, const std::string &prompt, int max_tokens, const std::vector<std::string> &stops, std::string *out);
+    // on_text (optional): called during generation with the text so far, without an incomplete UTF-8
+    // character or a possible start of a stop string at its end (for showing a draft while generating)
+    bool complete(int slot, const std::string &prompt, int max_tokens, const std::vector<std::string> &stops, std::string *out,
+                  const std::function<void(const std::string &)> &on_text = nullptr);
 
     // Applies a LoRA adapter (GGUF, made for this model) with the given scale; an empty path removes it.
     // Both slots' caches are dropped (their keys/values were computed with the previous weights).

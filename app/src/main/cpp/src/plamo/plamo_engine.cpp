@@ -1,5 +1,6 @@
 // JNI layer of plamo::Engine for nie.translator.rtranslator.plamo.PlamoEngine. Text crosses the boundary
 // as UTF-8 byte arrays: JNI's "modified UTF-8" strings cannot carry characters outside the BMP.
+#include <functional>
 #include <jni.h>
 
 #include <string>
@@ -34,7 +35,7 @@ Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeLoad(JNIEnv *env, jclass
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeComplete(JNIEnv *env, jclass, jlong handle, jint slot, jbyteArray jprompt, jint maxTokens, jobjectArray jstops) {
+Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeComplete(JNIEnv *env, jclass, jlong handle, jint slot, jbyteArray jprompt, jint maxTokens, jobjectArray jstops, jobject listener) {
     auto *e = reinterpret_cast<plamo::Engine *>(handle);
     if (!e) return nullptr;
     std::vector<std::string> stops;
@@ -44,7 +45,26 @@ Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeComplete(JNIEnv *env, jc
         env->DeleteLocalRef(b);
     }
     std::string out;
-    if (!e->complete(slot, bytes(env, jprompt), maxTokens, stops, &out)) return nullptr;
+    // optional draft listener: an object with void onPartial(byte[]) (UTF-8 text so far)
+    jmethodID onPartial = nullptr;
+    if (listener) {
+        jclass cls = env->GetObjectClass(listener);
+        onPartial = env->GetMethodID(cls, "onPartial", "([B)V");
+        env->DeleteLocalRef(cls);
+        if (!onPartial) env->ExceptionClear();
+    }
+    std::function<void(const std::string &)> on_text;
+    if (onPartial) {
+        on_text = [env, listener, onPartial](const std::string &text) {
+            jbyteArray b = env->NewByteArray((jsize) text.size());
+            if (!b) { env->ExceptionClear(); return; }
+            if (!text.empty()) env->SetByteArrayRegion(b, 0, (jsize) text.size(), reinterpret_cast<const jbyte *>(text.data()));
+            env->CallVoidMethod(listener, onPartial, b);
+            if (env->ExceptionCheck()) env->ExceptionClear();   // a failing listener never stops the translation
+            env->DeleteLocalRef(b);
+        };
+    }
+    if (!e->complete(slot, bytes(env, jprompt), maxTokens, stops, &out, on_text)) return nullptr;
     jbyteArray res = env->NewByteArray((jsize) out.size());
     if (res && !out.empty()) env->SetByteArrayRegion(res, 0, (jsize) out.size(), reinterpret_cast<const jbyte *>(out.data()));
     return res;
