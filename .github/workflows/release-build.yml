@@ -122,9 +122,16 @@ jobs:
           # using them would crash at run time (the classes are not in the app). Type descriptors in every dex file.
           apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
           rm -rf /tmp/dex && mkdir -p /tmp/dex && unzip -q -o "$apk" 'classes*.dex' -d /tmp/dex
-          refs=$(grep -a -o -h 'Landroid/support/[A-Za-z0-9_/$]*' /tmp/dex/*.dex | sort -u || true)
-          if [ -n "$refs" ]; then echo "::error::android.support classes referenced in the APK:"; echo "$refs" | head -50; exit 1; fi
-          echo "ok: no android.support reference in $(ls /tmp/dex | wc -l) dex files"
+          # androidx.core itself ships a few classes under android.support.v4 (AIDL interfaces whose names must stay
+          # stable): those are defined in the APK and fine. A reference to an android.support class that no dex file
+          # defines is what would crash.
+          dexdump=$(ls "$ANDROID_HOME"/build-tools/*/dexdump | sort -V | tail -1)
+          refs=$(grep -a -o -h 'Landroid/support/[A-Za-z0-9_/$]*;' /tmp/dex/*.dex | sort -u || true)
+          defined=$(for d in /tmp/dex/*.dex; do "$dexdump" "$d"; done | grep -o "Class descriptor *: 'Landroid/support/[^']*'" | grep -o 'Landroid/support/[^'"'"']*' | sort -u || true)
+          missing=$(comm -23 <(echo "$refs" | sed '/^$/d') <(echo "$defined" | sed '/^$/d'))
+          echo "android.support: $(echo "$refs" | sed '/^$/d' | wc -l) referenced, $(echo "$defined" | sed '/^$/d' | wc -l) defined in the APK (androidx.core)"
+          if [ -n "$missing" ]; then echo "::error::android.support classes referenced but not in the APK:"; echo "$missing" | head -50; exit 1; fi
+          echo "ok: every android.support class referenced is in the APK ($(ls /tmp/dex | wc -l) dex files)"
 
       - name: Rename APK
         id: ver
