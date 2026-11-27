@@ -4,9 +4,11 @@ Trains a small LoRA adapter (about 15 MB) for PLaMo 3 Translate 0.8B on your off
 `#!jane phrases` / `ja-ne-terms` / `ne-ja-terms` files), on a PC. The phone only uses it: import the `.gguf`
 in Settings → "import dictionary" (the same button as the dictionaries). The base model is not modified.
 
-**Keep the adapter private.** It is derived from PLaMo (a "derived model" under the PLaMo Community License)
-and from the material of your dictionary (for example copyrighted textbooks). It is used on your device only:
-never commit it, upload it or share it. "Delete imported dictionaries" in Settings deletes it too.
+**An adapter is a derived model** of PLaMo (PLaMo Community License: keep the license with it and show
+"Built with PLaMo") and of the dictionary it was trained on. The owner published the dictionaries in
+`dictionaries/`, and on 2026-11-27 the adapters trained on them (`models/personal/`) and the training and
+evaluation data (`data/`). An adapter trained on material that is not published stays on your device.
+"Delete imported dictionaries" in Settings deletes the imported adapter too.
 
 ## Steps
 

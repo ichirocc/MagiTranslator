@@ -1,7 +1,9 @@
-# private: training data from your dictionary, checkpoints, adapters, the downloaded model
-data/
-lora/
+# local work: checkpoints, downloaded models, generated files. The published training and evaluation data is
+# data/ (the owner's decision, 2026-11-27: the dictionaries it comes from are in dictionaries/).
+lora*/
 plamo*-hf/
 *.gguf
 *.jsonl
 *.tsv
+!data/
+!data/*
