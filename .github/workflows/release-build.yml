@@ -53,6 +53,11 @@ jobs:
             app/src/main/java/nie/translator/rtranslator/tools/nn/Utils.java \
             app/src/test/java/nie/translator/rtranslator/tools/nn/UtilsTest.java
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.jane.JaNeLibraryTest
+          # view logic on Android stand-ins (app/src/test/stubs), compiled apart so the stand-ins never meet other code
+          mkdir -p /tmp/jtui && javac -encoding UTF-8 -d /tmp/jtui $(find app/src/test/stubs -name '*.java') \
+            app/src/main/java/nie/translator/rtranslator/widgets/NestedRadioGroup.java \
+            app/src/test/java/nie/translator/rtranslator/widgets/NestedRadioGroupTest.java
+          java -cp /tmp/jtui nie.translator.rtranslator.widgets.NestedRadioGroupTest   # model radio buttons (replaces RadioGroupPlus)
           java -cp /tmp/jt nie.translator.rtranslator.tools.nn.UtilsTest   # beam search top-k == the old repeated scans
           java -Dstdout.encoding=UTF-8 -cp /tmp/jt nie.translator.rtranslator.plamo.PlamoTest   # PLaMo prompts, glossary, history, license gate
           java -cp /tmp/jt nie.translator.rtranslator.downloader.ZipSafetyTest
@@ -109,6 +114,17 @@ jobs:
             if [ $(( align )) -lt $(( 0x4000 )) ]; then echo "::warning::$(basename $so) LOAD align $align (<16KB)"; bad=1; else echo "ok $(basename $so) $align"; fi
           done
           echo "16KB check done (bad=$bad)"
+
+      - name: No legacy support library left (Jetifier is off)
+        shell: bash
+        run: |
+          # With android.enableJetifier=false nothing rewrites android.support.* references any more: a library still
+          # using them would crash at run time (the classes are not in the app). Type descriptors in every dex file.
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          rm -rf /tmp/dex && mkdir -p /tmp/dex && unzip -q -o "$apk" 'classes*.dex' -d /tmp/dex
+          refs=$(grep -a -o -h 'Landroid/support/[A-Za-z0-9_/$]*' /tmp/dex/*.dex | sort -u || true)
+          if [ -n "$refs" ]; then echo "::error::android.support classes referenced in the APK:"; echo "$refs" | head -50; exit 1; fi
+          echo "ok: no android.support reference in $(ls /tmp/dex | wc -l) dex files"
 
       - name: Rename APK
         id: ver

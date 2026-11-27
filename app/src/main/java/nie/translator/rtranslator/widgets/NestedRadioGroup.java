@@ -23,6 +23,7 @@ import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
+import android.widget.RadioGroup;
 
 import androidx.annotation.Nullable;
 
@@ -30,6 +31,7 @@ import androidx.annotation.Nullable;
  * A radio group whose RadioButtons may sit anywhere inside it (in nested layouts), unlike
  * android.widget.RadioGroup, which only handles direct children. Same behaviour as RadioGroup otherwise:
  * checking one button unchecks the others, {@link #check(int)} and taps notify the listener once.
+ * Unlike RadioGroupPlus, a button being unchecked (state restore) is not taken for a selection.
  * The group sets each button's OnCheckedChangeListener: listen to the group, not to the buttons.
  * Replaces the RadioGroupPlus library (2016), which depended on the legacy support library and was the
  * only reason the build still needed Jetifier.
@@ -80,14 +82,11 @@ public class NestedRadioGroup extends LinearLayout {
                     button.setId(View.generateViewId());
                 }
                 button.setOnCheckedChangeListener(childListener);   // the group owns the buttons' listener (as RadioGroupPlus did)
-                if (button.isChecked()) {   // checked in the layout: the first one wins, as in RadioGroup
-                    if (checkedId == View.NO_ID) {
-                        checkedId = button.getId();
-                    } else {
-                        protectFromCheckedChange = true;
-                        button.setChecked(false);
-                        protectFromCheckedChange = false;
+                if (button.isChecked()) {   // checked in the layout: the last one wins, as in RadioGroup
+                    if (checkedId != View.NO_ID) {
+                        setCheckedStateForView(checkedId, false);
                     }
+                    checkedId = button.getId();
                 }
             } else if (child instanceof ViewGroup) {
                 attach((ViewGroup) child);
@@ -117,12 +116,16 @@ public class NestedRadioGroup extends LinearLayout {
         this.listener = listener;
     }
 
-    private void setCheckedId(int id) {
-        boolean changed = id != checkedId;
+    private void setCheckedId(int id) {   // the listener hears every check (RadioGroup and RadioGroupPlus do the same)
         checkedId = id;
-        if (changed && listener != null) {
+        if (listener != null) {
             listener.onCheckedChanged(this, id);
         }
+    }
+
+    @Override
+    public CharSequence getAccessibilityClassName() {   // TalkBack announces a radio group, as for RadioGroup
+        return RadioGroup.class.getName();
     }
 
     private void setCheckedStateForView(int id, boolean checked) {
