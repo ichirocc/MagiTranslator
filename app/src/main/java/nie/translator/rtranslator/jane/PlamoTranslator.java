@@ -114,7 +114,7 @@ public final class PlamoTranslator {
         String q = historyTurns > 0 ? lastQuestionJa : null;
         lastQuestionJa = null;
         String m = JaIdioms.rewrite(JaNormalizer.modernize(JaAnswer.declines(q == null ? norm : JaAnswer.clarify(q, norm))));
-        List<Glossary.Term> terms = glossary.termsJaNe(m, null, MAX_TERMS);
+        List<Glossary.Term> terms = commonDropped(glossary.termsJaNe(m, null, MAX_TERMS));
         JaNeTranslator.Candidate best = run("ja", "ne", m, terms);
         JaPerson.Person who = JaPerson.of(m);
         if (JaPerson.contradicts(who, best.output)) best = withJaSubject(m, who, terms, best);
@@ -274,6 +274,19 @@ public final class PlamoTranslator {
         }
         if (first == null) return plain;
         return JaNeTranslator.better(plain, first) ? plain : first;
+    }
+
+    /** Glossary hints for everyday words (in more than 0.5% of the phrase-book sentences: これ, 少し, 確認 ...)
+     *  are dropped: the model knows them, ignored them, and one started a loop. Measured 2026-11-28 with the
+     *  examples on: ja->ne chrF++ dev 53.1->53.2, A 48.7->49.2, B 52.5->53.3. */
+    static final double COMMON_TERM_SHARE = 0.005;
+
+    private List<Glossary.Term> commonDropped(List<Glossary.Term> terms) {
+        PhraseBook b = phrases;
+        if (b.size() < 200) return terms;   // too small a book to tell everyday words
+        List<Glossary.Term> out = new ArrayList<>();
+        for (Glossary.Term t : terms) if (b.jaShare(t.source) <= COMMON_TERM_SHARE) out.add(t);
+        return out;
     }
 
     private static boolean loops(JaNeTranslator.Candidate c) {

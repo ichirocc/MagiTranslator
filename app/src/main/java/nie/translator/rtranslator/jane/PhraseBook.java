@@ -34,8 +34,9 @@ public final class PhraseBook {
         if (ja == null || ne == null || (jaToNeOnly && neToJaOnly)) return;
         String kj = keyJa(ja), kn = keyNe(ne);
         if (kj.isEmpty() || kn.isEmpty()) return;
-        pairs.add(new Object[]{ja.trim(), ne.trim(), jaToNeOnly, neToJaOnly});
+        synchronized (pairs) { pairs.add(new Object[]{ja.trim(), ne.trim(), jaToNeOnly, neToJaOnly}); }
         examples = null;
+        jaShare.clear();
         if (!neToJaOnly) jaNe.putIfAbsent(kj, ne.trim());
         if (ambiguousNe.contains(kn)) return;
         //a ja>ne line is not read back itself, but it still counts as a second Japanese reading of this Nepali:
@@ -58,6 +59,16 @@ public final class PhraseBook {
 
     /** every accepted line as written: {ja, ne, jaToNeOnly, neToJaOnly}, for the example bank */
     private final java.util.List<Object[]> pairs = new java.util.ArrayList<>();
+    private final java.util.concurrent.ConcurrentHashMap<String, Double> jaShare = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Share of the phrase-book lines whose Japanese contains {@code term} (0..1); cached, cleared by add(). */
+    public double jaShare(String term) {
+        if (term == null || term.isEmpty() || pairs.isEmpty()) return 0;
+        return jaShare.computeIfAbsent(term, t -> {
+            int n = 0;
+            synchronized (pairs) { for (Object[] p : pairs) if (((String) p[0]).contains(t)) n++; return n / (double) pairs.size(); }
+        });
+    }
     private volatile ExampleBank examples;
 
     /** This book's lines (then the fallback's) as an example bank, built on first use. */
