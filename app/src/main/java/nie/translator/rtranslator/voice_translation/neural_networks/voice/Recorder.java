@@ -65,7 +65,7 @@ public class Recorder {
     private volatile boolean isManualMode = false;
     public static final int[] SAMPLE_RATE_CANDIDATES = new int[]{16000};
     private static final int CHANNEL = AudioFormat.CHANNEL_IN_MONO;
-    private static int ENCODING;
+    private int ENCODING;   //per Recorder: one AudioRecord is created and read with the same format
     private static int VAD_FRAME_SIZE = 512;
     public static final int MAX_AMPLITUDE_THRESHOLD = 15000;
     public static final int DEFAULT_AMPLITUDE_THRESHOLD = 1500; //old: 2000

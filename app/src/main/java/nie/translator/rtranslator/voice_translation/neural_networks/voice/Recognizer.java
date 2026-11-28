@@ -53,8 +53,9 @@ public class Recognizer extends NeuralNetworkApi {
     private static final int MAX_TOKENS_PER_SECOND = 30;
     private static final int MAX_TOKENS = 445;   //if we generate more than this quantity of tokens for a transcription we have an error
     public static final String UNDEFINED_TEXT = "[(und)]";
-    private ArrayList<RecognizerListener> callbacks = new ArrayList<>();
-    private ArrayList<RecognizerMultiListener> multiCallbacks = new ArrayList<>();
+    //added / removed on the main thread, walked on the recognizer thread: a copy-on-write list never changes under the walk
+    private final java.util.List<RecognizerListener> callbacks = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<RecognizerMultiListener> multiCallbacks = new java.util.concurrent.CopyOnWriteArrayList<>();
     private boolean recognizing = false;
     private ArrayDeque<DataContainer> dataToRecognize = new ArrayDeque<>();
     private final Object lock = new Object();
@@ -501,6 +502,11 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, new int[]{max, max2}, new long[]{2,1});
                         }
 
+                        if(batchSize == 1 && j >= firstRecordedStep && !finished1){
+                            //single row (one language, or the Nepali model): the score was never summed here, so it
+                            //stayed 0 and the silence rule (avg logprob < -1) could never fire
+                            outputProbability1 = outputProbability1 + Math.log(Utils.softmax(outputValues[max], outputValues));
+                        }
                         if(batchSize == 2 && j >= firstRecordedStep){
                             //we calculate and update the probabilities of the two output sentences
                             double softmax = Utils.softmax(outputValues[max], outputValues);
@@ -540,7 +546,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                         j++;
                     }
 
-                    if(batchSize == 1 && data.neDual && completeOutput.size() > 0) {
+                    if(batchSize == 1 && completeOutput.size() > 0) {
                         outputProbability1 = outputProbability1 / completeOutput.size();   //same scale as the dual path's silence rule
                     }
                     if(batchSize == 2) {
@@ -568,7 +574,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             if (!silent && nepaliHardScore(neText, execution1HitMaxLength) >= BROKEN_TEXT_PENALTY) neText = UNDEFINED_TEXT;
                             emitNeResult(data, silent ? UNDEFINED_TEXT : neText, outputProbability1);
                         } else {
-                            notifyResult(correctText(finalText), data.languageCode, outputProbability1, true);
+                            //one language: Whisper's silence rule too (「ご視聴ありがとうございました」 on noise)
+                            boolean silent = noSpeechProb1 > NO_SPEECH_THRESHOLD && outputProbability1 < LOGPROB_THRESHOLD;
+                            notifyResult(silent ? UNDEFINED_TEXT : correctText(finalText), data.languageCode, outputProbability1, true);
                         }
 
                     }else{
@@ -596,8 +604,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             long hard1 = nepaliHardScore(constrained, execution1HitMaxLength);
                             long hard2 = nepaliHardScore(free, execution2HitMaxLength);
                             //Whisper's silence rule: no_speech > 0.6 and avg logprob < -1 -> hallucination on silence
-                            boolean silent = Math.max(noSpeechProb1, noSpeechProb2) > NO_SPEECH_THRESHOLD
-                                    && Math.max(outputProbability1, outputProbability2) < LOGPROB_THRESHOLD;
+                            //per row (a row's no_speech with the same row's logprob), silent only when both rows are
+                            boolean silent = (noSpeechProb1 > NO_SPEECH_THRESHOLD && outputProbability1 < LOGPROB_THRESHOLD)
+                                    && (noSpeechProb2 > NO_SPEECH_THRESHOLD && outputProbability2 < LOGPROB_THRESHOLD);
                             if (silent) {
                                 android.util.Log.i("result", "ne keep-best: dropped as silence, no_speech=" + noSpeechProb1);
                                 outputs.close();
@@ -612,10 +621,14 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             String t1 = correctText(firstText), t2 = correctText(secondText);
                             //Whisper's silence rule, as for Nepali: no_speech > 0.6 and avg logprob < -1 means the text is
                             //a hallucination on silence / noise (on the phone: 「ご視聴ありがとうございました」)
-                            if (Math.max(noSpeechProb1, noSpeechProb2) > NO_SPEECH_THRESHOLD
-                                    && Math.max(outputProbability1, outputProbability2) < LOGPROB_THRESHOLD) {
-                                android.util.Log.i("result", "dropped as silence, no_speech=" + Math.max(noSpeechProb1, noSpeechProb2));
+                            //judged per row: the max of one row's no_speech and the max of the other row's logprob mixed two
+                            //different candidates and could drop real speech
+                            if (noSpeechProb1 > NO_SPEECH_THRESHOLD && outputProbability1 < LOGPROB_THRESHOLD) {
+                                android.util.Log.i("result", "row 1 dropped as silence, no_speech=" + noSpeechProb1);
                                 t1 = UNDEFINED_TEXT;
+                            }
+                            if (noSpeechProb2 > NO_SPEECH_THRESHOLD && outputProbability2 < LOGPROB_THRESHOLD) {
+                                android.util.Log.i("result", "row 2 dropped as silence, no_speech=" + noSpeechProb2);
                                 t2 = UNDEFINED_TEXT;
                             }
                             boolean neFirst = "ne".equals(data.languageCode), neSecond = "ne".equals(data.languageCode2);
@@ -956,23 +969,23 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     }
 
     private void notifyResult(String text, String languageCode, double confidenceScore, boolean isFinal) {
-        for (int i = 0; i < callbacks.size(); i++) {
-            callbacks.get(i).onSpeechRecognizedResult(text, languageCode, confidenceScore, isFinal);
+        for (RecognizerListener callback : callbacks) {   //a snapshot: removals during the walk do not skip or overflow
+            callback.onSpeechRecognizedResult(text, languageCode, confidenceScore, isFinal);
         }
     }
 
     private void notifyMultiResult(String text1, String languageCode1, double confidenceScore1, String text2, String languageCode2, double confidenceScore2) {
-        for (int i = 0; i < multiCallbacks.size(); i++) {
-            multiCallbacks.get(i).onSpeechRecognizedResult(text1, languageCode1, confidenceScore1, text2, languageCode2, confidenceScore2);
+        for (RecognizerMultiListener callback : multiCallbacks) {
+            callback.onSpeechRecognizedResult(text1, languageCode1, confidenceScore1, text2, languageCode2, confidenceScore2);
         }
     }
 
     private void notifyError(int[] reasons, long value) {
-        for (int i = 0; i < callbacks.size(); i++) {
-            callbacks.get(i).onError(reasons, value);
+        for (RecognizerListener callback : callbacks) {
+            callback.onError(reasons, value);
         }
-        for (int i = 0; i < multiCallbacks.size(); i++) {
-            multiCallbacks.get(i).onError(reasons, value);
+        for (RecognizerMultiListener callback : multiCallbacks) {
+            callback.onError(reasons, value);
         }
     }
 
