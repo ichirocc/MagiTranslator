@@ -28,13 +28,17 @@ model = get_peft_model(model, cfg)
 model.print_trainable_parameters()
 
 rows = [json.loads(l) for l in open(data, encoding='utf-8')]
-examples = []
+examples, cut = [], 0
 for r in rows:
     p = tok(r['prompt'], add_special_tokens=True)['input_ids']      # BOS + prompt, as llama.cpp
     t = tok(r['target'], add_special_tokens=False)['input_ids']
     ids = (p + t)[:256]
     labels = ([-100] * len(p) + t)[:256]
+    if all(x == -100 for x in labels[1:]):   # the 256-token cut removed the whole target: a 0/0 (nan) loss
+        cut += 1
+        continue
     examples.append((ids, labels))
+if cut: print(f'skipped {cut} examples whose target is past the 256-token cut', flush=True)
 B, ACC = int(os.environ.get('B', '8')), int(os.environ.get('ACC', '2'))   # effective batch 16 (2B: B=4 ACC=4 for 15 GB of RAM)
 order = sorted(range(len(examples)), key=lambda i: len(examples[i][0]))
 batches = [order[i:i + B] for i in range(0, len(order), B)]

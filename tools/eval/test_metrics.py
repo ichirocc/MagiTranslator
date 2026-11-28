@@ -183,6 +183,10 @@ class ValidatorPortTest(unittest.TestCase):
 class NumberOrderTest(unittest.TestCase):
     def test_order_and_overflow(self):
         self.assertIn("NUMBER_ORDER_CHANGED", [i[0] for i in M.validate("3月5日に来ます。", "५ मार्च ३ मा आउँछु।", "ja-ne")])
+        one = M.chrf_pp_corpus(["म व्यस्त छु।"], ["म काममा छु।"])
+        self.assertAlmostEqual(M.chrf_pp_corpus_multi(["म व्यस्त छु।"], [["म काममा छु।"]]), one)
+        self.assertGreater(M.chrf_pp_corpus_multi(["म व्यस्त छु।"], [["म काममा छु।", "म व्यस्त छु।"]]), one)
+        self.assertAlmostEqual(M.chrf_pp_corpus_multi(["म व्यस्त छु।"], [["म व्यस्त छु।", ""]]), 100.0)
         self.assertIn("COUNTER_MISMATCH", [i[0] for i in M.validate("三人来ます。", "३ पटक आउँछ।", "ja-ne")])
         self.assertNotIn("COUNTER_MISMATCH", [i[0] for i in M.validate("3人来ます。", "३ जना आउँछन्।", "ja-ne")])
         self.assertEqual(M.numbers("999999999999999999999999 लाख"), ["999999999999999999999999"])

@@ -108,10 +108,12 @@ public final class PlamoTranslator {
             String out = JaNeTranslator.finishNe(phrase, norm);
             if (!out.isEmpty()) return remember(norm, out, phraseResult(norm, out, "ne"));
         }
-        // a short answer (はい, 結構です ...) means what the question just asked decides: written out in full
+        // a short answer (はい, 結構です ...) means what the question just asked decides: written out in full;
+        // then older forms in today's Japanese, and subjectless set phrases (手が離せない, お待たせしました) with
+        // the subject stated. What the model reads; the history keeps what was said
         String q = historyTurns > 0 ? lastQuestionJa : null;
         lastQuestionJa = null;
-        String m = JaNormalizer.modernize(JaAnswer.declines(q == null ? norm : JaAnswer.clarify(q, norm)));   // what the model reads; the history keeps what was said
+        String m = JaIdioms.rewrite(JaNormalizer.modernize(JaAnswer.declines(q == null ? norm : JaAnswer.clarify(q, norm))));
         List<Glossary.Term> terms = glossary.termsJaNe(m, null, MAX_TERMS);
         JaNeTranslator.Candidate best = run("ja", "ne", m, terms);
         JaPerson.Person who = JaPerson.of(m);
@@ -271,7 +273,7 @@ public final class PlamoTranslator {
 
     private JaNeTranslator.Candidate candidate(String label, String src, String tgt, String text, List<PlamoPrompt.Turn> history,
                                                List<Glossary.Term> terms, List<String> required) throws Exception {
-        String out = "ne".equals(tgt) ? JaNeTranslator.finishNe(translatePieces(src, tgt, text, history, terms), text)
+        String out = "ne".equals(tgt) ? JaIdioms.neParticles(text, JaNeTranslator.finishNe(translatePieces(src, tgt, text, history, terms), text))
                 : JaNeTranslator.finishJa(translatePieces(src, tgt, text, history, terms), text);
         List<TranslationValidator.Issue> iss = JaNeTranslator.validate(text, out, required, tgt);
         return new JaNeTranslator.Candidate(label, text, out, null, Double.NaN, iss);
