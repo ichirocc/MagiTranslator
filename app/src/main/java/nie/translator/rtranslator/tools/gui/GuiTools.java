@@ -252,7 +252,7 @@ public class GuiTools {
 
     public static void requestAccessibilityFocus(View view) {
         view.post(() -> {
-            if (ViewCompat.isAttachedToWindow(view)
+            if (view.isAttachedToWindow()
                     && view.getVisibility() == View.VISIBLE) {
 
                 view.performAccessibilityAction(

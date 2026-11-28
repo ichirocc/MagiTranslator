@@ -480,7 +480,7 @@ public class PeersInfoFragment extends Fragment {
                         final AlertDialog.Builder builder = new AlertDialog.Builder(activity);
                         builder.setCancelable(true);
                         builder.setMessage(getResources().getString(R.string.dialog_confirm_disconnection) + peer.getName() + "?");
-                        builder.setPositiveButton(android.R.string.yes,
+                        builder.setPositiveButton(android.R.string.ok,
                                 new DialogInterface.OnClickListener() {
                                     @Override
                                     public void onClick(DialogInterface dialog, int which) {
@@ -494,7 +494,7 @@ public class PeersInfoFragment extends Fragment {
                                         }
                                     }
                                 });
-                        builder.setNegativeButton(android.R.string.no, null);
+                        builder.setNegativeButton(android.R.string.cancel, null);
 
                         AlertDialog dialog = builder.create();
                         dialog.show();

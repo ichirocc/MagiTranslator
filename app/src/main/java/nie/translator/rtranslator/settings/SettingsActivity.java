@@ -65,12 +65,8 @@ public class SettingsActivity extends GeneralActivity {
             toolbar.setNavigationIcon(icon);
         }
 
-        View decorView = getWindow().getDecorView();
-        decorView.setSystemUiVisibility(
-                decorView.getSystemUiVisibility()
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        );
+        // no SYSTEM_UI_FLAG_LAYOUT_STABLE | LAYOUT_FULLSCREEN any more: with targetSdk 36 the window is always drawn
+        // edge to edge (behind the status bar), which is what those flags asked for
 
         Bundle b = getIntent().getExtras();
         boolean startWithModelManager = b != null && b.getBoolean("startWithModelManager");
