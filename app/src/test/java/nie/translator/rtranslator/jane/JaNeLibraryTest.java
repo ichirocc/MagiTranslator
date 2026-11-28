@@ -131,6 +131,8 @@ public class JaNeLibraryTest {
         JaNeTranslator.Candidate bad = new JaNeTranslator.Candidate("b", "", "म भोलि जान्छु।", null, 0.9,
                 TranslationValidator.validateJaToNe("明日は行きません。", "म भोलि जान्छु।", java.util.Collections.emptyList()));
         yes(JaNeTranslator.better(good, bad), "hard issues beat score");
+        yes(TranslationValidator.validateJaToNe("黄色い箱ですね。", "पहिलो पहिलो पहिलो पहिलो", java.util.Collections.emptyList()).toString().contains("REPETITION"), "ne loop");
+        yes(!TranslationValidator.validateJaToNe("えへへ。", "हे हे हे।", java.util.Collections.emptyList()).toString().contains("REPETITION"), "laughter is not a loop");
         yes(JaIdioms.rewrite("今、手が離せないので少し待ってください。").equals("今、私は他の仕事をしているので少し待ってください。"), "idiom: busy");
         yes(JaIdioms.rewrite("ごめん、今手が離せない！ちょっと待ってて！").equals("ごめん、今私は他の仕事中！ちょっと待ってて！"), "idiom: busy, two sentences");
         yes(JaIdioms.rewrite("お待たせしました。").equals("待たせてごめんなさい。"), "idiom: kept you waiting");

@@ -191,4 +191,22 @@ public final class Traps {
         }
         return null;
     }
+
+    // --- a Nepali output stuck in a loop (पहिलो पहिलो पहिलो ..., सिकाइसँगै ×3): the same 1-4 word group three
+    // times in a row, at least 4 letters long (हे हे हे for えへへ is laughter). Mirrors metrics._ne_loop.
+    private static final Pattern NE_SPLIT = Pattern.compile("[\\s\u0964\u0965,.!?;:\"\u201c\u201d()\u2026\\-]+");
+
+    public static String neLoop(String ne) {
+        if (ne == null) return null;
+        java.util.List<String> w = new java.util.ArrayList<>();
+        for (String x : NE_SPLIT.split(ne)) if (!x.isEmpty()) w.add(x);
+        for (int n = 1; n <= 4; n++) {
+            for (int i = 0; i + 3 * n <= w.size(); i++) {
+                java.util.List<String> g = w.subList(i, i + n);
+                if (String.join("", g).length() < 4) continue;
+                if (w.subList(i + n, i + 2 * n).equals(g) && w.subList(i + 2 * n, i + 3 * n).equals(g)) return String.join(" ", g);
+            }
+        }
+        return null;
+    }
 }

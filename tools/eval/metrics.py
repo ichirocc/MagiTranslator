@@ -456,6 +456,22 @@ def _counter_mismatch(ja_digits, ne):
     return None
 
 
+# --- Nepali output stuck in a loop (Traps.neLoop): a 1-4 word group three times in a row, at least 4 letters
+_NE_SPLIT = re.compile(r'[\s\u0964\u0965,.!?;:"\u201c\u201d()\u2026\-]+')
+
+
+def _ne_loop(ne):
+    w = [x for x in _NE_SPLIT.split(ne or "") if x]
+    for n in range(1, 5):
+        for i in range(len(w) - 3 * n + 1):
+            g = w[i:i + n]
+            if len("".join(g)) < 4:
+                continue
+            if w[i + n:i + 2 * n] == g and w[i + 2 * n:i + 3 * n] == g:
+                return " ".join(g)
+    return None
+
+
 def _check_numbers(a, b, issues):
     rest = list(b)
     for n in a:
@@ -578,6 +594,9 @@ def validate(src, hyp, direction, required_targets=None):
         cm = _counter_mismatch(kanji_to_digits(src), hyp)
         if cm is not None:
             issues.append(("COUNTER_MISMATCH", False, cm))
+        loop = _ne_loop(hyp)
+        if loop is not None:
+            issues.append(("REPETITION", True, loop))
         # currency (TranslationValidator.checkCurrencyJaToNe)
         if "YEN" in s["cur"] and "YEN" not in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "येन"))
