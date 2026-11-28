@@ -169,6 +169,7 @@ public class LanguageListAdapter extends BaseAdapter implements Filterable {
         }
 
         @Override
+        @SuppressWarnings("unchecked")  // performFiltering always stores an ArrayList<CustomLocale> in results.values
         protected void publishResults(CharSequence constraint, FilterResults results) {
             // This runs on the UI thread automatically
             filteredLanguages = (ArrayList<CustomLocale>) results.values;

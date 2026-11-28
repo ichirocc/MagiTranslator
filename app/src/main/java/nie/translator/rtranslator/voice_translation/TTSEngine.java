@@ -25,6 +25,7 @@ public class TTSEngine {
     @Nullable
     private final TTS tts;
     private boolean pause = false;
+    private volatile boolean ready = false;   //set once the TTS engine is initialized (onInit thread)
     private Context context;
     @Nullable
     private TTSEngineListener listener;
@@ -36,6 +37,12 @@ public class TTSEngine {
         this.tts = new TTS(context, new TTS.InitListener() {  // tts initialization (to be improved, automatic package installation)
             @Override
             public void onInit() {
+                //set here, not in the posted runnable: pause() clears the handler, and a lost "ready" would keep the
+                //engine silent for good. Messages queued before the engine was ready are read now (or by resume())
+                ready = true;
+                handler.post(() -> {
+                    if (!pause && !speaking && !messageQueue.isEmpty()) speak();
+                });
                 if(TTSEngine.this.tts != null) {
                     TTSEngine.this.tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                         @Override
@@ -105,7 +112,8 @@ public class TTSEngine {
 
             @Override
             public void onError(int reason) {
-
+                //tell the owner (the service sets isTTSError / mutes audio) instead of failing silently
+                handler.post(() -> { if (listener != null) listener.onInitError(reason); });
             }
         });
         this.listener = listener;
@@ -126,25 +134,31 @@ public class TTSEngine {
     }
 
     private boolean speak(int queueMode){
-        if(!pause) {
-            boolean wasSpeaking = speaking;
-            speaking = true;
-            Pair<GuiMessage, CustomLocale> pair = messageQueue.pollFirst();
-            if (pair != null && tts != null) {
-                if(listener != null) listener.onUtteranceStarting(pair.first, !wasSpeaking);
-                executingMessage = pair;
-                if (tts.getVoice() != null && pair.second.equals(new CustomLocale(tts.getVoice().getLocale()))) {
-                    tts.speak(pair.first.getMessage().getText(), queueMode, null, String.valueOf(pair.first.getMessageID()));
-                } else {
-                    tts.setLanguage(pair.second, context);
-                    tts.speak(pair.first.getMessage().getText(), queueMode, null, String.valueOf(pair.first.getMessageID()));
-                }
-                return true;
-            }else{
-                speaking = false;
-                executingMessage = null;
+        if (pause) return false;
+        if (!ready) return false;   //before onInit every message would fail to speak and be dropped: keep it queued
+        boolean wasSpeaking = speaking;
+        speaking = true;
+        //a loop, not recursion: a long queue of messages in a language the TTS cannot speak is skipped one by one
+        //without growing the stack
+        Pair<GuiMessage, CustomLocale> pair;
+        while ((pair = messageQueue.pollFirst()) != null && tts != null) {
+            if(listener != null) listener.onUtteranceStarting(pair.first, !wasSpeaking);
+            executingMessage = pair;
+            boolean ok = true;
+            if (tts.getVoice() == null || !pair.second.equals(new CustomLocale(tts.getVoice().getLocale()))) {
+                //LANG_MISSING_DATA / LANG_NOT_SUPPORTED: do not read the text in the previous voice
+                ok = tts.setLanguage(pair.second, context) >= TextToSpeech.LANG_AVAILABLE;
             }
+            if (ok) ok = tts.speak(pair.first.getMessage().getText(), queueMode, null, String.valueOf(pair.first.getMessageID())) == TextToSpeech.SUCCESS;
+            if (ok) return true;
+            //skip this message as if it had been read, so the queue and the mic restart go on
+            Log.w("tts_engine", "cannot speak in " + pair.second.getCode());
+            executingMessage = null;
+            if (listener != null) listener.onUtteranceFinished(pair.first, messageQueue.isEmpty());
+            if (pause) return false;   //the listener may have paused the engine
         }
+        speaking = false;
+        executingMessage = null;
         return false;
     }
 
@@ -154,6 +168,9 @@ public class TTSEngine {
             handler.removeCallbacksAndMessages(null);
             if(tts != null) tts.stop();
             executingMessage = null;
+            //nothing is being read now: the first message after resume() must count as the first (onUtteranceStarting
+            //first=true turns the mic off during TTS; it stayed false and the mic could hear the TTS)
+            speaking = false;
             pause = true;
         }
     }

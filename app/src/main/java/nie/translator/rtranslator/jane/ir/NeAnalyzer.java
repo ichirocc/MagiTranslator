@@ -36,7 +36,7 @@ public final class NeAnalyzer {
     // negative past: गएन / आएन / गरेन / गरेनन् (3rd person), गइनँ / गरिनँ / गइनौं (1st/2nd person).
     // The bare ि+न ending is "day"-like (दिन, बिन) so it only counts with ँ / न् / ौं; loanwords in े+न are listed.
     private static final Pattern NEG_PAST = Pattern.compile("(?:[एइ]न|ेन|िनँ|िनन्|िनौं|िनौ)(?:ँ|न्|ौं|ौँ|ौ)?$");
-    private static final List<String> NEG_PAST_NOT = Arrays.asList("येन", "ट्रेन", "प्लेन", "ब्रेन", "स्पेन", "चेन", "लेन", "सेन", "मेन", "जेन", "डेन", "केन", "पेन", "टेन", "हेन", "क्रेन", "भेन");
+    private static final List<String> NEG_PAST_NOT = Arrays.asList("येन", "ट्रेन", "प्लेन", "ब्रेन", "स्पेन", "चेन", "लेन", "सेन", "मेन", "जेन", "डेन", "केन", "पेन", "टेन", "हेन", "क्रेन", "भेन", "सुमिमासेन", "ब्योउइन");
     // न- before a consonant (नगर्नुहोस्, नजानु) or an independent vowel (नआउनु, नआएको)
     private static final Pattern NEG_PREFIX = Pattern.compile("^न(?:[क-ह]|[अआइईउऊएऐओऔ])");
     // nouns / adjectives / names that start with न + consonant. Matched as prefixes, so they must not
@@ -44,7 +44,7 @@ public final class NeAnalyzer {
     // नगर्नुहोस् / नगरेको (do not / not done) are real negations.
     private static final String[] NOT_NEGATION = {"नमस्ते", "नमस्कार", "नयाँ", "नजिक", "नदी", "नक्सा", "नक्शा", "नम्बर", "नरम", "नर्स", "नल", "नसा", "नक्कली", "नतिजा", "नर्सरी",
             "नगरपालिका", "नगरमा", "नगरको", "नगरका", "नगरले", "नगरबाट", "नगरवासी", "नगद", "नमुना", "नम्र", "नजर", "नरक", "नमन", "नशा", "नकल", "नरिवल", "नवीन", "नवम्बर",
-            "नब्बे", "नहर", "नवजात", "नक्सली", "नमक", "नवौं", "नरेन्द्र", "नरेश", "नवराज", "नकारात्मक", "नक्षत्र"};
+            "नब्बे", "नहर", "नवजात", "नक्सली", "नमक", "नवौं", "नरेन्द्र", "नरेश", "नवराज", "नकारात्मक", "नक्षत्र", "नक्कल", "नवशिशु", "नङ"};
     private static final Pattern WORD = Pattern.compile("[\\u0900-\\u0963\\u0966-\\u097F]+");   // excludes the danda । ॥
     // whole-word question words: plain substrings matched किन्छु (I buy), किनभने (because), कुनै (any),
     // कतिपय (some) and कहिलेकाहीं (sometimes)
@@ -58,29 +58,32 @@ public final class NeAnalyzer {
             {WhConcept.WHERE, Pattern.compile(NE_L + "कह[ाँां]{2}\\S*")},
             {WhConcept.WHEN, Pattern.compile(NE_L + "कहिले(?!काहीं|काहीँ|काहिँ|काहिं)" + NE_R)},
             {WhConcept.HOW, Pattern.compile(NE_L + "कसरी" + NE_R)},
+            // who / which: the case forms only (bare को is also the genitive "of"); कुन in a direct question only
+            {WhConcept.WHO, Pattern.compile(NE_L + "(?:कसले|कसलाई|कसको|कसका|कसकी)" + NE_R)},
+            {WhConcept.WHICH, Pattern.compile(NE_L + "कुन" + NE_R + "(?=[^।]*[?？])")},
     };
     private static Pattern word(String alt) { return Pattern.compile("(?<![" + NE_CH + "])(?:" + alt + ")(?![" + NE_CH + "])"); }
     /** Nepali forms that can render a Japanese question word */
     private static final Object[][] WH_COVER = {
-            {WhConcept.TIME_OCLOCK, word("बजे|बेला")},
+            {WhConcept.TIME_OCLOCK, word("बजे\\S*|बज्यो|बेला\\S*")},
             {WhConcept.COUNT_PERSON, word("कति|कतिजना")},
             {WhConcept.PRICE, word("कति\\S*|मूल्य|दाम|पैसा")},
             {WhConcept.WHO, word("को|कसले|कसको|कसलाई|कोसँग|कोही")},
-            {WhConcept.WHERE, word("कहाँ\\S*|कुन ठाउँ\\S*")},
+            {WhConcept.WHERE, word("कहाँ\\S*|कता\\S*|कुन ठाउँ\\S*")},
             {WhConcept.WHEN, word("कहिले\\S*|कुन दिन\\S*|कति बेला|कति बजे")},
             {WhConcept.WHY, word("किन")},
             {WhConcept.HOW, word("कसरी|के गर\\S*")},
-            {WhConcept.WHICH, word("कुन\\S*|कुनचाहिँ|कुनचाहिं")},
+            {WhConcept.WHICH, word("कुन\\S*|कुनचाहिँ|कुनचाहिं|कि\\s.+\\sकि")},
     };
 
     // modality cover: lenient (any accepted form passes)
     private static final Pattern OBLIGATION = Pattern.compile("(पर्छ|पर्छन्|पर्ने|पर्यो|पर्‍यो|पर्थ्यो|पर्दछ|पर्नेछ|पर्नुहुन्छ|नुपर|चाहिन्छ|अनिवार्य)");
-    private static final Pattern REQUEST = Pattern.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|ऊ(?![" + NE_CH + "])|ओ(?![" + NE_CH + "]))");
+    private static final Pattern REQUEST = Pattern.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|(?<=[" + NE_CH + "])ऊ(?![" + NE_CH + "])|(?<=[" + NE_CH + "])ओ(?![" + NE_CH + "]))");   // खाऊ / आओ, not the pronoun ऊ
     private static final Pattern CONJECTURE = Pattern.compile("(होला|ला(?![" + NE_CH + "])|सक्छ|सक्छन्|जस्तो|जस्तै|लाग्छ|लाग्यो|ठान्छु|सायद|शायद|पक्का|हुनुपर्छ|होइन र)");
     private static final Pattern PERMISSION = Pattern.compile("(हुन्छ|सकिन्छ|सक्नुहुन्छ|सक्छ|ठीक|ठिक|अनुमति|पाइन्छ|पर्दैन|मिल्छ)");
     /** past, perfect and negative past (गयो, गए, गएका छन्, थियो, गर्नुभयो, गएन). Vowel-sign ए (गरे) is not
      *  used: it also ends ergative nouns (रामले). */
-    private static final Pattern PAST = word("\\S*(?:थियो|थिए|थिइन्|थिएँ|थियौं|थ्यो|यो|एको|एका|एकी|भयो|भएको|सक्यो|सके|इन्|इनँ|इनौं|ए|एँ|एन|एनन्|ेन|ेनन्|ेको|ेका|ेकी|्यो|‍यो)");
+    private static final Pattern PAST = word("\\S*(?:थियो|थिए|थिइन्|थिएँ|थियौं|ेँ|ें|यौं|यौँ|थ्यो|यो|एको|एका|एकी|भयो|भएको|सक्यो|सके|इन्|इनँ|इनौं|ए|एँ|एन|एनन्|ेन|ेनन्|ेको|ेका|ेकी|्यो|‍यो)");
     private static final List<String> PAST_NOT = Arrays.asList("यो", "त्यो", "जो", "उनको");
 
     private static final Pattern RUPEE = Pattern.compile("रुपैयाँ|रुपैयां|रुपियाँ|रुपियां|" + NE_L + "(रु|रू)\\.?\\s*[0-9०-९]|NPR|Rs\\.?\\s*[0-9]");

@@ -145,6 +145,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             @Override
             public void onBindViewHolder() {
                 userImageContainer = new GalleryImageSelector(userImagePreference.getImage(), activity, SettingsFragment.this, R.drawable.user_icon, "com.magi.translator.gallery.provider");
+                userImageContainer.setLauncher((intent, code) -> (code == GalleryImageSelector.PICK_IMAGE ? pickImage : cropImage).launch(intent));
             }
         });
 
@@ -210,7 +211,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
                     intent.setType("text/*");
                     intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"text/*", "application/octet-stream"});
-                    startActivityForResult(intent, REQUEST_USER_DICTIONARY);
+                    openUserDictionary.launch(intent);
                     return true;
                 }
             });
@@ -292,16 +293,17 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
     }
 
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_USER_DICTIONARY) {
-            if (resultCode == android.app.Activity.RESULT_OK && data != null && data.getData() != null) importUserDictionary(data.getData());
-            return;
-        }
-        //call onActivityResult
-        if (userImageContainer != null) userImageContainer.onActivityResult(requestCode, resultCode, data, true);
-    }
+    //Activity Result API (startActivityForResult / onActivityResult are deprecated): registered at construction, as
+    //the API requires; the image selector is created later (onBindViewHolder) and gets these through setLauncher
+    private final androidx.activity.result.ActivityResultLauncher<Intent> openUserDictionary = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            r -> { Intent data = r.getData(); if (r.getResultCode() == android.app.Activity.RESULT_OK && data != null && data.getData() != null) importUserDictionary(data.getData()); });
+    private final androidx.activity.result.ActivityResultLauncher<Intent> pickImage = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            r -> { if (userImageContainer != null) userImageContainer.onActivityResult(GalleryImageSelector.PICK_IMAGE, r.getResultCode(), r.getData(), true); });
+    private final androidx.activity.result.ActivityResultLauncher<Intent> cropImage = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            r -> { if (userImageContainer != null) userImageContainer.onActivityResult(GalleryImageSelector.CROP_IMAGE, r.getResultCode(), r.getData(), true); });
 
     /** Copies the picked file into app-private storage off the main thread; only counts are shown, never contents. */
     private void importUserDictionary(final android.net.Uri uri) {

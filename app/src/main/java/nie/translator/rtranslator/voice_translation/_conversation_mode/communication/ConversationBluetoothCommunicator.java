@@ -182,9 +182,23 @@ public class ConversationBluetoothCommunicator {
                     }
                     case "l": {
                         //we have received an empty message that contains only the other peer language, we load that language resources
+                        //"<code><length digit>" from the peer: a malformed message (another version, a corrupted packet)
+                        //is dropped instead of crashing the app on the main thread
                         String completeText = message.getText();
-                        int srcLanguageCodeSize = Integer.valueOf(completeText.substring(completeText.length() - 1));
+                        if (completeText == null || completeText.isEmpty() || !Character.isDigit(completeText.charAt(completeText.length() - 1))) {
+                            Log.w("ConvBluetoothCommunicator", "malformed language message dropped");
+                            break;
+                        }
+                        int srcLanguageCodeSize = completeText.charAt(completeText.length() - 1) - '0';
+                        if (srcLanguageCodeSize < 2 || srcLanguageCodeSize + 1 > completeText.length()) {
+                            Log.w("ConvBluetoothCommunicator", "malformed language message dropped");
+                            break;
+                        }
                         String srcLanguageCode = completeText.substring(completeText.length() - (srcLanguageCodeSize + 1), completeText.length() - 1);
+                        if (!srcLanguageCode.matches("[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*")) {
+                            Log.w("ConvBluetoothCommunicator", "malformed language code dropped");
+                            break;
+                        }
                         CustomLocale srcLanguage = new CustomLocale(srcLanguageCode);
                         Log.d("ConvBluetoothCommunicator", "language received: "+srcLanguageCode);
                         boolean firstLoad = global.getTranslator().getLanguageResourcesManager().isPeerLoaded(message.getSender());

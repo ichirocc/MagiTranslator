@@ -19,7 +19,7 @@ package nie.translator.rtranslator.tools.gui;
 import androidx.annotation.Nullable;
 import nie.translator.rtranslator.tools.gui.peers.Listable;
 
-public class WeightElement implements Comparable {
+public class WeightElement implements Comparable<WeightElement> {
     private Listable element;
     private int weight=0;
 
@@ -50,12 +50,9 @@ public class WeightElement implements Comparable {
 
 
     @Override
-    public int compareTo(Object o) {
-        if (o instanceof WeightElement) {
-            WeightElement weightElement = (WeightElement) o;
-            return weight - weightElement.getWeight();
-        }
-        return 0;
+    public int compareTo(WeightElement o) {
+        if (o == null) return 0;   //as before for a non-WeightElement argument
+        return weight - o.getWeight();
     }
 
     @Override

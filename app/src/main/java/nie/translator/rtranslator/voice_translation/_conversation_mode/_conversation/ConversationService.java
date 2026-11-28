@@ -165,16 +165,40 @@ public class ConversationService extends VoiceTranslationService {
             public void onMessageReceived(final Message message) {
                 super.onMessageReceived(message);
                 CustomLocale language = global.getLanguage(false);
+                //"<text><code><length digit>": a malformed message (other version, corrupted packet) is dropped instead
+                //of crashing the app on the main thread
                 String completeText = message.getText();
-                int languageCodeSize = Integer.valueOf(completeText.substring(completeText.length() - 1));
+                if (completeText == null || completeText.isEmpty() || !Character.isDigit(completeText.charAt(completeText.length() - 1))) {
+                    android.util.Log.w("conversation", "malformed message dropped");
+                    return;
+                }
+                int languageCodeSize = completeText.charAt(completeText.length() - 1) - '0';
+                if (languageCodeSize < 2 || languageCodeSize + 1 > completeText.length()) {
+                    android.util.Log.w("conversation", "malformed message dropped");
+                    return;
+                }
                 String text = completeText.substring(0, completeText.length() - (languageCodeSize + 1));
                 String languageCode = completeText.substring(completeText.length() - (languageCodeSize + 1), completeText.length() - 1);
+                if (!languageCode.matches("[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*")) {
+                    android.util.Log.w("conversation", "malformed language code dropped");
+                    return;
+                }
                 ConversationMessage conversationMessage = new ConversationMessage(message.getSender(), new NeuralNetworkApiText(text, CustomLocale.getInstance(languageCode)));
                 translator.translateMessage(conversationMessage, language, TRANSLATOR_BEAM_SIZE, new Translator.TranslateListener() {
                     @Override
                     public void onTranslatedText(String textToTranslate, String translatedText, @Nullable String[] synonyms, long resultID, boolean isFinal, ResultType resultType, CustomLocale inputLanguage, CustomLocale outputLanguage) {
                         if (isFinal && (translatedText == null || translatedText.trim().isEmpty())) {
                             return;   //nothing to show or speak (e.g. the received text was only fillers)
+                        }
+                        if (!isFinal) {
+                            //a streaming draft is only shown: the TTS language list is needed for the final result alone
+                            //(with a failing TTS the list is empty and was fetched again for every draft)
+                            message.setTextToTranslate(text);
+                            message.setText(translatedText);
+                            GuiMessage draft = new GuiMessage(message, inputLanguage, outputLanguage, resultID, false, false);
+                            notifyMessage(draft);
+                            addOrUpdateMessage(draft);
+                            return;
                         }
                         global.getTTSLanguages(true, new Global.GetLocalesListListener() {
                             @Override
@@ -217,6 +241,7 @@ public class ConversationService extends VoiceTranslationService {
             @Override
             public void onDisconnected(GuiPeer peer, int peersLeft) {
                 super.onDisconnected(peer, peersLeft);
+                translator.dropQueuedMessagesFrom(peer);   //its waiting messages would reload what is unloaded here
                 translator.unloadSrcLangResourcesForPeer(peer, null);
                 if (peersLeft == 0) {
                     stopSelf();
@@ -319,6 +344,7 @@ public class ConversationService extends VoiceTranslationService {
         if(global.getBluetoothCommunicator() != null) {
             global.getBluetoothCommunicator().removeCallback(communicationCallback);
         }
+        translator.cancelConversation();   //nothing queued may translate (and reload resources) after the service is gone
         translator.unloadAllLangResourcesForConversation(null);
         translator.resetConversationMemory();
         isRunning = false;

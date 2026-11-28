@@ -123,7 +123,13 @@ public class TTS {
 
     public int setLanguage(CustomLocale loc, Context context) {
         if (isActive()) {
-            return tts.setLanguage(Locale.of(loc.getLocale().getLanguage()));
+            //the full locale first (pt-BR and pt-PT are different voices), the language alone when the region has none
+            Locale full = loc.getLocale();
+            if (full.getCountry() != null && !full.getCountry().isEmpty()) {
+                int r = tts.setLanguage(full);
+                if (r >= TextToSpeech.LANG_AVAILABLE) return r;
+            }
+            return tts.setLanguage(Locale.of(full.getLanguage()));
         }
         return TextToSpeech.ERROR;
     }

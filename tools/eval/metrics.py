@@ -88,10 +88,11 @@ _NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?")  # Java \d is ASCII-only by default
 
 
 _NE_LETTER = "\u0900-\u0963\u0966-\u097F"
-# whole Nepali number words 1-10 (छ = 6 is left out: it is also the copula "is")
-_NE_NUMBER_VALUE = {"एक": "1", "दुई": "2", "तीन": "3", "चार": "4", "पाँच": "5", "सात": "7", "आठ": "8",
-                    "नौ": "9", "दश": "10", "दस": "10"}
-_NE_NUMBER_WORD = re.compile("(?<![" + _NE_LETTER + "])(" + "|".join(_NE_NUMBER_VALUE) + ")(?![" + _NE_LETTER + "])")
+# whole Nepali number words 1-20, the tens and 25 (छ = 6 is left out: it is also the copula "is"; सत्र = 17 also "session")
+_NE_NUMBER_VALUE = {"एक": "1", "दुई": "2", "तीन": "3", "चार": "4", "पाँच": "5", "सात": "7", "आठ": "8", "नौ": "9", "दश": "10", "दस": "10", "एघार": "11", "बाह्र": "12", "तेह्र": "13", "चौध": "14", "पन्ध्र": "15", "सोह्र": "16", "अठार": "18", "उन्नाइस": "19", "बीस": "20", "पच्चीस": "25", "तीस": "30", "चालीस": "40", "पचास": "50", "साठी": "60", "सत्तरी": "70", "असी": "80", "नब्बे": "90"}
+_NE_NUMBER_WORD = re.compile("(?<![" + _NE_LETTER + "])(" + "|".join(sorted(_NE_NUMBER_VALUE, key=len, reverse=True)) + ")(?![" + _NE_LETTER + "])")
+_NE_MULTIPLIED = re.compile("([0-9]+)\\s*(सय|हजार|लाख|करोड)(?![" + _NE_LETTER + "])")
+_NE_MULT = {"सय": 100, "हजार": 1000, "लाख": 100000, "करोड": 10000000}
 
 
 def numbers(s):
@@ -101,20 +102,22 @@ def numbers(s):
     t = "".join(chr(ord("0") + ord(c) - 0x0966) if 0x0966 <= ord(c) <= 0x096F else c for c in t)
     t = re.sub(r"(?<=[0-9]),(?=[0-9]{3})", "", t)
     t = _NE_NUMBER_WORD.sub(lambda m: _NE_NUMBER_VALUE[m.group(1)], t)
+    # up to 12 digits are multiplied (a longer digit run is left as written: no overflow, same as Java)
+    t = _NE_MULTIPLIED.sub(lambda m: str(int(m.group(1)) * _NE_MULT[m.group(2)]) if len(m.group(1)) <= 12 else m.group(0), t)
     return [re.sub(r"^0+(?=[0-9])", "", m.group()) for m in _NUMBER.finditer(t)]
 
 
 # ---------------------------------------------------------------- kanji numerals (KanjiNumber.toDigits)
 _DIGITS = "〇一二三四五六七八九"
-_NUM_COUNTER = re.compile("([〇一二三四五六七八九十百千万]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|週間|時間|ヶ月|か月|キロ|メートル)")
+_NUM_COUNTER = re.compile("([〇一二三四五六七八九十百千万億兆]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|週間|時間|ヶ月|か月|キロ|メートル)")
 _HALF_HOUR = re.compile(r"([0-9]+)時半")
 _IDIOMS = ("一人前", "一人っ子", "一人ひとり", "一日中", "一時的", "一回り", "二人三脚", "一枚岩", "十人十色", "一年中",
-           "三日月", "三日坊主", "万年筆", "万年床", "一時停止", "一時期", "一時帰国", "一時保存", "二日酔い", "百人一首", "五月雨", "五月蝿")
+           "三日月", "三日坊主", "万年筆", "万年床", "一時停止", "一時期", "一時帰国", "一時保存", "二日酔い", "百人一首", "五月雨", "五月蝿", "一時は", "一時の", "一時中断", "一時外出", "一時退院", "一時預かり")
 _JUPPUN_AFTER = re.compile("分(?:間|後|前|以内|ほど|くらい|ぐらい|程度|おき|ごと)")
 
 
 def _parse_kanji(k):
-    if not any(c in k for c in "十百千万"):
+    if not any(c in k for c in "十百千万億兆"):
         v = 0
         for c in k:
             d = _DIGITS.find(c)
@@ -122,7 +125,7 @@ def _parse_kanji(k):
                 return -1
             v = v * 10 + d
         return v
-    total = section = num = 0
+    total = man = section = num = 0
     for c in k:
         d = _DIGITS.find(c)
         if d >= 0:
@@ -133,11 +136,14 @@ def _parse_kanji(k):
             section += (num or 1) * unit
             num = 0
         elif c == "万":
-            total += (section + num or 1) * 10000
+            man += (section + num or 1) * 10000
             section = num = 0
+        elif c in "億兆":
+            total += (man + section + num or 1) * (100000000 if c == "億" else 1000000000000)
+            man = section = num = 0
         else:
             return -1
-    return total + section + num
+    return total + man + section + num
 
 
 def kanji_to_digits(text):
@@ -150,7 +156,7 @@ def kanji_to_digits(text):
 
     def repl(m):
         k = m.group(1)
-        if k == "万":
+        if k in ("万", "億", "兆"):
             return k
         if k == "十" and text.startswith("分", m.end()):
             after_hour = m.start() > 0 and text[m.start() - 1] == "時"
@@ -194,12 +200,54 @@ NE_ALTERNATIVE = re.compile(r"(\S+)\s+कि\s+\S+")
 # negative past: गएन / आएन / गरेन (3rd person), गइनँ / गरिनँ (1st/2nd person); loanwords in े+न listed
 NE_NEG_PAST = re.compile("(?:[एइ]न|ेन|िनँ|िनन्|िनौं|िनौ)(?:ँ|न्|ौं|ौँ|ौ)?$")
 NE_NEG_PAST_NOT = {"येन", "ट्रेन", "प्लेन", "ब्रेन", "स्पेन", "चेन", "लेन", "सेन", "मेन", "जेन", "डेन", "केन", "पेन", "टेन",
-                   "हेन", "क्रेन", "भेन"}
+                   "हेन", "क्रेन", "भेन", "सुमिमासेन", "ब्योउइन"}
 NE_NEG_PREFIX = re.compile(r"^न(?:[क-ह]|[अआइईउऊएऐओऔ])")
 NE_NOT_NEGATION = ("नमस्ते", "नमस्कार", "नयाँ", "नजिक", "नदी", "नक्सा", "नक्शा", "नम्बर", "नरम", "नर्स", "नल", "नसा",
                    "नक्कली", "नतिजा", "नर्सरी", "नगरपालिका", "नगरमा", "नगरको", "नगरका", "नगरले", "नगरबाट", "नगरवासी",
                    "नगद", "नमुना", "नम्र", "नजर", "नरक", "नमन", "नशा", "नकल", "नरिवल", "नवीन", "नवम्बर", "नब्बे", "नहर",
-                   "नवजात", "नक्सली", "नमक", "नवौं", "नरेन्द्र", "नरेश", "नवराज", "नकारात्मक", "नक्षत्र")
+                   "नवजात", "नक्सली", "नमक", "नवौं", "नरेन्द्र", "नरेश", "नवराज", "नकारात्मक", "नक्षत्र", "नक्कल", "नवशिशु", "नङ")
+# ne->ja: the Japanese says "no" without ない (だめ, 防ぐ, 〜な！, だけでなく, いいえ, まだです ...)
+JA_NEG_MEANING = re.compile(r"だめ|ダメ|駄目|いいえ|^いえ|[、。\s]いえ[、。]|けっこう|結構|まだ(?:です|[。]|$)|嫌い|きらい|防[ぐぎ]|避け|づらい|にくい|違[いうっ]|おかしい|悪い|わるい|不在|無意識|残念|大丈夫|ゆっくりで|[るぐむぶつすく]な[！!]|[るぐむぶつすく]なって|でなく|いやです")
+# polysemous care words: (sense, ja context, ne wrong-sense, ne right-sense); soft WORD_SENSE when only the wrong sense appears
+WORD_SENSES = [
+    ('下げる(熱・血圧)', re.compile(r"(熱|血圧|体温|熱さまし)[^。]{0,6}下げ"), re.compile(r"लैजा|हटाउ"), re.compile(r"घट|कम")),
+    ('下げる(食器)', re.compile(r"(食器|お皿|皿|お膳|トレー|下膳)[^。]{0,6}下げ|下膳"), re.compile(r"घटाउ|कम गर"), re.compile(r"लैजा|हटाउ|उठाउ|सफा")),
+    ('かける(声)', re.compile(r"声を?かけ|声かけ"), re.compile(r"फोन"), re.compile(r"बोला|कुरा|भन")),
+    ('かける(布団)', re.compile(r"(布団|毛布|タオルケット|ひざ掛け|膝掛け)[^。]{0,4}かけ"), re.compile(r"फोन|बोला"), re.compile(r"ओढा|ढाक|राख")),
+    ('上がる(熱)', re.compile(r"熱が上が"), re.compile(r"माथि"), re.compile(r"बढ|आयो|आउ")),
+    ('出る(便)', re.compile(r"(便|うんち|おしっこ|尿)が出"), re.compile(r"बाहिर"), re.compile(r"दिसा|पिसाब|मल|मूत्र")),
+]
+# opposite pairs (label, ja1, ne1, ja2, ne2): the source says one side, the output only the other (昨日 -> भोलि)
+ANTONYM_PAIRS = [
+    ('昨日/明日', re.compile(r"昨日|きのう"), re.compile(r"हिजो"), re.compile(r"明日|あした"), re.compile(r"भोलि")),
+    ('右/左', re.compile(r"右"), re.compile(r"दायाँ|दाहिने"), re.compile(r"左"), re.compile(r"बायाँ|देब्रे")),
+    ('朝/夜', re.compile(r"朝"), re.compile(r"बिहान"), re.compile(r"夜|晩|夕方"), re.compile(r"बेलुका|राति|साँझ")),
+    ('熱/冷', re.compile(r"熱い|暑い|あつい"), re.compile(r"तातो|गर्मी"), re.compile(r"冷たい|寒い|つめたい|さむい"), re.compile(r"चिसो|जाडो")),
+]
+
+
+def antonym_swapped(src, hyp, src_lang):
+    for name, ja1, ne1, ja2, ne2 in ANTONYM_PAIRS:
+        sides = [(ja1, ne1, ja2, ne2), (ja2, ne2, ja1, ne1)] if src_lang == "ja" else [(ne1, ja1, ne2, ja2), (ne2, ja2, ne1, ja1)]
+        for s1, t1, s2, t2 in sides:
+            if s1.search(src) and not s2.search(src) and t2.search(hyp) and not t1.search(hyp):
+                return name
+    return None
+
+
+NE_ANSWER_NO = re.compile(r"^\s*(?:होइन|हैन|अहँ|अँह|अहं)\s*[,،।]?\s*")
+JA_ANSWER_NO = re.compile(r"^\s*(?:いいえ|いえ|いや)\s*[、,。]?\s*")
+
+
+def _ja_for_neg_cover(ne, ja):
+    """A leading いいえ only covers the Nepali "no" answer word: when the rest of the Nepali is negated too
+    (होइन, अझै सबै सम्झेको छैन), the rest of the Japanese must carry the negation (いいえ、まだ全部覚えています is wrong)."""
+    rest = NE_ANSWER_NO.sub("", ne, count=1)
+    if rest != ne and ne_has_negation(rest):
+        return JA_ANSWER_NO.sub("", ja, count=1)
+    return ja
+
+
 NE_WORD = re.compile("[ऀ-ॣ०-ॿ]+")  # excludes danda । ॥
 JA_SCRIPT = re.compile("[぀-ヿ一-鿿]")
 DEVANAGARI = re.compile("[ऀ-ॿ]")
@@ -286,29 +334,33 @@ _JA_WH_COVER = [("QUANTITY", re.compile("いくら|幾ら|いくつ|幾つ|ど�
                                         "何[人個歳回時日本枚台度分秒年月週円階番件杯匹冊着名]|"
                                         "なん(にん|こ|さい|かい|じ|にち|ぼん|まい|だい|ど|ぷん|ふん|ねん)")),
                 ("WHY", re.compile("なぜ|何故|どうして|なんで|何で|理由")), ("WHERE", re.compile("どこ|何処|どちら|どっち")),
-                ("WHEN", re.compile("いつ|何時|何日|何曜")), ("HOW", re.compile("どう|どのよう|どうやって|如何"))]
+                ("WHEN", re.compile("いつ|何時|何日|何曜")), ("HOW", re.compile("どう|どのよう|どうやって|如何")),
+                ("WHO", re.compile("誰|だれ|どなた|どちら様|どの方")), ("WHICH", re.compile("どれ|どの|どちら|どっち|何|どこ|どう"))]
 _NE_WH = [("QUANTITY", re.compile(_NE_L + r"कति(?!पय)\S*")), ("WHY", re.compile(_NE_L + "किन" + _NE_R)),
           ("WHERE", re.compile(_NE_L + r"कह[ाँां]{2}\S*")),
           ("WHEN", re.compile(_NE_L + "कहिले(?!काहीं|काहीँ|काहिँ|काहिं)" + _NE_R)),
-          ("HOW", re.compile(_NE_L + "कसरी" + _NE_R))]
-_NE_WH_COVER = [("TIME_OCLOCK", _ne_word("बजे|बेला")), ("COUNT_PERSON", _ne_word("कति|कतिजना")),
+          ("HOW", re.compile(_NE_L + "कसरी" + _NE_R)),
+          # who / which: the case forms only (bare को is also the genitive "of"; कुनै = "any")
+          ("WHO", re.compile(_NE_L + "(?:कसले|कसलाई|कसको|कसका|कसकी)" + _NE_R)),
+          ("WHICH", re.compile(_NE_L + "कुन" + _NE_R + "(?=[^।]*[?？])"))]  # a direct question only (कुन in an embedded clause is often paraphrased)
+_NE_WH_COVER = [("TIME_OCLOCK", _ne_word(r"बजे\S*|बज्यो|बेला\S*")), ("COUNT_PERSON", _ne_word("कति|कतिजना")),
                 ("PRICE", _ne_word(r"कति\S*|मूल्य|दाम|पैसा")), ("WHO", _ne_word("को|कसले|कसको|कसलाई|कोसँग|कोही")),
-                ("WHERE", _ne_word(r"कहाँ\S*|कुन ठाउँ\S*")), ("WHEN", _ne_word(r"कहिले\S*|कुन दिन\S*|कति बेला|कति बजे")),
-                ("WHY", _ne_word("किन")), ("HOW", _ne_word(r"कसरी|के गर\S*")), ("WHICH", _ne_word(r"कुन\S*|कुनचाहिँ|कुनचाहिं"))]
+                ("WHERE", _ne_word(r"कहाँ\S*|कता\S*|कुन ठाउँ\S*")), ("WHEN", _ne_word(r"कहिले\S*|कुन दिन\S*|कति बेला|कति बजे")),
+                ("WHY", _ne_word("किन")), ("HOW", _ne_word(r"कसरी|के गर\S*")), ("WHICH", _ne_word(r"कुन\S*|कुनचाहिँ|कुनचाहिं|कि\s.+\sकि"))]
 _JA_MOD = [("OBLIGATION", re.compile("(なければ(なら|なり|いけ)|なくては(なら|なり|いけ)|ないと(いけ|だめ|ダメ)|なきゃ|なくちゃ|べき)")),
            ("REQUEST", re.compile("(ください|下さい|[てで](くれ(ませんか|ますか)?|ちょうだい|もらえ(?!れば)|いただけ)|お願い)")),
            ("CONJECTURE", re.compile("(でしょう(?!か)|だろう|かもしれ|と思い|と思う|みたい|らしい|はず)")),
            ("PERMISSION", re.compile("[てで]も(いい|良い|よい|大丈夫|かまわ|構わ)"))]
 _NE_MOD = [("OBLIGATION", re.compile("(पर्छ|पर्छन्|पर्ने|पर्यो|पर्‍यो|पर्थ्यो|पर्दछ|पर्नेछ|पर्नुहुन्छ|नुपर|चाहिन्छ|अनिवार्य)")),
-           ("REQUEST", re.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|ऊ(?![" + _NE_CH + "])|ओ(?![" + _NE_CH + "]))")),
+           ("REQUEST", re.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|(?<=[" + _NE_CH + "])ऊ(?![" + _NE_CH + "])|(?<=[" + _NE_CH + "])ओ(?![" + _NE_CH + "]))")),
            ("CONJECTURE", re.compile("(होला|ला(?![" + _NE_CH + "])|सक्छ|सक्छन्|जस्तो|जस्तै|लाग्छ|लाग्यो|ठान्छु|सायद|शायद|पक्का|हुनुपर्छ|होइन र)")),
            ("PERMISSION", re.compile("(हुन्छ|सकिन्छ|सक्नुहुन्छ|सक्छ|ठीक|ठिक|अनुमति|पाइन्छ|पर्दैन|मिल्छ)"))]
 JA_PAST = re.compile("(ました|でした|かった(です)?|[っんいきしちにびみりえけせてねべめれげ]た|[っん]だ)(よ|ね|よね|か)?[。！!？?]?$")
-NE_PAST = _ne_word(r"\S*(?:थियो|थिए|थिइन्|थिएँ|थियौं|थ्यो|यो|एको|एका|एकी|भयो|भएको|सक्यो|सके|इन्|इनँ|इनौं|ए|एँ|एन|एनन्|ेन|ेनन्|ेको|ेका|ेकी|्यो|"
+NE_PAST = _ne_word(r"\S*(?:थियो|थिए|थिइन्|थिएँ|थियौं|ेँ|ें|यौं|यौँ|थ्यो|यो|एको|एका|एकी|भयो|भएको|सक्यो|सके|इन्|इनँ|इनौं|ए|एँ|एन|एनन्|ेन|ेनन्|ेको|ेका|ेकी|्यो|"
                    "‍यो)")
 NE_PAST_NOT = {"यो", "त्यो", "जो", "उनको"}
 _JA_CUR = [("RUPEE", re.compile("ルピー")), ("YEN", re.compile(r"[0-9０-９〇一二三四五六七八九十百千万億]\s*円|円(?![滑満形熟周])")),
-           ("DOLLAR", re.compile("ドル"))]
+           ("DOLLAR", re.compile("(?<![ァ-ヶー])ドル"))]  # not ハンドル / アイドル
 _NE_CUR = [("RUPEE", re.compile("रुपैयाँ|रुपैयां|रुपियाँ|रुपियां|" + _NE_L + r"(रु|रू)\.?\s*[0-9०-९]|NPR|Rs\.?\s*[0-9]")),
            ("YEN", re.compile(_NE_L + "(येन|जापानी येन)" + _NE_R)), ("DOLLAR", re.compile(_NE_L + "डलर"))]
 _DEMONYM = re.compile("(ネパール|日本|インド|中国|アメリカ)(語|人)")
@@ -372,6 +424,9 @@ def _check_numbers(a, b, issues):
             issues.append(("NUMBER_LOST", True, n))
     for n in rest:
         issues.append(("NUMBER_ADDED", False, n))
+    # the same numbers in another order (3月5日 -> 5月3日, 10人と20人 -> 20人と10人): soft, a word order change can be right
+    if len(a) >= 2 and sorted(a) == sorted(b) and list(a) != list(b):
+        issues.append(("NUMBER_ORDER_CHANGED", False, None))
 
 
 # --- speaker/listener reversal (ir/Person.java)
@@ -468,6 +523,13 @@ def validate(src, hyp, direction, required_targets=None):
                 or (re.search(r"飲ませ|食べさせ", src) and re.search(r"खानुहोस्|पिउनुहोस्", hyp) and not re.search(r"खुवा|पिला|लगाउ", hyp))
                 or (re.search(r"休憩", src) and not re.search(r"休み|休暇|有給", src) and re.search(r"बिदा", hyp))):
             issues.append(("CARE_WORD_SWAPPED", True, None))
+        a = antonym_swapped(src, hyp, "ja")
+        if a:
+            issues.append(("ANTONYM_SWAPPED", True, a))
+        for sense, j, wrong, right in WORD_SENSES:
+            if j.search(src) and wrong.search(hyp) and not right.search(hyp):
+                issues.append(("WORD_SENSE", False, sense))
+                break
         if ((re.search(r"熱中症", src) and re.search(r"ज्वरो", hyp) and not re.search(r"हिट|गर्मी|लु ", hyp))
                 or (re.search(r"(スイッチ|電源|暖房|ヒーター)[^。]*(切|消)", src) and re.search(r"चलाउनुहोस्|अन गर्नुहोस्", hyp) and not re.search(r"बन्द|अफ", hyp))
                 or (re.search(r"冷える|冷えない|冷え込", src) and re.search(r"चिसो बनाउनुहोस्|चिसो पार्नुहोस्", hyp))):
@@ -481,13 +543,19 @@ def validate(src, hyp, direction, required_targets=None):
             issues.append(("CURRENCY_MISMATCH", True, "रुपैयाँ"))
         if "DOLLAR" not in s["cur"] and "DOLLAR" in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "डलर"))
+        if "DOLLAR" in s["cur"] and "DOLLAR" not in t["cur"]:
+            issues.append(("CURRENCY_MISMATCH", True, "डलर"))
+        if "YEN" not in s["cur"] and "YEN" in t["cur"]:
+            issues.append(("CURRENCY_MISMATCH", True, "येन"))
         if re.search(r"युआन|युवान|चिनियाँ\s*युआन", hyp):
             issues.append(("CURRENCY_MISMATCH", True, "युआन"))
         return issues
     s, t = analyze_ne(src), analyze_ja(hyp)
     _check_numbers(s["numbers"], t["numbers_norm"], issues)
-    if s["negated"] != t["negated"]:
-        issues.append(("NEGATION_LOST", True, None) if s["negated"] else ("NEGATION_ADDED", False, None))
+    if s["negated"] and not t["negated"] and not JA_NEG_MEANING.search(_ja_for_neg_cover(src, hyp)):
+        issues.append(("NEGATION_LOST", True, None))
+    if t["negated"] and not s["negated"]:
+        issues.append(("NEGATION_ADDED", False, None))
     if DEVANAGARI.search(hyp):
         issues.append(("UNTRANSLATED_SOURCE_SCRIPT", True, None))
     if t["repeat"]:
@@ -499,14 +567,24 @@ def validate(src, hyp, direction, required_targets=None):
         issues.append(("CURRENCY_MISMATCH", True, "円"))
     if "DOLLAR" not in s["cur"] and "DOLLAR" in t["cur"]:
         issues.append(("CURRENCY_MISMATCH", True, "ドル"))
+    if "YEN" in s["cur"] and "YEN" not in t["cur"]:
+        issues.append(("CURRENCY_MISMATCH", True, "円"))
+    if "DOLLAR" in s["cur"] and "DOLLAR" not in t["cur"]:
+        issues.append(("CURRENCY_MISMATCH", True, "ドル"))
     for p in PLACES:
         if p[0] in s["places"] and p[0] not in t["places"]:
             issues.append(("PLACE_MISSING", True, p[0]))
         if p[0] not in s["places"] and p[0] in t["places_as_place"]:
             issues.append(("PLACE_ADDED", True, p[0]))
+        m = re.search("[北南東西]" + p[0], hyp)  # 北ネパール for plain नेपाल: an invented direction
+        if m and p[0] in s["places"] and not re.search("उत्तर|दक्षिण|पूर्व|पश्चिम", src):
+            issues.append(("PLACE_ADDED", True, m.group()))
     if (re.search(r"(ज्यू|जी|ज्यु|आमाजु|बुबाजु|उहाँ)(ले)?\s", src) and re.search(r"नुभयो|नुहुन्छ|नुभएको", src)
             and not re.search(r"(^|[\s,।])(म|मैले|मलाई|मेरो|हामी|हामीले)(?=[\s,।])", src) and re.search(r"私|僕|わたし", hyp)):
         issues.append(("PERSON_REVERSED", True, None))
+    a = antonym_swapped(src, hyp, "ne")
+    if a:
+        issues.append(("ANTONYM_SWAPPED", True, a))
     if re.search(r"सक्छु कि सक्दिनँ|सक्छु कि सक्दिन", src) and not re.search(r"かどうか|か不安|か心配|か分から|自信|務まるか|できるか", hyp):
         issues.append(("ALTERNATIVE_LOST", True, None))
     return issues

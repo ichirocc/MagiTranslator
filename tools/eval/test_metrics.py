@@ -180,5 +180,57 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(ne["cur"], {"RUPEE"})
 
 
+class NumberOrderTest(unittest.TestCase):
+    def test_order_and_overflow(self):
+        self.assertIn("NUMBER_ORDER_CHANGED", [i[0] for i in M.validate("3月5日に来ます。", "५ मार्च ३ मा आउँछु।", "ja-ne")])
+        self.assertEqual(M.numbers("999999999999999999999999 लाख"), ["999999999999999999999999"])
+
+
+class WhoWhichTest(unittest.TestCase):
+    def test_who_which(self):
+        k = lambda s, h, d: [i[0] for i in M.validate(s, h, d)]
+        self.assertIn("QUESTION_WORD_LOST", k("कसले लेख्यो?", "書きました。", "ne-ja"))
+        self.assertNotIn("QUESTION_WORD_LOST", k("कसले लेख्यो?", "誰が書きましたか？", "ne-ja"))
+        self.assertIn("REQUEST_LOST", k("手伝ってください。", "ऊ घर जान्छ।", "ja-ne"))
+
+
+class NumberWordsTest(unittest.TestCase):
+    def test_words(self):
+        self.assertEqual(M.numbers("पच्चीस जना"), ["25"])
+        self.assertEqual(M.numbers("एक लाख रुपैयाँ"), ["100000"])
+        self.assertEqual(M.kanji_to_digits("一億二千万円"), "120000000円")
+        self.assertNotIn("CURRENCY_MISMATCH", [i[0] for i in M.validate("ह्यान्डल घुमाउँछु।", "ハンドルを回します。", "ne-ja")])
+
+
+class AnswerNoTest(unittest.TestCase):
+    def test_leading_iie(self):
+        self.assertIn("NEGATION_LOST", [i[0] for i in M.validate("अहँ, छैन।", "いいえ、あります。", "ne-ja")])
+        self.assertNotIn("NEGATION_LOST", [i[0] for i in M.validate("अहँ, छैन।", "いいえ、ありません。", "ne-ja")])
+        self.assertNotIn("NEGATION_LOST", [i[0] for i in M.validate("होइन", "いいえ", "ne-ja")])
+
+
+class AntonymTest(unittest.TestCase):
+    def test_swap(self):
+        self.assertIn("ANTONYM_SWAPPED", [i[0] for i in M.validate("昨日、転びました。", "भोलि लडें।", "ja-ne")])
+        self.assertNotIn("ANTONYM_SWAPPED", [i[0] for i in M.validate("昨日、転びました。", "हिजो लडें।", "ja-ne")])
+        self.assertIn("ANTONYM_SWAPPED", [i[0] for i in M.validate("दायाँ हात उठाउनुहोस्।", "左手を上げてください。", "ne-ja")])
+
+
+class WordSenseTest(unittest.TestCase):
+    def test_sense(self):
+        self.assertIn("WORD_SENSE", [i[0] for i in M.validate("熱を下げる薬です。", "यो ज्वरो लैजाने औषधि हो।", "ja-ne")])
+        self.assertNotIn("WORD_SENSE", [i[0] for i in M.validate("お皿を下げますね。", "थाल लैजान्छु है।", "ja-ne")])
+
+
+class NeJaCoverTest(unittest.TestCase):
+    def test_direction_invented(self):
+        k = [i[0] for i in M.validate("सीता नेपालबाट आएकी हुन्।", "北ネパールから来たんです。", "ne-ja")]
+        self.assertIn("PLACE_ADDED", k)
+
+    def test_negation_without_nai(self):
+        for ne, ja in [("चिन्ता नगर्नुहोस्", "大丈夫ですよ"), ("नदौडनुहोस्।", "走るな！"), ("पर्दैन।", "けっこうです。")]:
+            self.assertNotIn("NEGATION_LOST", [i[0] for i in M.validate(ne, ja, "ne-ja")])
+        self.assertIn("NEGATION_LOST", [i[0] for i in M.validate("आज म जान्नँ।", "今日は行きます。", "ne-ja")])
+
 if __name__ == "__main__":
     unittest.main()

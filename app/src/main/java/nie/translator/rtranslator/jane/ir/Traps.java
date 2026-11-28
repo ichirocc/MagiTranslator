@@ -105,4 +105,52 @@ public final class Traps {
         if (JA_SWITCH_OFF.matcher(ja).find() && NE_TURN_ON.matcher(ne).find() && !NE_TURN_OFF.matcher(ne).find()) return true;
         return JA_GETS_COLD.matcher(ja).find() && NE_MAKE_COLD.matcher(ne).find();
     }
+
+    // --- polysemous care words: the Nepali shows only the wrong sense (熱を下げる as "take away", 布団をかける as "phone")
+    private static final String[][] SENSES = {
+            {"下げる(熱・血圧)", "(熱|血圧|体温|熱さまし)[^。]{0,6}下げ", "लैजा|हटाउ", "घट|कम"},
+            {"下げる(食器)", "(食器|お皿|皿|お膳|トレー|下膳)[^。]{0,6}下げ|下膳", "घटाउ|कम गर", "लैजा|हटाउ|उठाउ|सफा"},
+            {"かける(声)", "声を?かけ|声かけ", "फोन", "बोला|कुरा|भन"},
+            {"かける(布団)", "(布団|毛布|タオルケット|ひざ掛け|膝掛け)[^。]{0,4}かけ", "फोन|बोला", "ओढा|ढाक|राख"},
+            {"上がる(熱)", "熱が上が", "माथि", "बढ|आयो|आउ"},
+            {"出る(便)", "(便|うんち|おしっこ|尿)が出", "बाहिर", "दिसा|पिसाब|मल|मूत्र"}
+    };
+    private static final Pattern[][] SENSE_P = new Pattern[SENSES.length][];
+    static {
+        for (int i = 0; i < SENSES.length; i++)
+            SENSE_P[i] = new Pattern[]{Pattern.compile(SENSES[i][1]), Pattern.compile(SENSES[i][2]), Pattern.compile(SENSES[i][3])};
+    }
+
+    /** @return the sense label when the Nepali carries only the wrong sense, else null */
+    public static String wordSense(String ja, String ne) {
+        for (int i = 0; i < SENSES.length; i++)
+            if (SENSE_P[i][0].matcher(ja).find() && SENSE_P[i][1].matcher(ne).find() && !SENSE_P[i][2].matcher(ne).find()) return SENSES[i][0];
+        return null;
+    }
+
+    // --- opposite pairs: the source says one side and the output only the other (昨日 -> भोलि, 右 -> बायाँ)
+    private static final String[][] ANTONYMS = {
+            {"昨日/明日", "昨日|きのう", "हिजो", "明日|あした", "भोलि"},
+            {"右/左", "右", "दायाँ|दाहिने", "左", "बायाँ|देब्रे"},
+            {"朝/夜", "朝", "बिहान", "夜|晩|夕方", "बेलुका|राति|साँझ"},
+            {"熱/冷", "熱い|暑い|あつい", "तातो|गर्मी", "冷たい|寒い|つめたい|さむい", "चिसो|जाडो"}
+    };
+    private static final Pattern[][] ANTONYM_P = new Pattern[ANTONYMS.length][];
+    static {
+        for (int i = 0; i < ANTONYMS.length; i++)
+            ANTONYM_P[i] = new Pattern[]{Pattern.compile(ANTONYMS[i][1]), Pattern.compile(ANTONYMS[i][2]), Pattern.compile(ANTONYMS[i][3]), Pattern.compile(ANTONYMS[i][4])};
+    }
+
+    /** @param srcIsJa true for ja -> ne; @return the pair label when swapped, else null */
+    public static String antonymSwapped(String src, String hyp, boolean srcIsJa) {
+        for (int i = 0; i < ANTONYMS.length; i++) {
+            Pattern ja1 = ANTONYM_P[i][0], ne1 = ANTONYM_P[i][1], ja2 = ANTONYM_P[i][2], ne2 = ANTONYM_P[i][3];
+            Pattern[][] sides = srcIsJa ? new Pattern[][]{{ja1, ne1, ja2, ne2}, {ja2, ne2, ja1, ne1}}
+                                        : new Pattern[][]{{ne1, ja1, ne2, ja2}, {ne2, ja2, ne1, ja1}};
+            for (Pattern[] sd : sides)
+                if (sd[0].matcher(src).find() && !sd[2].matcher(src).find() && sd[3].matcher(hyp).find() && !sd[1].matcher(hyp).find())
+                    return ANTONYMS[i][0];
+        }
+        return null;
+    }
 }

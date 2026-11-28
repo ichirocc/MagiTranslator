@@ -185,12 +185,16 @@ public class Translator extends NeuralNetworkApi {
                     CustomLocale secondLanguage = global.getSecondLanguage(true);
                     CustomLocale language = global.getLanguage(true);
 
-                    if(languageResourcesManager == null) {
-                        languageResourcesManager = new LanguageResourcesManager(global, mode == MOZILLA, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts,
-                                firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage);
-                    }else{
-                        languageResourcesManager.setStatus(mode == MOZILLA, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts,
-                                firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage, language);
+                    //same lock as the language-change loads (loadLanguageResources): the two must not load/unload at once.
+                    //Order translationLock -> langResourcesLock, as in the translation path.
+                    synchronized (langResourcesLock) {
+                        if(languageResourcesManager == null) {
+                            languageResourcesManager = new LanguageResourcesManager(global, mode == MOZILLA, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts,
+                                    firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage);
+                        }else{
+                            languageResourcesManager.setStatus(mode == MOZILLA, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts,
+                                    firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage, language);
+                        }
                     }
 
                     //eventual initialization of language detector (it must happen after the language resources initialization)
@@ -286,6 +290,7 @@ public class Translator extends NeuralNetworkApi {
                 closePlamo();
                 if (!MemoryGuard.hasRoomFor(global, model.length())) return null;   //Madlad instead of the low-memory killer
                 plamoEngine = nie.translator.rtranslator.plamo.PlamoEngine.open(model, 0, PLAMO_CONTEXT_TOKENS);
+                plamoEngine.setCancelCheck(this::currentRequestCancelled);   //a cancelled request stops generating at the next token
                 plamoModelFile = model;
                 plamoTranslator = null;
                 plamoAdapterStamp = null;
@@ -512,7 +517,15 @@ public class Translator extends NeuralNetworkApi {
             }
             mode = newMode;
             releasedMode = -1;
-            onnxTranslationModelInitialization();
+            try {
+                onnxTranslationModelInitialization();
+            } catch (Exception | Error initError) {
+                //no half-loaded model stays selected: free what was created and mark it for reload on the next translation
+                closeSessionsQuietly();
+                mode = -1;
+                releasedMode = newMode;
+                throw initError;
+            }
             Log.i("translation", "model switched " + oldMode + " -> " + newMode);
         }
     }
@@ -701,6 +714,22 @@ public class Translator extends NeuralNetworkApi {
             if (start) translatingMessages = true;
         }
         if (start) continueMessages();
+    }
+
+    /** The conversation ended: drop the queued messages and stop the one being translated (no result is delivered). */
+    public void cancelConversation() {
+        synchronized (lock) {
+            dataToTranslate.clear();
+        }
+        cancellation.cancelScope(Global.RTranslatorMode.CONVERSATION_MODE.ordinal());
+    }
+
+    /** A peer disconnected: its messages still waiting are dropped (the one in progress finishes). */
+    public void dropQueuedMessagesFrom(Peer peer) {
+        if (peer == null) return;
+        synchronized (lock) {
+            dataToTranslate.removeIf(d -> peer.equals(d.conversationMessageToTranslate.getSender()));
+        }
     }
 
     private void continueMessages() {
@@ -1183,7 +1212,9 @@ public class Translator extends NeuralNetworkApi {
                     for (int i = 1; i < textSplit.size(); i++) {
                         int numTokens = tokenize(textSplit.get(i - 1), inputLanguage, outputLanguage, true).getInputIDs().length;
                         int numTokens2 = tokenize(textSplit.get(i), inputLanguage, outputLanguage, true).getInputIDs().length;
-                        if ((numTokens + numTokens2 < maxLength) || (numTokens2 < 5)) {
+                        //a tiny fragment (< 5 tokens) still joins its neighbour over the target size, but only by a bounded margin:
+                        //joining fragment after fragment had no ceiling at all
+                        if ((numTokens + numTokens2 < maxLength) || (numTokens2 < 5 && numTokens + numTokens2 < maxLength + 16)) {
                             textSplit.set(i - 1, textSplit.get(i - 1) + textSplit.get(i));
                             textSplit.remove(i);
                             i = i - 1;
@@ -1368,14 +1399,9 @@ public class Translator extends NeuralNetworkApi {
             android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
             if (encoderResult == null && currentRequestCancelled()) throw new TranslationCancelledException();
             if (encoderResult == null) {
-                if (Boolean.TRUE.equals(SILENT.get())) {
-                    //internal jane call: no UI error, the library treats it as a failed candidate
-                } else if (responseListener != null) {
-                    mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                } else {
-                    mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                }
-                throw new Exception();
+                //no UI notice here: the caller's catch reports it once through postFailure() (ERROR_EXECUTING_MODEL);
+                //internal jane calls (SILENT) see the exception and treat it as a failed candidate
+                throw new Exception("translation encoder failed");
             }
         }
         //decoder execution
@@ -1416,12 +1442,12 @@ public class Translator extends NeuralNetworkApi {
             }
         };
         int[] completeOutputArray;
-        if (beamSize > 1) {  //beam search
-            completeOutputArray = executeCacheDecoder(textToTranslate, input, encoderResult, inputLanguage, outputLanguage, beamSize, translateListener);
-        } else {  //greedy search (with kv cache)
-            completeOutputArray = executeCacheDecoder(textToTranslate, input, encoderResult, inputLanguage, outputLanguage, 1, translateListener);
+        try {
+            //a decoder error is thrown (DecoderFailedException), so a failed run never comes back as "" plus a success notice
+            completeOutputArray = executeCacheDecoder(textToTranslate, input, encoderResult, inputLanguage, outputLanguage, beamSize > 1 ? beamSize : 1, translateListener);
+        } finally {
+            if(encoderResult != null) encoderResult.close();   //also on a decoder error
         }
-        if(encoderResult != null) encoderResult.close();
         if (currentRequestCancelled()) throw new TranslationCancelledException();   //never turn a cancelled run into "" output
         if(completeOutputArray != null) {
             return tokenizer.decode(completeOutputArray);
@@ -1432,12 +1458,14 @@ public class Translator extends NeuralNetworkApi {
 
     @Nullable
     private OnnxTensor executeEncoder(int[] inputIDs, int[] attentionMask){
+        //every native object is released in finally, also when a run throws (it used to leak on errors)
+        OnnxTensor inputIDsTensor = null, attentionMaskTensor = null;
+        Map<String,OnnxTensor> input = new HashMap<String,OnnxTensor>();
+        Map<String,OnnxTensor> embedInput = new HashMap<String,OnnxTensor>();
+        OrtSession.Result embedResult = null;
         try {
-            OnnxTensor inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, inputIDs);
-            OnnxTensor attentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, attentionMask);
-            Map<String,OnnxTensor> input = new HashMap<String,OnnxTensor>();
-            Map<String,OnnxTensor> embedInput = new HashMap<String,OnnxTensor>();
-            OrtSession.Result embedResult = null;
+            inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, inputIDs);
+            attentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, attentionMask);
             if(mode == NLLB_CACHE) {
                 //we do the embedding separately and then we pass the result to the encoder
                 embedInput.put("input_ids", inputIDsTensor);
@@ -1465,21 +1493,21 @@ public class Translator extends NeuralNetworkApi {
                 input.put("attention_mask",attentionMaskTensor);
             }
             OrtSession.Result result = encoderSession.run(input, runOpts());
-            if(embedResult != null){
-                embedResult.close();
-            }
             Optional<OnnxValue> output = result.get("last_hidden_state");
-
-            //release memory
-            inputIDsTensor.close();
-            attentionMaskTensor.close();
-            embedInput.forEach((s, onnxTensor) -> onnxTensor.close());
-            input.forEach((s, onnxTensor) -> onnxTensor.close());
-
-            return (OnnxTensor) output.get();
+            return (OnnxTensor) output.get();   //the caller closes it
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        } finally {
+            //each tensor once: the maps share input_ids / attention_mask, and embed_matrix belongs to embedResult
+            java.util.Set<OnnxTensor> owned = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+            if (inputIDsTensor != null) owned.add(inputIDsTensor);
+            if (attentionMaskTensor != null) owned.add(attentionMaskTensor);
+            owned.addAll(embedInput.values());
+            OnnxTensor embedMatrix = input.get("embed_matrix");
+            for (OnnxTensor t : input.values()) if (t != embedMatrix) owned.add(t);
+            for (OnnxTensor t : owned) { try { t.close(); } catch (Exception ignored) {} }
+            if (embedResult != null) { try { embedResult.close(); } catch (Exception ignored) {} }
         }
     }
 
@@ -1947,14 +1975,14 @@ public class Translator extends NeuralNetworkApi {
                 return null;   //the caller sees the cancelled ticket and delivers nothing
             }
             e.printStackTrace();
-            final int legacy = code.toLegacyCode();
-            if(responseListener != null) {
-                mainHandler.post(() -> responseListener.onFailure(new int[]{legacy}, 0));
-            }else{
-                mainHandler.post(() -> notifyError(new int[]{legacy}, 0));
-            }
+            //report once, from the request's catch (postFailure): not here as well, and never as an empty success
+            throw new DecoderFailedException(e);
         }
-        return null;
+    }
+
+    /** A decoder run failed; the cause keeps the ORT error so {@link TranslationEngineErrorCode#fromThrowable} maps it. */
+    static final class DecoderFailedException extends RuntimeException {
+        DecoderFailedException(Throwable cause) { super(cause); }
     }
 
     /**

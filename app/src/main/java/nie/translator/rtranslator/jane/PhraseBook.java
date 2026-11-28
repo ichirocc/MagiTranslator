@@ -22,11 +22,22 @@ public final class PhraseBook {
         String kj = keyJa(ja), kn = keyNe(ne);
         if (kj.isEmpty() || kn.isEmpty()) return;
         jaNe.putIfAbsent(kj, ne.trim());
-        if (jaToNeOnly || ambiguousNe.contains(kn)) return;
-        String prev = neJa.get(kn);
-        if (prev == null) neJa.put(kn, ja.trim());
-        else if (!keyJa(prev).equals(kj)) { neJa.remove(kn); ambiguousNe.add(kn); }
+        if (ambiguousNe.contains(kn)) return;
+        //a ja>ne line is not read back itself, but it still counts as a second Japanese reading of this Nepali:
+        //either order (one-way line first or last), the Nepali is then ambiguous and not used for ne -> ja
+        String other = neJa.containsKey(kn) ? keyJa(neJa.get(kn)) : oneWayJa.get(kn);
+        if (other != null && !other.equals(kj)) {
+            neJa.remove(kn);
+            oneWayJa.remove(kn);
+            ambiguousNe.add(kn);
+            return;
+        }
+        if (jaToNeOnly) oneWayJa.putIfAbsent(kn, kj);
+        else neJa.putIfAbsent(kn, ja.trim());
     }
+
+    /** Nepali key -> Japanese key of ja>ne lines, kept only to detect ambiguity */
+    private final Map<String, String> oneWayJa = new HashMap<>();
 
     public int size() { return jaNe.size(); }
 

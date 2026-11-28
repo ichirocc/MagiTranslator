@@ -28,7 +28,42 @@ import nie.translator.rtranslator.jane.ir.WhConcept;
  */
 public final class TranslationValidator {
 
-    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
+    /** ne -> ja: the Japanese says "no" without ない (だめ, 防ぐ, 〜な！, だけでなく, いいえ, まだです ...). */
+    static final java.util.regex.Pattern JA_NEG_MEANING = java.util.regex.Pattern.compile("だめ|ダメ|駄目|いいえ|^いえ|[、。\\s]いえ[、。]|けっこう|結構|まだ(?:です|[。]|$)|嫌い|きらい|防[ぐぎ]|避け|づらい|にくい|違[いうっ]|おかしい|悪い|わるい|不在|無意識|残念|大丈夫|ゆっくりで|[るぐむぶつすく]な[！!]|[るぐむぶつすく]なって|でなく|いやです");
+
+    static final java.util.regex.Pattern NE_DIRECTION = java.util.regex.Pattern.compile("उत्तर|दक्षिण|पूर्व|पश्चिम");
+
+    private static final java.util.regex.Pattern NE_ANSWER_NO = java.util.regex.Pattern.compile("^\\s*(?:होइन|हैन|अहँ|अँह|अहं)\\s*[,،।]?\\s*");
+    private static final java.util.regex.Pattern JA_ANSWER_NO = java.util.regex.Pattern.compile("^\\s*(?:いいえ|いえ|いや)\\s*[、,。]?\\s*");
+
+    /** A leading いいえ only covers the Nepali "no" word: if the rest of the Nepali is negated too, the rest of the Japanese must be. */
+    static String jaForNegCover(String ne, String ja) {
+        String rest = NE_ANSWER_NO.matcher(ne).replaceFirst("");
+        if (!rest.equals(ne) && nie.translator.rtranslator.jane.ir.NeAnalyzer.hasNegation(rest)) return JA_ANSWER_NO.matcher(ja).replaceFirst("");
+        return ja;
+    }
+
+    // every candidate of one request is checked against the same source: its IR (immutable) is analysed once per
+    // thread instead of once per candidate. One entry per direction, keyed by the exact source text.
+    private static final ThreadLocal<Object[]> LAST_JA = new ThreadLocal<>(), LAST_NE = new ThreadLocal<>();
+
+    private static nie.translator.rtranslator.jane.ir.LanguageIR sourceJa(String text) {
+        Object[] c = LAST_JA.get();
+        if (c != null && c[0].equals(text)) return (nie.translator.rtranslator.jane.ir.LanguageIR) c[1];
+        nie.translator.rtranslator.jane.ir.LanguageIR ir = JaAnalyzer.analyze(text);
+        LAST_JA.set(new Object[]{text, ir});
+        return ir;
+    }
+
+    private static nie.translator.rtranslator.jane.ir.LanguageIR sourceNe(String text) {
+        Object[] c = LAST_NE.get();
+        if (c != null && c[0].equals(text)) return (nie.translator.rtranslator.jane.ir.LanguageIR) c[1];
+        nie.translator.rtranslator.jane.ir.LanguageIR ir = NeAnalyzer.analyze(text);
+        LAST_NE.set(new Object[]{text, ir});
+        return ir;
+    }
+
+    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NUMBER_ORDER_CHANGED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
         // ne->ja meaning checks (checkNeToJaMeaning)
         QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
         /** ja->ne agreement (IR-lite, SPEC v2 part 2): the candidate dropped what the Japanese predicate states */
@@ -41,6 +76,10 @@ public final class TranslationValidator {
         GUIDANCE_REVERSED, WATCH_OVER_LOST,
         /** care words swapped: かゆい as pain, 飲ませて as eat-yourself, 休憩 as day off */
         CARE_WORD_SWAPPED,
+        /** polysemous care word in the wrong sense (soft): 熱を下げる as take away, 布団をかける as phone */
+        WORD_SENSE,
+        /** opposite words swapped (hard): 昨日 as भोलि, 右 as बायाँ, 朝 as बेलुका, 熱い as चिसो */
+        ANTONYM_SWAPPED,
         /** ne->ja: "can I or not" turned into a flat refusal */
         ALTERNATIVE_LOST,
         /** seasonal: 熱中症 as fever, heater off as on, getting cold as make cold */
@@ -67,7 +106,7 @@ public final class TranslationValidator {
     public static List<Issue> validateJaToNe(String sourceJa, String ne, List<String> requiredTargets) {
         List<Issue> issues = new ArrayList<>();
         if (ne == null || ne.trim().isEmpty()) { issues.add(new Issue(Kind.EMPTY, true, null)); return issues; }
-        return compareJaToNe(JaAnalyzer.analyze(sourceJa), NeAnalyzer.analyze(ne), requiredTargets, issues);
+        return compareJaToNe(sourceJa(sourceJa), NeAnalyzer.analyze(ne), requiredTargets, issues);
     }
 
     /** ja -> ne, on IRs already built (the source IR can be reused across candidates). */
@@ -92,6 +131,8 @@ public final class TranslationValidator {
         if (src.currencies.contains(Currency.RUPEE) && !tgt.currencies.contains(Currency.RUPEE)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "रुपैयाँ"));
         if (!src.currencies.contains(Currency.RUPEE) && tgt.currencies.contains(Currency.RUPEE)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "रुपैयाँ"));
         if (!src.currencies.contains(Currency.DOLLAR) && tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "डलर"));
+        if (src.currencies.contains(Currency.DOLLAR) && !tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "डलर"));
+        if (!src.currencies.contains(Currency.YEN) && tgt.currencies.contains(Currency.YEN)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "येन"));
         if (NE_YUAN.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "युआन"));
     }
 
@@ -99,13 +140,13 @@ public final class TranslationValidator {
     public static List<Issue> validateNeToJa(String sourceNe, String ja) {
         List<Issue> issues = new ArrayList<>();
         if (ja == null || ja.trim().isEmpty()) { issues.add(new Issue(Kind.EMPTY, true, null)); return issues; }
-        return compareNeToJa(NeAnalyzer.analyze(sourceNe), JaAnalyzer.analyze(ja), issues);
+        return compareNeToJa(sourceNe(sourceNe), JaAnalyzer.analyze(ja), issues);
     }
 
     /** ne -> ja, on IRs already built. */
     public static List<Issue> compareNeToJa(LanguageIR src, LanguageIR tgt, List<Issue> issues) {
         checkNumbers(src.numbers, tgt.numbersNormalized, issues);   // 三人 in the output = 3 in the source
-        if (src.negated && !tgt.negated) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
+        if (src.negated && !tgt.negated && !JA_NEG_MEANING.matcher(jaForNegCover(src.originalText, tgt.originalText)).find()) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
         if (!src.negated && tgt.negated) issues.add(new Issue(Kind.NEGATION_ADDED, false, null));
         if (NE_SCRIPT.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
         if (tgt.degenerateRepeat) issues.add(new Issue(Kind.REPETITION, true, null));
@@ -122,12 +163,19 @@ public final class TranslationValidator {
         if (src.currencies.contains(Currency.RUPEE) && !tgt.currencies.contains(Currency.RUPEE)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "ルピー"));
         if (!src.currencies.contains(Currency.YEN) && tgt.currencies.contains(Currency.YEN)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "円"));
         if (!src.currencies.contains(Currency.DOLLAR) && tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "ドル"));
+        if (src.currencies.contains(Currency.YEN) && !tgt.currencies.contains(Currency.YEN)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "円"));
+        if (src.currencies.contains(Currency.DOLLAR) && !tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "ドル"));
         for (String place : Places.keys()) {
             boolean inSrc = src.places.contains(place);
             if (inSrc && !tgt.places.contains(place)) issues.add(new Issue(Kind.PLACE_MISSING, true, place));
             // a known place in the output that the source never mentions: hallucinated (ネバダ州シアトル)
             if (!inSrc && tgt.placesAsPlace.contains(place)) issues.add(new Issue(Kind.PLACE_ADDED, true, place));
+            // 北ネパール for plain नेपाल: an invented direction
+            java.util.regex.Matcher dir = java.util.regex.Pattern.compile("[北南東西]" + java.util.regex.Pattern.quote(place)).matcher(tgt.originalText);
+            if (inSrc && dir.find() && !NE_DIRECTION.matcher(src.originalText).find()) issues.add(new Issue(Kind.PLACE_ADDED, true, dir.group()));
         }
+        String anto = Traps.antonymSwapped(src.originalText, tgt.originalText, false);
+        if (anto != null) issues.add(new Issue(Kind.ANTONYM_SWAPPED, true, anto));
     }
 
     /** ja -> ne agreement: what the Japanese source states must be expressible by the candidate's forms. */
@@ -152,6 +200,10 @@ public final class TranslationValidator {
         if (Traps.guidanceReversed(sj, tn)) issues.add(new Issue(Kind.GUIDANCE_REVERSED, true, null));
         if (Traps.watchOverLost(sj, tn)) issues.add(new Issue(Kind.WATCH_OVER_LOST, false, null));
         if (Traps.careWordSwapped(sj, tn)) issues.add(new Issue(Kind.CARE_WORD_SWAPPED, true, null));
+        String anto = Traps.antonymSwapped(sj, tn, true);
+        if (anto != null) issues.add(new Issue(Kind.ANTONYM_SWAPPED, true, anto));
+        String sense = Traps.wordSense(sj, tn);
+        if (sense != null) issues.add(new Issue(Kind.WORD_SENSE, false, sense));
         if (Traps.seasonalReversed(sj, tn)) issues.add(new Issue(Kind.SEASONAL_REVERSED, true, null));
     }
 
@@ -161,6 +213,12 @@ public final class TranslationValidator {
             if (!rest.remove(n)) issues.add(new Issue(Kind.NUMBER_LOST, true, n));
         }
         for (String n : rest) issues.add(new Issue(Kind.NUMBER_ADDED, false, n));
+        // the same numbers in another order (3月5日 -> 5月3日): soft, a word order change can be right
+        if (a.size() >= 2 && rest.isEmpty() && a.size() == b.size()) {
+            List<String> sa = new ArrayList<>(a), sb = new ArrayList<>(b);
+            java.util.Collections.sort(sa); java.util.Collections.sort(sb);
+            if (sa.equals(sb) && !a.equals(b)) issues.add(new Issue(Kind.NUMBER_ORDER_CHANGED, false, null));
+        }
     }
 
     /**

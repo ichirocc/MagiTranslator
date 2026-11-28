@@ -93,6 +93,9 @@ public abstract class VoiceTranslationService extends GeneralService {
     @Nullable
     protected TTSEngine ttsEngine;
     protected Handler mainHandler;
+    private static final Object MIC_RESTART_TOKEN = new Object();   //cancels only the delayed mic restart
+    /** set first thing in onDestroy: no callback (TTS end, delayed mic restart) may reopen the mic afterwards */
+    protected volatile boolean destroyed = false;
     protected Handler mainTTSHandler;
     private static final long WAKELOCK_TIMEOUT = 600 * 1000L;  // 10 minutes, so if the service stopped without calling onDestroyed the wakeLock would still be released within 10 minutes (the wakeLock will be reacquired before the 10 minutes if the service is still running)
     private Timer wakeLockTimer;  // to reactivate the timer every 10 minutes, so as long as the service is active the wakelock will never expire
@@ -131,7 +134,12 @@ public abstract class VoiceTranslationService extends GeneralService {
             void onUtteranceStarting(GuiMessage message, boolean first) {
                 //if (ttsEngine != null && shouldDeactivateMicDuringTTS() && ttsEngine.isEmpty() && !ttsEngine.isPaused()) {
                 notifyTTSStarted(String.valueOf(message.getMessageID()));
-                if(first) {
+                //a mic restart scheduled at the end of the previous reading must not fire during this one (the mic
+                //would hear the TTS)
+                mainHandler.removeCallbacksAndMessages(MIC_RESTART_TOKEN);
+                //same condition as the restart in onUtteranceFinished: with a Bluetooth headset the mic stays on (it
+                //was stopped here and then never restarted, so the conversation stopped after the first reading)
+                if(first && shouldDeactivateMicDuringTTS()) {
                     if (isMicAutomatic) stopVoiceRecorder();
                     notifyMicDeactivated();   // we notify the client
                 }
@@ -147,6 +155,8 @@ public abstract class VoiceTranslationService extends GeneralService {
                     mainHandler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
+                            if (destroyed) return;
+                            if (ttsEngine != null && !ttsEngine.isEmpty()) return;   //another reading is queued: it restarts the mic when it ends
                             if (shouldDeactivateMicDuringTTS()) {
                                 if (!isMicMute) {
                                     startVoiceRecorder();
@@ -154,7 +164,7 @@ public abstract class VoiceTranslationService extends GeneralService {
                                 notifyMicActivated();
                             }
                         }
-                    }, TIME_BEFORE_REACTIVATING_MIC_AFTER_TTS);  //4000
+                    }, MIC_RESTART_TOKEN, TIME_BEFORE_REACTIVATING_MIC_AFTER_TTS);  //4000
                 }
             }
 
@@ -225,6 +235,7 @@ public abstract class VoiceTranslationService extends GeneralService {
     }*/
 
     public void startVoiceRecorder() {
+        if (destroyed) return;   // a late callback (TTS end, delayed restart) after onDestroy must not reopen the mic
         Log.i("recorder", "recorder started");
         if (!Tools.hasPermissions(this, Global.REQUIRED_PERMISSIONS_VOICE)) {
             notifyError(new int[]{MISSING_MIC_PERMISSION}, -1);
@@ -340,6 +351,7 @@ public abstract class VoiceTranslationService extends GeneralService {
 
     @Override
     public synchronized void onDestroy() {
+        destroyed = true;
         super.onDestroy();
         // Stop listening to voice
         stopVoiceRecorder();
@@ -352,6 +364,8 @@ public abstract class VoiceTranslationService extends GeneralService {
             ttsEngine.stop();
             ttsEngine.shutdown();
         }
+        // drop the delayed mic restart that ttsEngine.stop() may just have scheduled (onUtteranceFinished)
+        if (mainHandler != null) mainHandler.removeCallbacksAndMessages(null);
         //stop foreground
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stopForeground(Service.STOP_FOREGROUND_REMOVE);

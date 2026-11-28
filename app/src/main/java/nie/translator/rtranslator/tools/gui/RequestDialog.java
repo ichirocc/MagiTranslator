@@ -40,8 +40,8 @@ public class RequestDialog {
         final AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(context);
         builder.setView(dialogLayout);
         builder.setCancelable(true);
-        builder.setPositiveButton(android.R.string.yes, positiveListener);
-        builder.setNegativeButton(android.R.string.no, negativeListener);
+        builder.setPositiveButton(android.R.string.ok, positiveListener);
+        builder.setNegativeButton(android.R.string.cancel, negativeListener);
 
         alertDialog = builder.create();
         alertDialog.setCanceledOnTouchOutside(false);
@@ -52,8 +52,8 @@ public class RequestDialog {
         final AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(context);
         builder.setMessage(message);
         builder.setCancelable(true);
-        builder.setPositiveButton(android.R.string.yes, positiveListener);
-        builder.setNegativeButton(android.R.string.no, negativeListener);
+        builder.setPositiveButton(android.R.string.ok, positiveListener);
+        builder.setNegativeButton(android.R.string.cancel, negativeListener);
 
         alertDialog = builder.create();
         alertDialog.setCanceledOnTouchOutside(false);

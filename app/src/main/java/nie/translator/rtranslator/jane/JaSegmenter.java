@@ -26,7 +26,20 @@ public final class JaSegmenter {
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if ("「『（(【".indexOf(c) >= 0) depth++;
-            if ("」』）)】".indexOf(c) >= 0 && depth > 0) depth--;
+            if ("」』）)】".indexOf(c) >= 0 && depth > 0) {
+                depth--;
+                // 「明日行きます。」「今日は帰ります。」: a quoted sentence that is complete, followed by another quote
+                // (or the end), is a sentence of its own; 「…。」と言いました stays one
+                int last = cur.length() - 1;
+                if (depth == 0 && last >= 0 && "。！？".indexOf(cur.charAt(last)) >= 0
+                        && (i + 1 >= text.length() || "「『（(【".indexOf(text.charAt(i + 1)) >= 0 || Character.isWhitespace(text.charAt(i + 1)))) {
+                    cur.append(c);
+                    String q = cur.toString().trim();   //already ends with 。」: no extra 。 (flush would add one)
+                    cur.setLength(0);
+                    if (!q.isEmpty()) out.add(q);
+                    continue;
+                }
+            }
             if (Character.isWhitespace(c) && depth == 0 && endsWithPoliteForm(cur) && !startsWithContinuation(text, i + 1)) {
                 flush(cur, out);
                 continue;

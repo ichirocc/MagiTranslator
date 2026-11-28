@@ -107,7 +107,7 @@ public class DownloadGroupInfo implements Parcelable{
     };
 
     private DownloadGroupInfo(Parcel in) {
-        downloadsInfo = (DownloadInfo[]) in.readParcelableArray(DownloadInfo.class.getClassLoader());
+        downloadsInfo = in.readParcelableArray(DownloadInfo.class.getClassLoader(), DownloadInfo.class);
         runningDownloadIndex = in.readInt();
         currentProgress = in.readInt();
         allDownloadCompleted = in.readByte() != 0;

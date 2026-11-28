@@ -118,7 +118,7 @@ public class RecentPeer implements Parcelable, Listable {
     //parcelable implementation
     public RecentPeer(Parcel in) {
         deviceID=in.readString();
-        peer= (GuiPeer) Objects.requireNonNull(in.readParcelable(GuiPeer.class.getClassLoader()));
+        peer= Objects.requireNonNull(in.readParcelable(GuiPeer.class.getClassLoader(), GuiPeer.class));
     }
 
     public static final Creator<RecentPeer> CREATOR = new Creator<RecentPeer>() {

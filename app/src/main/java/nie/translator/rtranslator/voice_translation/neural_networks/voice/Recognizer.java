@@ -53,8 +53,9 @@ public class Recognizer extends NeuralNetworkApi {
     private static final int MAX_TOKENS_PER_SECOND = 30;
     private static final int MAX_TOKENS = 445;   //if we generate more than this quantity of tokens for a transcription we have an error
     public static final String UNDEFINED_TEXT = "[(und)]";
-    private ArrayList<RecognizerListener> callbacks = new ArrayList<>();
-    private ArrayList<RecognizerMultiListener> multiCallbacks = new ArrayList<>();
+    //added / removed on the main thread, walked on the recognizer thread: a copy-on-write list never changes under the walk
+    private final java.util.List<RecognizerListener> callbacks = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<RecognizerMultiListener> multiCallbacks = new java.util.concurrent.CopyOnWriteArrayList<>();
     private boolean recognizing = false;
     private ArrayDeque<DataContainer> dataToRecognize = new ArrayDeque<>();
     private final Object lock = new Object();
@@ -177,6 +178,7 @@ public class Recognizer extends NeuralNetworkApi {
     // so the initializer and detokenizer sessions are shared with the base model.
     private OrtSession neEncoderSession, neCacheInitSession, neCacheInitBatchSession, neDecoderSession;
     private boolean neModelTried = false;
+    private long neModelRetryAt = 0;   //> 0: a temporary failure (memory), ensureNeModel() may try again from then
     private OrtEnvironment onnxEnv;
 
 
@@ -228,23 +230,28 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     }
 
     public void initializeEncoderSession() throws OrtException {
-        // release of encoder session in case of a restart
-        if(encoderSession != null){
-            encoderSession.close();
-        }
-        // encoder session initialization
+        // build the new session first: if that fails the old one stays usable
         String encoderPath = global.getFilesDir().getPath() + "/Whisper_encoder.onnx";
-        OrtSession.SessionOptions encoderSessionOptions = new OrtSession.SessionOptions();
-        if(global.isWhisperReducedRam()){
-            encoderSessionOptions.setCPUArenaAllocator(false);
-            encoderSessionOptions.setMemoryPatternOptimization(false);
-        }else {
-            encoderSessionOptions.setCPUArenaAllocator(true);
-            encoderSessionOptions.setMemoryPatternOptimization(true);
+        OrtSession fresh;
+        try (OrtSession.SessionOptions encoderSessionOptions = new OrtSession.SessionOptions()) {
+            if(global.isWhisperReducedRam()){
+                encoderSessionOptions.setCPUArenaAllocator(false);
+                encoderSessionOptions.setMemoryPatternOptimization(false);
+            }else {
+                encoderSessionOptions.setCPUArenaAllocator(true);
+                encoderSessionOptions.setMemoryPatternOptimization(true);
+            }
+            encoderSessionOptions.setSymbolicDimensionValue("batch_size", 1);
+            encoderSessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+            fresh = onnxEnv.createSession(encoderPath, encoderSessionOptions);
         }
-        encoderSessionOptions.setSymbolicDimensionValue("batch_size", 1);
-        encoderSessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-        encoderSession = onnxEnv.createSession(encoderPath, encoderSessionOptions);
+        // swap under the recognition lock (recognize() runs entirely inside it), then close the old one
+        OrtSession old;
+        synchronized (lock) {
+            old = encoderSession;
+            encoderSession = fresh;
+        }
+        if (old != null) old.close();
     }
 
     /**
@@ -257,14 +264,27 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     // (and costs a thread per utterance); recognition itself still runs under lock as before
     private final java.util.concurrent.ExecutorService enqueueExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> new Thread(r, "recognizer"));
 
+    // bumped by stop() on the caller's thread: chunks handed in before it are dropped even if still queued in the executor
+    private final java.util.concurrent.atomic.AtomicInteger generation = new java.util.concurrent.atomic.AtomicInteger();
+
+    /** "ne-NP" / "ja_JP" -> "ne" / "ja" for Whisper's language tokens and the Nepali checks; the reported code stays as given */
+    private static String bareLanguage(String code) {
+        if (code == null) return null;
+        int cut = code.indexOf('-'); if (cut < 0) cut = code.indexOf('_');
+        return (cut > 0 ? code.substring(0, cut) : code).toLowerCase(java.util.Locale.ROOT);
+    }
+
     public void recognize(final float[] data, int beamSize, final String languageCode) {
+        final int gen = generation.get();
+        if (enqueueExecutor.isShutdown()) return;   //destroyed: a late chunk from an old reference is dropped
         enqueueExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                if (gen != generation.get()) return;
                 synchronized (lock) {
-                    Log.e("recognizer","recognizingCalled");
+                    Log.d("recognizer","recognizingCalled");
                     if (data != null) {
-                        if ("ne".equals(languageCode)) {
+                        if ("ne".equals(bareLanguage(languageCode))) {
                             //MagiTranslator: decode Nepali twice in one batch (constrained + free) and keep the best
                             DataContainer dual = new DataContainer(data, beamSize, languageCode, languageCode);
                             dual.neDual = true;
@@ -282,11 +302,14 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     }
 
     public void recognize(final float[] data, int beamSize, final String languageCode1, final String languageCode2) {
+        final int gen = generation.get();
+        if (enqueueExecutor.isShutdown()) return;   //destroyed: a late chunk from an old reference is dropped
         enqueueExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                if (gen != generation.get()) return;
                 synchronized (lock) {
-                    Log.e("recognizer","recognizingCalled");
+                    Log.d("recognizer","recognizingCalled");
                     if (data != null) {
                         dataToRecognize.addLast(new DataContainer(data, beamSize, languageCode1, languageCode2));
                         if (dataToRecognize.size() >= 1 && !recognizing) {
@@ -314,7 +337,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                     OnnxTensor audioTensor = OnnxTensor.createTensor(onnxEnv, floatAudioDataBuffer, TensorUtils.tensorShape(1L, (long) data.data.length));
 
                     // if we generate more than this number of tokens it means that we have an infinite loop due to the fact that the sound cannot be transcribed with the language selected
-                    int maxTokens = (data.data.length / Recorder.SAMPLE_RATE_CANDIDATES[0]) * MAX_TOKENS_PER_SECOND;
+                    //proportional, rounded up: whole seconds gave 0 tokens under 1 s ("はい" hit the limit at once and came
+                    //back empty) and 30 for anything up to 1.99 s
+                    int maxTokens = Math.max(1, (int) Math.ceil((double) data.data.length / Recorder.SAMPLE_RATE_CANDIDATES[0] * MAX_TOKENS_PER_SECOND));
                     if(maxTokens > MAX_TOKENS){
                         maxTokens = MAX_TOKENS;
                     }
@@ -413,6 +438,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                     final int firstRecordedStep = prefixLen - 3;   //keeps the original layout: content starts at index 3
                     double noSpeechProb1 = 0;
                     double noSpeechProb2 = 0;
+                    int scored1 = 0, scored2 = 0;   //tokens summed into outputProbability1 / 2
                     
                     while (!(max == eos && max2 == eos)) {
                         initialTime = System.currentTimeMillis();
@@ -487,15 +513,16 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, new int[]{max, max2}, new long[]{2,1});
                         }
 
-                        if(batchSize == 2 && j >= firstRecordedStep){
-                            //we calculate and update the probabilities of the two output sentences
-                            double softmax = Utils.softmax(outputValues[max], outputValues);
-                            if(!finished1) {
-                                outputProbability1 = outputProbability1 + Math.log(softmax);
-                            }
-                            if(!finished2) {
-                                outputProbability2 = outputProbability2 + Math.log(Utils.softmax(outputValues2[max2], outputValues2));
-                            }
+                        //the score covers the generated text only (j >= prefixLen), as in Whisper: the predictions made while the
+                        //forced prefix is fed (transcribe / no-timestamps / prompt tokens) are near-certain and pulled the
+                        //average up, most for short utterances, so the silence rule fired less than it should
+                        if(j >= prefixLen && !finished1){
+                            outputProbability1 = outputProbability1 + Math.log(Utils.softmax(outputValues[max], outputValues));
+                            scored1++;
+                        }
+                        if(batchSize == 2 && j >= prefixLen && !finished2){
+                            outputProbability2 = outputProbability2 + Math.log(Utils.softmax(outputValues2[max2], outputValues2));
+                            scored2++;
                         }
 
                         if(j >= maxTokens + (prefixLen - 4)) {
@@ -526,14 +553,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                         j++;
                     }
 
-                    if(batchSize == 1 && data.neDual && completeOutput.size() > 0) {
-                        outputProbability1 = outputProbability1 / completeOutput.size();   //same scale as the dual path's silence rule
-                    }
-                    if(batchSize == 2) {
-                        //we normalize the scores based on the number of tokens of the respective sequence
-                        outputProbability1 = outputProbability1 / completeOutput.size();
-                        outputProbability2 = outputProbability2 / completeOutput2.size();
-                    }
+                    //average log-probability per generated token
+                    if (scored1 > 0) outputProbability1 = outputProbability1 / scored1;
+                    if (batchSize == 2 && scored2 > 0) outputProbability2 = outputProbability2 / scored2;
 
                     //execution of the detokenizer
                     if(batchSize == 1) {
@@ -554,7 +576,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             if (!silent && nepaliHardScore(neText, execution1HitMaxLength) >= BROKEN_TEXT_PENALTY) neText = UNDEFINED_TEXT;
                             emitNeResult(data, silent ? UNDEFINED_TEXT : neText, outputProbability1);
                         } else {
-                            notifyResult(correctText(finalText), data.languageCode, outputProbability1, true);
+                            //one language: Whisper's silence rule too (「ご視聴ありがとうございました」 on noise)
+                            boolean silent = noSpeechProb1 > NO_SPEECH_THRESHOLD && outputProbability1 < LOGPROB_THRESHOLD;
+                            notifyResult(silent ? UNDEFINED_TEXT : correctText(finalText), data.languageCode, outputProbability1, true);
                         }
 
                     }else{
@@ -582,8 +606,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             long hard1 = nepaliHardScore(constrained, execution1HitMaxLength);
                             long hard2 = nepaliHardScore(free, execution2HitMaxLength);
                             //Whisper's silence rule: no_speech > 0.6 and avg logprob < -1 -> hallucination on silence
-                            boolean silent = Math.max(noSpeechProb1, noSpeechProb2) > NO_SPEECH_THRESHOLD
-                                    && Math.max(outputProbability1, outputProbability2) < LOGPROB_THRESHOLD;
+                            //per row (a row's no_speech with the same row's logprob), silent only when both rows are
+                            boolean silent = (noSpeechProb1 > NO_SPEECH_THRESHOLD && outputProbability1 < LOGPROB_THRESHOLD)
+                                    && (noSpeechProb2 > NO_SPEECH_THRESHOLD && outputProbability2 < LOGPROB_THRESHOLD);
                             if (silent) {
                                 android.util.Log.i("result", "ne keep-best: dropped as silence, no_speech=" + noSpeechProb1);
                                 outputs.close();
@@ -598,13 +623,17 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             String t1 = correctText(firstText), t2 = correctText(secondText);
                             //Whisper's silence rule, as for Nepali: no_speech > 0.6 and avg logprob < -1 means the text is
                             //a hallucination on silence / noise (on the phone: 「ご視聴ありがとうございました」)
-                            if (Math.max(noSpeechProb1, noSpeechProb2) > NO_SPEECH_THRESHOLD
-                                    && Math.max(outputProbability1, outputProbability2) < LOGPROB_THRESHOLD) {
-                                android.util.Log.i("result", "dropped as silence, no_speech=" + Math.max(noSpeechProb1, noSpeechProb2));
+                            //judged per row: the max of one row's no_speech and the max of the other row's logprob mixed two
+                            //different candidates and could drop real speech
+                            if (noSpeechProb1 > NO_SPEECH_THRESHOLD && outputProbability1 < LOGPROB_THRESHOLD) {
+                                android.util.Log.i("result", "row 1 dropped as silence, no_speech=" + noSpeechProb1);
                                 t1 = UNDEFINED_TEXT;
+                            }
+                            if (noSpeechProb2 > NO_SPEECH_THRESHOLD && outputProbability2 < LOGPROB_THRESHOLD) {
+                                android.util.Log.i("result", "row 2 dropped as silence, no_speech=" + noSpeechProb2);
                                 t2 = UNDEFINED_TEXT;
                             }
-                            boolean neFirst = "ne".equals(data.languageCode), neSecond = "ne".equals(data.languageCode2);
+                            boolean neFirst = "ne".equals(bareLanguage(data.languageCode)), neSecond = "ne".equals(bareLanguage(data.languageCode2));
                             boolean neWins = (neFirst && outputProbability1 >= outputProbability2) || (neSecond && outputProbability2 > outputProbability1);
                             if (neWins && ensureNeModel()) {
                                 // the base model decided "this is Nepali": transcribe again with the Nepali model and
@@ -700,7 +729,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      * score and break the two-language auto detection (e.g. ja vs ne).
      */
     private float[] constrainedLogits(float[] raw, @Nullable String languageCode, ArrayList<Integer> generated) {
-        if (!"ne".equals(languageCode)) return raw;
+        if (!"ne".equals(bareLanguage(languageCode))) return raw;
         boolean[] allowed = getNeAllowedTokens();
         if (allowed.length == 0) return raw;
         float[] logits = raw.clone();
@@ -745,6 +774,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     /** Lazily loads the Nepali Whisper (files/Whisper_ne/). Returns false (base model is used) when absent or broken. */
     private boolean ensureNeModel() {
         if (neDecoderSession != null) return true;
+        if (neModelTried && neModelRetryAt > 0 && System.currentTimeMillis() >= neModelRetryAt) { neModelTried = false; neModelRetryAt = 0; }
         if (neModelTried) return false;
         neModelTried = true;
         if (!nie.translator.rtranslator.tools.MemoryGuard.hasRoomFor(global,
@@ -764,8 +794,10 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
         OrtSession e = null, c = null, cb = null;
         try (OrtSession.SessionOptions enc = new OrtSession.SessionOptions();
              OrtSession.SessionOptions other = new OrtSession.SessionOptions()) {   //options are copied into the sessions
-            enc.setCPUArenaAllocator(true);
-            enc.setMemoryPatternOptimization(true);
+            //the same memory setting as the base encoder (initializeEncoderSession): reduced RAM = no arena, no pattern
+            boolean fast = !global.isWhisperReducedRam();
+            enc.setCPUArenaAllocator(fast);
+            enc.setMemoryPatternOptimization(fast);
             enc.setSymbolicDimensionValue("batch_size", 1);
             enc.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
             other.setCPUArenaAllocator(false);
@@ -780,6 +812,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
             return true;
         } catch (Exception ex) {
             ex.printStackTrace();
+            //out of memory is temporary: try again in 5 minutes. A broken file stays on the base model (no retry loop)
+            String m = String.valueOf(ex.getMessage()).toLowerCase(java.util.Locale.ROOT);
+            if (m.contains("bad_alloc") || m.contains("out of memory") || m.contains("failed to allocate")) neModelRetryAt = System.currentTimeMillis() + 5 * 60_000L;
             //a broken file: free the sessions already created (native memory), the base model is used from now on
             for (OrtSession partial : new OrtSession[]{e, c, cb}) {
                 if (partial != null) try { partial.close(); } catch (Exception ignored) {}
@@ -881,6 +916,8 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      * handed in before stop() are dropped, chunks handed in after it are kept. The utterance in progress finishes.
      */
     public void stop(){
+        generation.incrementAndGet();   // chunks still waiting in the executor are skipped
+        if (enqueueExecutor.isShutdown()) return;
         enqueueExecutor.execute(() -> {
             synchronized (lock) {
                 dataToRecognize.clear();
@@ -888,11 +925,33 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
         });
     }
 
+    /**
+     * Releases the sessions and the recognizer thread (Global.deleteSpeechRecognizer, e.g. after a failed load, before
+     * the next load creates a new Recognizer). Queued chunks are dropped; an utterance in progress finishes first,
+     * because the close runs on the recognizer's own thread under {@code lock}.
+     */
     public void destroy() {
-        //eventually if in the future I decide to load Whisper only for WalkieTalkie and Conversation then all the resources will be released here
+        generation.incrementAndGet();
+        try {
+            enqueueExecutor.execute(() -> {
+                synchronized (lock) {
+                    dataToRecognize.clear();
+                    for (OrtSession s : new OrtSession[]{session, initSession, encoderSession, cacheInitSession, cacheInitBatchSession,
+                            decoderSession, neEncoderSession, neCacheInitSession, neCacheInitBatchSession, neDecoderSession}) {
+                        if (s != null) { try { s.close(); } catch (Exception ignored) {} }
+                    }
+                    session = initSession = encoderSession = cacheInitSession = cacheInitBatchSession = decoderSession = null;
+                    neEncoderSession = neCacheInitSession = neCacheInitBatchSession = neDecoderSession = null;
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException alreadyDestroyed) {
+            return;
+        }
+        enqueueExecutor.shutdown();   //the thread ends after the close above
     }
 
     public int getLanguageID(String language){
+        language = bareLanguage(language);
         for (int i = 0; i < LANGUAGES.length; i++) {
             if (LANGUAGES[i].equals(language)) {
                 return START_TOKEN_ID + i + 1;
@@ -919,23 +978,23 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     }
 
     private void notifyResult(String text, String languageCode, double confidenceScore, boolean isFinal) {
-        for (int i = 0; i < callbacks.size(); i++) {
-            callbacks.get(i).onSpeechRecognizedResult(text, languageCode, confidenceScore, isFinal);
+        for (RecognizerListener callback : callbacks) {   //a snapshot: removals during the walk do not skip or overflow
+            callback.onSpeechRecognizedResult(text, languageCode, confidenceScore, isFinal);
         }
     }
 
     private void notifyMultiResult(String text1, String languageCode1, double confidenceScore1, String text2, String languageCode2, double confidenceScore2) {
-        for (int i = 0; i < multiCallbacks.size(); i++) {
-            multiCallbacks.get(i).onSpeechRecognizedResult(text1, languageCode1, confidenceScore1, text2, languageCode2, confidenceScore2);
+        for (RecognizerMultiListener callback : multiCallbacks) {
+            callback.onSpeechRecognizedResult(text1, languageCode1, confidenceScore1, text2, languageCode2, confidenceScore2);
         }
     }
 
     private void notifyError(int[] reasons, long value) {
-        for (int i = 0; i < callbacks.size(); i++) {
-            callbacks.get(i).onError(reasons, value);
+        for (RecognizerListener callback : callbacks) {
+            callback.onError(reasons, value);
         }
-        for (int i = 0; i < multiCallbacks.size(); i++) {
-            multiCallbacks.get(i).onError(reasons, value);
+        for (RecognizerMultiListener callback : multiCallbacks) {
+            callback.onError(reasons, value);
         }
     }
 
@@ -980,7 +1039,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      * utterance in progress) and this returns at once: true when the Nepali model is loaded and a release was queued.
      */
     public boolean releaseIdleNeModel() {
-        if (neDecoderSession == null) return false;   //racy read, only to skip an obviously useless request
+        if (neDecoderSession == null || enqueueExecutor.isShutdown()) return false;   //racy read, only to skip an obviously useless request
         enqueueExecutor.execute(this::releaseIdleNeModelNow);
         return true;
     }

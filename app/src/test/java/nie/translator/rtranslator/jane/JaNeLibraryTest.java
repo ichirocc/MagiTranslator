@@ -58,6 +58,24 @@ public class JaNeLibraryTest {
         eq("[雨が降っていますが 行きます。]", JaSegmenter.split("雨が降っていますが 行きます"), "no split before conjunctive が");
         eq("[ますます 暑くなります。]", JaSegmenter.split("ますます 暑くなります"), "ますます not split");
         eq("[彼は「行きます。来ます。」と言いました。]", JaSegmenter.split("彼は「行きます。来ます。」と言いました。"), "no split inside quotes");
+        eq("[「明日行きます。」, 「今日は帰ります。」]", JaSegmenter.split("「明日行きます。」「今日は帰ります。」"), "two quoted sentences split");
+        eq("New Yorkに住んでいます", JaNeTranslator.finishJa("New York に 住んでいます"), "finishJa keeps the space inside Latin words");
+        eq("तपाईं आउनुहुन्छ?", JaNeTranslator.finishNe("तपाईं आउनुहुन्छ", "来ますか？"), "finishNe keeps the question mark");
+        eq("[25]", nie.translator.rtranslator.jane.text.Numbers.numbers("पच्चीस जना").toString(), "Nepali 25 as a word");
+        eq("[100000]", nie.translator.rtranslator.jane.text.Numbers.numbers("एक लाख").toString(), "Nepali lakh");
+        eq("100000000円", nie.translator.rtranslator.jane.text.KanjiNumber.toDigits("一億円"), "kanji 億");
+        eq("[999999999999999999999999]", nie.translator.rtranslator.jane.text.Numbers.numbers("999999999999999999999999 लाख").toString(), "huge number before लाख: no overflow");
+        yes(TranslationValidator.validateJaToNe("3月5日に来ます。", "५ मार्च ३ मा आउँछु।", java.util.Collections.emptyList()).toString().contains("NUMBER_ORDER_CHANGED"), "numbers in another order");
+        { StringBuilder sb = new StringBuilder(); for (int k = 0; k < 90; k++) sb.append("धेरै राम्रो "); 
+          java.util.List<String> cp = PlamoTranslator.capLength(java.util.Collections.singletonList(sb.toString().trim()));
+          boolean okLen = cp.size() > 1; for (String p : cp) okLen &= p.length() <= PlamoTranslator.MAX_PIECE_CHARS;
+          yes(okLen, "PLaMo pieces capped at MAX_PIECE_CHARS"); }
+        { StringBuilder sb = new StringBuilder(); while (sb.length() < 1000) sb.append("क्षत्रिय");
+          String t = sb.toString(); java.util.List<String> cp = PlamoTranslator.capLength(java.util.Collections.singletonList(t));
+          boolean ok = String.join("", cp).equals(t);
+          for (String p : cp) { int ty = Character.getType(p.charAt(0)); ok &= p.length() <= PlamoTranslator.MAX_PIECE_CHARS
+                  && ty != Character.NON_SPACING_MARK && ty != Character.COMBINING_SPACING_MARK && p.charAt(p.length() - 1) != '\u094D'; }
+          yes(ok, "PLaMo pieces never cut inside a Devanagari syllable"); }
         eq("[行きます。, 明日ですね。, はい。]", JaSegmenter.split("行きます 明日ですね はい"), "split polite ends incl. ね");
         // transliteration
         eq("तानाका", KanaDevanagari.transliterate("タナカ"), "タナカ");
@@ -351,6 +369,22 @@ public class JaNeLibraryTest {
         eq(0, hardNJ.apply("उनी परिवारसँग रमाइलो गर्छिन्।", "彼女は家族と円満に過ごす。"), "円満 is not currency");
         yes(kindsNJ.apply("म नेपालबाट आएँ।", "ネバダ州シアトル出身。").contains("PLACE_MISSING"), "nj17: नेपाल missing");
         yes(kindsNJ.apply("म नेपालबाट आएँ।", "ネバダ州シアトル出身。").contains("PLACE_ADDED"), "nj17: hallucinated ネバダ/シアトル");
+        yes(kindsNJ.apply("सीता नेपालबाट आएकी हुन्।", "北ネパールから来たんです。").contains("PLACE_ADDED"), "nj17: invented 北 before ネパール");
+        java.util.function.BiFunction<String, String, String> kindsJN = (s, h) -> TranslationValidator.validateJaToNe(s, h, java.util.Collections.emptyList()).toString();
+        yes(kindsJN.apply("熱を下げる薬です。", "यो ज्वरो लैजाने औषधि हो।").contains("WORD_SENSE"), "polysemy: 熱を下げる as take away");
+        yes(kindsJN.apply("昨日、転びました。", "भोलि लडें।").contains("ANTONYM_SWAPPED"), "antonym: 昨日 as भोलि");
+        yes(!kindsJN.apply("昨日、転びました。", "हिजो लडें।").contains("ANTONYM_SWAPPED"), "antonym: 昨日 as हिजो is right");
+        yes(kindsNJ.apply("दायाँ हात उठाउनुहोस्।", "左手を上げてください。").contains("ANTONYM_SWAPPED"), "antonym: दायाँ as 左");
+        yes(kindsNJ.apply("अहँ, छैन।", "いいえ、あります。").contains("NEGATION_LOST"), "negation: leading いいえ does not cover a negated rest");
+        yes(kindsNJ.apply("कसले लेख्यो?", "書きました。").contains("QUESTION_WORD_LOST"), "wh: कसले (who) lost");
+        yes(!kindsNJ.apply("कसले लेख्यो?", "誰が書きましたか？").contains("QUESTION_WORD_LOST"), "wh: कसले as 誰");
+        yes(kindsNJ.apply("कुन किताब किन्नुभयो?", "本を買いましたか？").contains("QUESTION_WORD_LOST"), "wh: कुन (which) lost");
+        yes(kindsJN.apply("手伝ってください。", "ऊ घर जान्छ।").contains("REQUEST_LOST"), "request: the pronoun ऊ is not a request");
+        yes(!kindsNJ.apply("अहँ, पर्दैन।", "いえ、けっこうです。").contains("NEGATION_LOST"), "negation: いえ、けっこうです is right");
+        yes(!kindsJN.apply("お皿を下げますね。", "थाल लैजान्छु है।").contains("WORD_SENSE"), "polysemy: お皿を下げる as take away is right");
+        yes(!kindsNJ.apply("म पूर्वी नेपालबाट आएँ।", "東ネパールから来ました。").contains("PLACE_ADDED"), "pūrvī नेपाल = 東ネパール");
+        yes(!kindsNJ.apply("चिन्ता नगर्नुहोस्", "大丈夫ですよ").contains("NEGATION_LOST"), "ne->ja: 大丈夫 renders नगर्नुहोस्");
+        yes(kindsNJ.apply("आज म जान्नँ।", "今日は行きます。").contains("NEGATION_LOST"), "ne->ja: real negation loss still caught");
         eq(0, hardNJ.apply("म नेपालबाट आएँ।", "私はネパールから来ました。"), "nj17: ネパール ok");
         eq(0, hardNJ.apply("म नेपाली बोल्छु।", "私はネパール語を話します。"), "नेपाली -> ネパール語 is not a place mention");
         eq(0, hardNJ.apply("म जापानी सिक्दैछु।", "私は日本語を勉強しています。"), "जापानी -> 日本語 ok");
@@ -497,6 +531,13 @@ public class JaNeLibraryTest {
             yes(udBad, "user dictionary without header rejected");
             yes(UserDictionary.kindOf("﻿#!jane phrases") == UserDictionary.Kind.PHRASES, "header with BOM");
             Glossary ug = Glossary.withDefaults();
+            PhraseBook amb1 = new PhraseBook();
+            amb1.add("こんにちは", "नमस्ते", false); amb1.add("やあ", "नमस्ते", true);
+            yes(amb1.lookupNeJa("नमस्ते") == null, "phrasebook: a ja>ne line after a two-way one makes the Nepali ambiguous");
+            PhraseBook amb2 = new PhraseBook();
+            amb2.add("やあ", "नमस्ते", true); amb2.add("こんにちは", "नमस्ते", false);
+            yes(amb2.lookupNeJa("नमस्ते") == null, "phrasebook: ... and before it");
+            yes("नमस्ते".equals(amb2.lookupJaNe("やあ")), "phrasebook: ja>ne still used for ja -> ne");
             PhraseBook upb = new PhraseBook();
             UserDictionary.apply(ut, ug, upb);
             java.util.List<String> pref = ug.userPreferred("高血圧の薬です。");

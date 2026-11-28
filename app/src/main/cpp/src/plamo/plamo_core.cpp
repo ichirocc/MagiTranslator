@@ -150,7 +150,8 @@ static size_t shown_length(const std::string &text, const std::vector<std::strin
 }
 
 bool Engine::complete(int slot, const std::string &prompt, int max_tokens, const std::vector<std::string> &stops, std::string *out,
-                      const std::function<void(const std::string &)> &on_text) {
+                      const std::function<void(const std::string &)> &on_text,
+                      const std::function<bool()> &should_stop) {
     out->clear();
     if (slot < 0 || slot >= SLOTS || max_tokens < 0) return false;
     long long t0 = now_us();
@@ -174,6 +175,7 @@ bool Engine::complete(int slot, const std::string &prompt, int max_tokens, const
     size_t shown = 0;
     bool ok = true;
     for (; generated < max_tokens; generated++) {
+        if (should_stop && should_stop()) { ok = false; break; }   // cancelled: stop the CPU work now, not after max_tokens
         const float *logits = llama_get_logits_ith(ctx_, -1);
         if (!logits) { ok = false; break; }
         llama_token t = argmax(logits, n_vocab);

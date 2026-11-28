@@ -365,7 +365,7 @@ public class PairingFragment extends PairingToolbarFragment {
         BluetoothAdapter bluetoothAdapter = nie.translator.rtranslator.bluetooth.tools.BluetoothTools.getAdapter(requireContext());
         if(bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, 2);
+            startActivity(enableBtIntent);   //the result was never read (no onActivityResult for it)
         }
         // release buttons and eliminate any loading
         activateInputs();

@@ -95,10 +95,12 @@ public class NeuralNetworkApi {
                 testOptions.setMemoryPatternOptimization(false);
                 testOptions.setCPUArenaAllocator(false);
                 OrtEnvironment onnxEnv = OrtEnvironment.getEnvironment();
+                int loaded = 0;   //an empty folder (or one without any .onnx) is not a valid model
                 for (File modelFile : files) {
                     if (Thread.currentThread().isInterrupted()) break;
                     if (modelFile.exists() && modelFile.getPath().contains("detokenizer.onnx")) {
                         nie.translator.rtranslator.voice_translation.neural_networks.voice.WhisperDetokenizer.load(modelFile);   //read by Java
+                        loaded++;
                     } else if (modelFile.exists() && FilenameUtils.getExtension(modelFile.getPath()).equals("onnx")) {
                         if (!modelFile.getPath().contains("detokenizer.onnx")) {   //for Whisper_detokenizer.onnx we test with OnnxRuntime optimization because we do it that way in the Recognizer
                             testOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
@@ -106,7 +108,11 @@ public class NeuralNetworkApi {
                             testOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT);
                         }
                         try (OrtSession testSession = onnxEnv.createSession(modelFile.getPath(), testOptions)) {}
+                        loaded++;
                     }
+                }
+                if (loaded == 0 && !Thread.currentThread().isInterrupted()) {
+                    throw new java.io.FileNotFoundException("no model file in " + testFolderPath);
                 }
             }
             isVerifying = false;

@@ -65,7 +65,7 @@ public class Recorder {
     private volatile boolean isManualMode = false;
     public static final int[] SAMPLE_RATE_CANDIDATES = new int[]{16000};
     private static final int CHANNEL = AudioFormat.CHANNEL_IN_MONO;
-    private static int ENCODING;
+    private int ENCODING;   //per Recorder: one AudioRecord is created and read with the same format
     private static int VAD_FRAME_SIZE = 512;
     public static final int MAX_AMPLITUDE_THRESHOLD = 15000;
     public static final int DEFAULT_AMPLITUDE_THRESHOLD = 1500; //old: 2000
@@ -80,7 +80,7 @@ public class Recorder {
     private final Callback mCallback;
     private int sampleRate;
     @Nullable
-    private final AudioRecord mAudioRecord;
+    private volatile AudioRecord mAudioRecord;   //reopened in executeStart() when the mic was busy at construction
     private int mPrevBufferMaxSize;   //the size of the mPrevBuffer (It depends on the settings of the app (prevVoiceDuration))
     private float[] mBuffer;  //PCM FLOAT data, used for Speech recognition and volume level notification
     private short[] mBufferShort;  //PCM 16bit data, used for VAD
@@ -417,7 +417,16 @@ public class Recorder {
     /** Caller must hold lifecycleLock. */
     private void executeStart() {
         pendingStart = false;
-        if (destroyed || mAudioRecord == null || mThread != null) return;
+        if (destroyed || mThread != null) return;
+        if (mAudioRecord == null) {
+            //the mic was busy (a call, another app) when this Recorder was built: try again now instead of staying
+            //silent for the whole session
+            mAudioRecord = createAudioRecord();
+            if (mAudioRecord == null) {
+                Log.e(TAG, "cannot open the microphone (16 kHz)");
+                return;
+            }
+        }
         commands.clear();
         running = true;
         try {

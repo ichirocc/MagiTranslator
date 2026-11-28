@@ -61,12 +61,8 @@ public class AccessActivity extends GeneralActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_access);
 
-        View decorView = getWindow().getDecorView();
-        decorView.setSystemUiVisibility(
-                decorView.getSystemUiVisibility()
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        );
+        // no SYSTEM_UI_FLAG_LAYOUT_STABLE | LAYOUT_FULLSCREEN any more: with targetSdk 36 the window is always drawn
+        // edge to edge (behind the status bar), which is what those flags asked for
 
         Global global = (Global) getApplication();
         if (savedInstanceState != null) {
@@ -222,10 +218,10 @@ public class AccessActivity extends GeneralActivity {
         try {
             Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
             intent.setData(Uri.parse("package:" + getPackageName()));
-            startActivityForResult(intent, 100);
+            startActivity(intent);   //the result was never read (no onActivityResult here)
         } catch (Exception e) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-            startActivityForResult(intent, 100);
+            startActivity(intent);
         }
     }
 

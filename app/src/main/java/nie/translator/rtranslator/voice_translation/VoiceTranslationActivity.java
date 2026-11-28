@@ -118,7 +118,7 @@ public class VoiceTranslationActivity extends GeneralActivity {
             }
         }
 
-        getWindow().setDecorFitsSystemWindows(false);  // drawn behind the status bar (was SYSTEM_UI_FLAG_LAYOUT_STABLE | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+        // drawn behind the status bar: with targetSdk 36 every window is edge to edge (setDecorFitsSystemWindows(false) is a no-op)
 
         fragmentContainer = findViewById(R.id.fragment_container);
 

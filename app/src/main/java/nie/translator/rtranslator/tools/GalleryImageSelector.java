@@ -108,8 +108,15 @@ public class GalleryImageSelector {
     private static final String TEMP_PHOTO_DIRECTORY = "temporary_images";
     private static final String TEMP_PICKED_PHOTO_FILE = "temporary_picked_holder.jpg";
     private static final String TEMP_CROPPED_PHOTO_FILE = "temporary_cropped_holder.jpg";
-    private static int PICK_IMAGE = 1;
-    private static int CROP_IMAGE = 2;
+    public static final int PICK_IMAGE = 1;
+    public static final int CROP_IMAGE = 2;
+
+    /** Starts an activity for a result; the host routes the result back to onActivityResult(requestCode, ...). */
+    public interface Launcher { void launch(Intent intent, int requestCode); }
+    private Launcher launcher;
+
+    /** The host fragment registers its ActivityResultLaunchers (registerForActivityResult) and passes them here. */
+    public void setLauncher(Launcher launcher) { this.launcher = launcher; }
     private ImageView imageView;
     private Bitmap image;
     private Activity activity;
@@ -172,11 +179,7 @@ public class GalleryImageSelector {
                             Intent pickIntent = new Intent("android.intent.action.PICK");
                             pickIntent.setType("image/*");
 
-                            if (fragment != null) {
-                                fragment.startActivityForResult(pickIntent, PICK_IMAGE);
-                            } else {
-                                activity.startActivityForResult(pickIntent, PICK_IMAGE);
-                            }
+                            if (launcher != null) launcher.launch(pickIntent, PICK_IMAGE);
                         } else {
                             // insert the default image in the imageView
                             imageView.setImageResource(defaultImageResId);
@@ -225,11 +228,7 @@ public class GalleryImageSelector {
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             intent.putExtra("output", getTempCroppedUri());
             intent.setClipData(ClipData.newRawUri("output", getTempCroppedUri()));
-            if (fragment != null) {
-                fragment.startActivityForResult(intent, CROP_IMAGE);
-            } else {
-                activity.startActivityForResult(intent, CROP_IMAGE);
-            }
+            if (launcher != null) launcher.launch(intent, CROP_IMAGE);
 
         } else if (requestCode == CROP_IMAGE && resultCode == Activity.RESULT_OK && data != null) {
             Bitmap image = null;
