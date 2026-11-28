@@ -34,6 +34,28 @@ public class JaNeLibraryTest {
         eq("忘れてしまった。", JaNormalizer.modernize("忘れちゃった。"), "ちゃった -> てしまった");
         eq("薬を飲まなければならないよ。", JaNormalizer.modernize("薬を飲まなきゃよ。").replace("ならないよ", "ならないよ"), "なきゃ at the end");
         eq("कृपया जाँच गरिदिनुहोला कि?", NePostEditor.edit("कृपया कृपया जाँच गरिदिनुहोला कि?"), "कृपया कृपया -> कृपया");
+        // similar phrase-book sentences as examples for the model
+        {
+            ExampleBank eb = new ExampleBank();
+            eb.add("車椅子のブレーキをかけてください。", "कृपया ह्वीलचियरको ब्रेक लगाउनुहोस्।", false, false);
+            eb.add("お茶をどうぞ。", "चिया लिनुहोस्।", false, false);
+            eb.add("ベッドの柵を上げてください。", "ओछ्यानको रेलिङ माथि उठाउनुहोस्।", true, false);
+            java.util.List<String[]> ex = eb.similar("車椅子のブレーキを外してください。", "ja", 2, 0.4);
+            yes(!ex.isEmpty() && ex.get(0)[0].startsWith("車椅子のブレーキ"), "the closest example comes first");
+            yes(eb.similar("車椅子のブレーキをかけてください", "ja", 2, 0.4).isEmpty(), "the input itself is not an example");
+            yes(eb.similar("今日はいい天気ですね。", "ja", 2, 0.4).isEmpty(), "nothing similar: no example");
+            yes(eb.similar("ओछ्यानको रेलिङ माथि उठाउनुहोस् है।", "ne", 2, 0.4).isEmpty(), "a ja>ne line is not an ne -> ja example");
+            PhraseBook epb = new PhraseBook().withFallback(new PhraseBook());
+            epb.add("お茶をどうぞ。", "चिया लिनुहोस्।", false);
+            eq(1, epb.examples().size(), "phrase book lines become examples");
+            final java.util.List<String> ep = new java.util.ArrayList<>();
+            TextCompletion exFake = (prompt, max, stops) -> { ep.add(prompt); return "कफी लिनुहोस्।"; };
+            PlamoTranslator ept = new PlamoTranslator(exFake, Glossary.withDefaults());
+            ept.setHistory(0, 0);
+            ept.setPhraseBook(epb);
+            ept.translate("お茶をどうぞ、熱いです。", "ja", "ne");
+            yes(ep.size() == 1 && ep.get(0).contains("चिया लिनुहोस्"), "a similar example is in the prompt, one model call");
+        }
         // short answers read with the question just asked
         eq("はい、まだ終わっていません。", JaAnswer.clarify("まだ終わっていませんか？", "はい。"), "はい to a negative question agrees with it");
         eq("いいえ、もう終わっています。", JaAnswer.clarify("まだ終わっていませんか？", "いいえ。"), "いいえ to a negative question: the opposite");

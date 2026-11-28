@@ -44,6 +44,26 @@ public final class PlamoTranslator {
 
     public void setPhraseBook(PhraseBook p) { phrases = p == null ? new PhraseBook() : p; }
 
+    /** examples given before the history: at most this many, at least this similar (Dice on character bigrams) */
+    static final int MAX_EXAMPLES = 2;
+    static final double MIN_EXAMPLE_SIMILARITY = 0.4;
+    private volatile boolean useExamples = true;
+    private volatile double minExampleSimilarity = MIN_EXAMPLE_SIMILARITY;
+
+    /** How similar an example must be (0..1, Dice on character bigrams). */
+    public void setExampleSimilarity(double min) { minExampleSimilarity = min; }
+
+    /** Similar phrase-book sentences as examples for the model (default on). */
+    public void setExamples(boolean on) { useExamples = on; }
+
+    private List<PlamoPrompt.Turn> examples(String src, String text) {
+        if (!useExamples) return Collections.emptyList();
+        List<PlamoPrompt.Turn> out = new ArrayList<>();
+        for (String[] e : phrases.examples().similar(text, src, MAX_EXAMPLES, minExampleSimilarity))
+            out.add(0, new PlamoPrompt.Turn(e[0], e[1]));   // the closest one last, next to the input
+        return out;
+    }
+
     /** Japanese output in polite style (default true). */
     public void setPolite(boolean on) { polite = on; }
 
@@ -223,11 +243,13 @@ public final class PlamoTranslator {
     private JaNeTranslator.Candidate run(String src, String tgt, String text, List<Glossary.Term> terms) throws Exception {
         List<String> required = new ArrayList<>();
         for (Glossary.Term g : terms) if (g.required && !required.contains(g.target)) required.add(g.target);
-        List<PlamoPrompt.Turn> history = history(src);
+        List<PlamoPrompt.Turn> ex = examples(src, text), conversation = history(src);
+        List<PlamoPrompt.Turn> history = new ArrayList<>(ex);
+        history.addAll(conversation);
         JaNeTranslator.Candidate first = null;
         activeDraft = draftListener;   // drafts during the first model call only: a retry is not shown half-done
         draftPrefix.setLength(0);
-        if (!history.isEmpty()) {
+        if (!conversation.isEmpty()) {   // with no conversation the call below is the same prompt
             try {
                 first = candidate("plamo+history", src, tgt, text, history, terms, required);
                 activeDraft = null;
@@ -239,7 +261,7 @@ public final class PlamoTranslator {
         }
         JaNeTranslator.Candidate plain;
         try {
-            plain = candidate("plamo", src, tgt, text, Collections.emptyList(), terms, required);
+            plain = candidate(ex.isEmpty() ? "plamo" : "plamo+examples", src, tgt, text, ex, terms, required);
         } finally {
             activeDraft = null;
         }

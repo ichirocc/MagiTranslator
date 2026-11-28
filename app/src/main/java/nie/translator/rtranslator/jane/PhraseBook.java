@@ -34,6 +34,8 @@ public final class PhraseBook {
         if (ja == null || ne == null || (jaToNeOnly && neToJaOnly)) return;
         String kj = keyJa(ja), kn = keyNe(ne);
         if (kj.isEmpty() || kn.isEmpty()) return;
+        pairs.add(new Object[]{ja.trim(), ne.trim(), jaToNeOnly, neToJaOnly});
+        examples = null;
         if (!neToJaOnly) jaNe.putIfAbsent(kj, ne.trim());
         if (ambiguousNe.contains(kn)) return;
         //a ja>ne line is not read back itself, but it still counts as a second Japanese reading of this Nepali:
@@ -53,6 +55,21 @@ public final class PhraseBook {
     private final Map<String, String> oneWayJa = new HashMap<>();
 
     public int size() { return jaNe.size(); }
+
+    /** every accepted line as written: {ja, ne, jaToNeOnly, neToJaOnly}, for the example bank */
+    private final java.util.List<Object[]> pairs = new java.util.ArrayList<>();
+    private volatile ExampleBank examples;
+
+    /** This book's lines (then the fallback's) as an example bank, built on first use. */
+    public ExampleBank examples() {
+        ExampleBank b = examples;
+        if (b != null) return b;
+        b = new ExampleBank();
+        for (PhraseBook p = this; p != null; p = p.fallback)
+            for (Object[] e : p.pairs) b.add((String) e[0], (String) e[1], (Boolean) e[2], (Boolean) e[3]);
+        examples = b;
+        return b;
+    }
 
     public String lookupJaNe(String ja) {
         if (ja == null) return null;
