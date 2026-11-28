@@ -180,6 +180,14 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(ne["cur"], {"RUPEE"})
 
 
+class WhoWhichTest(unittest.TestCase):
+    def test_who_which(self):
+        k = lambda s, h, d: [i[0] for i in M.validate(s, h, d)]
+        self.assertIn("QUESTION_WORD_LOST", k("कसले लेख्यो?", "書きました。", "ne-ja"))
+        self.assertNotIn("QUESTION_WORD_LOST", k("कसले लेख्यो?", "誰が書きましたか？", "ne-ja"))
+        self.assertIn("REQUEST_LOST", k("手伝ってください。", "ऊ घर जान्छ।", "ja-ne"))
+
+
 class NumberWordsTest(unittest.TestCase):
     def test_words(self):
         self.assertEqual(M.numbers("पच्चीस जना"), ["25"])

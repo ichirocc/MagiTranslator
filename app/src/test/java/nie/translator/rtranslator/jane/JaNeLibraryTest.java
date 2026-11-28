@@ -374,6 +374,10 @@ public class JaNeLibraryTest {
         yes(!kindsJN.apply("昨日、転びました。", "हिजो लडें।").contains("ANTONYM_SWAPPED"), "antonym: 昨日 as हिजो is right");
         yes(kindsNJ.apply("दायाँ हात उठाउनुहोस्।", "左手を上げてください。").contains("ANTONYM_SWAPPED"), "antonym: दायाँ as 左");
         yes(kindsNJ.apply("अहँ, छैन।", "いいえ、あります。").contains("NEGATION_LOST"), "negation: leading いいえ does not cover a negated rest");
+        yes(kindsNJ.apply("कसले लेख्यो?", "書きました。").contains("QUESTION_WORD_LOST"), "wh: कसले (who) lost");
+        yes(!kindsNJ.apply("कसले लेख्यो?", "誰が書きましたか？").contains("QUESTION_WORD_LOST"), "wh: कसले as 誰");
+        yes(kindsNJ.apply("कुन किताब किन्नुभयो?", "本を買いましたか？").contains("QUESTION_WORD_LOST"), "wh: कुन (which) lost");
+        yes(kindsJN.apply("手伝ってください。", "ऊ घर जान्छ।").contains("REQUEST_LOST"), "request: the pronoun ऊ is not a request");
         yes(!kindsNJ.apply("अहँ, पर्दैन।", "いえ、けっこうです。").contains("NEGATION_LOST"), "negation: いえ、けっこうです is right");
         yes(!kindsJN.apply("お皿を下げますね。", "थाल लैजान्छु है।").contains("WORD_SENSE"), "polysemy: お皿を下げる as take away is right");
         yes(!kindsNJ.apply("म पूर्वी नेपालबाट आएँ।", "東ネパールから来ました。").contains("PLACE_ADDED"), "pūrvī नेपाल = 東ネパール");

@@ -333,11 +333,15 @@ _JA_WH_COVER = [("QUANTITY", re.compile("いくら|幾ら|いくつ|幾つ|ど�
                                         "何[人個歳回時日本枚台度分秒年月週円階番件杯匹冊着名]|"
                                         "なん(にん|こ|さい|かい|じ|にち|ぼん|まい|だい|ど|ぷん|ふん|ねん)")),
                 ("WHY", re.compile("なぜ|何故|どうして|なんで|何で|理由")), ("WHERE", re.compile("どこ|何処|どちら|どっち")),
-                ("WHEN", re.compile("いつ|何時|何日|何曜")), ("HOW", re.compile("どう|どのよう|どうやって|如何"))]
+                ("WHEN", re.compile("いつ|何時|何日|何曜")), ("HOW", re.compile("どう|どのよう|どうやって|如何")),
+                ("WHO", re.compile("誰|だれ|どなた|どちら様|どの方")), ("WHICH", re.compile("どれ|どの|どちら|どっち|何|どこ|どう"))]
 _NE_WH = [("QUANTITY", re.compile(_NE_L + r"कति(?!पय)\S*")), ("WHY", re.compile(_NE_L + "किन" + _NE_R)),
           ("WHERE", re.compile(_NE_L + r"कह[ाँां]{2}\S*")),
           ("WHEN", re.compile(_NE_L + "कहिले(?!काहीं|काहीँ|काहिँ|काहिं)" + _NE_R)),
-          ("HOW", re.compile(_NE_L + "कसरी" + _NE_R))]
+          ("HOW", re.compile(_NE_L + "कसरी" + _NE_R)),
+          # who / which: the case forms only (bare को is also the genitive "of"; कुनै = "any")
+          ("WHO", re.compile(_NE_L + "(?:कसले|कसलाई|कसको|कसका|कसकी)" + _NE_R)),
+          ("WHICH", re.compile(_NE_L + "कुन" + _NE_R + "(?=[^।]*[?？])"))]  # a direct question only (कुन in an embedded clause is often paraphrased)
 _NE_WH_COVER = [("TIME_OCLOCK", _ne_word(r"बजे\S*|बज्यो|बेला\S*")), ("COUNT_PERSON", _ne_word("कति|कतिजना")),
                 ("PRICE", _ne_word(r"कति\S*|मूल्य|दाम|पैसा")), ("WHO", _ne_word("को|कसले|कसको|कसलाई|कोसँग|कोही")),
                 ("WHERE", _ne_word(r"कहाँ\S*|कता\S*|कुन ठाउँ\S*")), ("WHEN", _ne_word(r"कहिले\S*|कुन दिन\S*|कति बेला|कति बजे")),
@@ -347,7 +351,7 @@ _JA_MOD = [("OBLIGATION", re.compile("(なければ(なら|なり|いけ)|なく
            ("CONJECTURE", re.compile("(でしょう(?!か)|だろう|かもしれ|と思い|と思う|みたい|らしい|はず)")),
            ("PERMISSION", re.compile("[てで]も(いい|良い|よい|大丈夫|かまわ|構わ)"))]
 _NE_MOD = [("OBLIGATION", re.compile("(पर्छ|पर्छन्|पर्ने|पर्यो|पर्‍यो|पर्थ्यो|पर्दछ|पर्नेछ|पर्नुहुन्छ|नुपर|चाहिन्छ|अनिवार्य)")),
-           ("REQUEST", re.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|ऊ(?![" + _NE_CH + "])|ओ(?![" + _NE_CH + "]))")),
+           ("REQUEST", re.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|(?<=[" + _NE_CH + "])ऊ(?![" + _NE_CH + "])|(?<=[" + _NE_CH + "])ओ(?![" + _NE_CH + "]))")),
            ("CONJECTURE", re.compile("(होला|ला(?![" + _NE_CH + "])|सक्छ|सक्छन्|जस्तो|जस्तै|लाग्छ|लाग्यो|ठान्छु|सायद|शायद|पक्का|हुनुपर्छ|होइन र)")),
            ("PERMISSION", re.compile("(हुन्छ|सकिन्छ|सक्नुहुन्छ|सक्छ|ठीक|ठिक|अनुमति|पाइन्छ|पर्दैन|मिल्छ)"))]
 JA_PAST = re.compile("(ました|でした|かった(です)?|[っんいきしちにびみりえけせてねべめれげ]た|[っん]だ)(よ|ね|よね|か)?[。！!？?]?$")

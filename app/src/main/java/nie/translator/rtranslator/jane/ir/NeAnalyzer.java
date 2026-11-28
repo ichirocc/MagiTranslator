@@ -58,6 +58,9 @@ public final class NeAnalyzer {
             {WhConcept.WHERE, Pattern.compile(NE_L + "कह[ाँां]{2}\\S*")},
             {WhConcept.WHEN, Pattern.compile(NE_L + "कहिले(?!काहीं|काहीँ|काहिँ|काहिं)" + NE_R)},
             {WhConcept.HOW, Pattern.compile(NE_L + "कसरी" + NE_R)},
+            // who / which: the case forms only (bare को is also the genitive "of"); कुन in a direct question only
+            {WhConcept.WHO, Pattern.compile(NE_L + "(?:कसले|कसलाई|कसको|कसका|कसकी)" + NE_R)},
+            {WhConcept.WHICH, Pattern.compile(NE_L + "कुन" + NE_R + "(?=[^।]*[?？])")},
     };
     private static Pattern word(String alt) { return Pattern.compile("(?<![" + NE_CH + "])(?:" + alt + ")(?![" + NE_CH + "])"); }
     /** Nepali forms that can render a Japanese question word */
@@ -75,7 +78,7 @@ public final class NeAnalyzer {
 
     // modality cover: lenient (any accepted form passes)
     private static final Pattern OBLIGATION = Pattern.compile("(पर्छ|पर्छन्|पर्ने|पर्यो|पर्‍यो|पर्थ्यो|पर्दछ|पर्नेछ|पर्नुहुन्छ|नुपर|चाहिन्छ|अनिवार्य)");
-    private static final Pattern REQUEST = Pattern.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|ऊ(?![" + NE_CH + "])|ओ(?![" + NE_CH + "]))");
+    private static final Pattern REQUEST = Pattern.compile("(नुहोस्|नुस्|नुहोला|होस्|देऊ|देउ|दिनु|कृपया|अनुरोध|सक्नुहुन्छ|नुहुन्छ\\s*\\?|सक्छौ|(?<=[" + NE_CH + "])ऊ(?![" + NE_CH + "])|(?<=[" + NE_CH + "])ओ(?![" + NE_CH + "]))");   // खाऊ / आओ, not the pronoun ऊ
     private static final Pattern CONJECTURE = Pattern.compile("(होला|ला(?![" + NE_CH + "])|सक्छ|सक्छन्|जस्तो|जस्तै|लाग्छ|लाग्यो|ठान्छु|सायद|शायद|पक्का|हुनुपर्छ|होइन र)");
     private static final Pattern PERMISSION = Pattern.compile("(हुन्छ|सकिन्छ|सक्नुहुन्छ|सक्छ|ठीक|ठिक|अनुमति|पाइन्छ|पर्दैन|मिल्छ)");
     /** past, perfect and negative past (गयो, गए, गएका छन्, थियो, गर्नुभयो, गएन). Vowel-sign ए (गरे) is not

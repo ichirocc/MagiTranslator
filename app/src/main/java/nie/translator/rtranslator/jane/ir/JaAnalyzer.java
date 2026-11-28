@@ -47,6 +47,8 @@ public final class JaAnalyzer {
             {WhConcept.WHERE, Pattern.compile("どこ|何処|どちら|どっち")},
             {WhConcept.WHEN, Pattern.compile("いつ|何時|何日|何曜")},
             {WhConcept.HOW, Pattern.compile("どう|どのよう|どうやって|如何")},
+            {WhConcept.WHO, Pattern.compile("誰|だれ|どなた|どちら様|どの方")},
+            {WhConcept.WHICH, Pattern.compile("どれ|どの|どちら|どっち|何|どこ|どう")},
     };
 
     static final Pattern OBLIGATION = Pattern.compile("(なければ(なら|なり|いけ)|なくては(なら|なり|いけ)|ないと(いけ|だめ|ダメ)|なきゃ|なくちゃ|べき)");
