@@ -131,6 +131,15 @@ public class JaNeLibraryTest {
         JaNeTranslator.Candidate bad = new JaNeTranslator.Candidate("b", "", "म भोलि जान्छु।", null, 0.9,
                 TranslationValidator.validateJaToNe("明日は行きません。", "म भोलि जान्छु।", java.util.Collections.emptyList()));
         yes(JaNeTranslator.better(good, bad), "hard issues beat score");
+        {
+            JaNeTranslator.Candidate cOk = new JaNeTranslator.Candidate("a", "", "३ जना आउँछन्।", null, 0.50,
+                    TranslationValidator.validateJaToNe("3人来ます。", "३ जना आउँछन्।", java.util.Collections.<String>emptyList()));
+            JaNeTranslator.Candidate cBad = new JaNeTranslator.Candidate("b", "", "३ पटक आउँछ।", null, 0.53,
+                    TranslationValidator.validateJaToNe("3人来ます。", "३ पटक आउँछ।", java.util.Collections.<String>emptyList()));
+            JaNeTranslator.Candidate cBadFar = new JaNeTranslator.Candidate("c", "", "३ पटक आउँछ।", null, 0.70, cBad.issues);
+            yes(JaNeTranslator.better(cOk, cBad) && !JaNeTranslator.better(cBad, cOk), "near tie: counter kept wins");
+            yes(JaNeTranslator.better(cBadFar, cOk), "clear score gap still wins over a soft counter issue");
+        }
 
         // N-best: the beam's 2nd hypothesis keeps the negation and must win over a fluent but wrong 1-best
         Backend nb = new Backend() {

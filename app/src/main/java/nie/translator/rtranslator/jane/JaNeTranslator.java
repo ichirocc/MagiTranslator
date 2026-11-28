@@ -440,7 +440,19 @@ public final class JaNeTranslator {
             if (sa != sb) return sa < sb;
             if (a.hard() != b.hard()) return a.hard() < b.hard();
         }
+        // near tie: a swapped counter (3人 -> ३ पटक, soft) decides; never outweighs a clear score gap
+        if (Math.abs(a.score - b.score) < COUNTER_TIE) {
+            boolean ca = has(a.issues, TranslationValidator.Kind.COUNTER_MISMATCH), cb = has(b.issues, TranslationValidator.Kind.COUNTER_MISMATCH);
+            if (ca != cb) return cb;
+        }
         return a.score > b.score;
+    }
+
+    static final double COUNTER_TIE = 0.05;
+
+    private static boolean has(List<TranslationValidator.Issue> issues, TranslationValidator.Kind k) {
+        if (issues != null) for (TranslationValidator.Issue i : issues) if (i.kind == k) return true;
+        return false;
     }
 
     /** Severity weight of one hard issue (SPEC v2 05b mapping: CRITICAL > MAJOR > MODERATE). */
