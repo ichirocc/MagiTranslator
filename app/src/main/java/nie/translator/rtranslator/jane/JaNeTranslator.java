@@ -269,14 +269,14 @@ public final class JaNeTranslator {
                 // beam alternatives: the baseline turned १,००० रुपैयाँ into 「100万円」 with no other candidate
                 List<String> hyps = backend.translateNBest(segs.get(0), "ne", "ja", nBest);
                 for (int k = 0; k < hyps.size(); k++) {
-                    String out = finishJa(hyps.get(k));
+                    String out = finishJa(hyps.get(k), t);
                     if (out.isEmpty()) continue;
                     String label = k == 0 ? e.getKey() : e.getKey() + "#" + (k + 1);
                     required.putIfAbsent(label, rev.requiredTargets);
                     cands.add(new Candidate(label, segs.get(0), out, null, Double.NaN));
                 }
             } else {
-                String out = finishJa(translateSegments(segs, "ne", "ja"));
+                String out = finishJa(translateSegments(segs, "ne", "ja"), t);
                 if (out.isEmpty()) continue;
                 cands.add(new Candidate(e.getKey(), String.join(" ", segs), out, null, Double.NaN));
             }
@@ -495,6 +495,25 @@ public final class JaNeTranslator {
                 .replaceFirst("^[-‐‑–—・*]+", "");
         return collapseJa(t);
     }
+
+    /**
+     * Japanese output of a Nepali source: as {@link #finishJa(String)}, and a 彼 / 彼女 the model guessed for
+     * the honorific उहाँ is dropped. उहाँ (and its verbs) carry no gender, so the guess is wrong half the time
+     * (an elderly woman became 彼), and Japanese leaves a known person unsaid anyway. Kept when the source
+     * names a gendered person (आमा, श्रीमान् ...) or the sentence would become empty.
+     */
+    static String finishJa(String ja, String sourceNe) {
+        String t = finishJa(ja);
+        if (sourceNe == null || !NE_HONORIFIC_THIRD.matcher(sourceNe).find() || NE_GENDERED_PERSON.matcher(sourceNe).find()) return t;
+        String d = JA_GUESSED_PRONOUN.matcher(t).replaceAll("").replaceFirst("^[、,]+", "").replace("。、", "。");
+        return d.replaceAll("[。！？]", "").isEmpty() ? t : d;
+    }
+
+    private static final java.util.regex.Pattern NE_HONORIFIC_THIRD = java.util.regex.Pattern.compile("उहा[ँं]");
+    private static final java.util.regex.Pattern NE_GENDERED_PERSON = java.util.regex.Pattern.compile(
+            "केटा|केटी|श्रीमान|श्रीमती|दाइ|दिदी|बहिनी|भाइ|आमा|बुबा|बाबा|हजुरबा|हजुरआमा|महिला|पुरुष|छोरा|छोरी|अंकल|आन्टी|म्याडम|दाजु");
+    // 彼は / 彼女の ... not 彼ら / 彼女たち (plural) nor a word such as 彼岸 (no particle follows)
+    private static final java.util.regex.Pattern JA_GUESSED_PRONOUN = java.util.regex.Pattern.compile("彼女?(?![らた等])[はがのを]");
 
     /** Nepali output: add the danda when the source sentence ended and the model dropped the full stop. */
     static String finishNe(String ne, String sourceJa) {

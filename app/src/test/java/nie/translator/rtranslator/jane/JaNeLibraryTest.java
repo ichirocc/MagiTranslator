@@ -587,6 +587,25 @@ public class JaNeLibraryTest {
                 }
                 eq(0, unreachable, "built-in phrases: every line is used in its direction(s)");
             } else System.out.println("skip built-in phrases asset check (not run from the project root)");
+            // built-in term lists: every line valid, no duplicate source
+            for (String name : new String[]{"terms_builtin_ja_ne.tsv", "terms_builtin_ne_ja.tsv"}) {
+                java.io.File f = new java.io.File("app/src/main/assets/jane/" + name);
+                if (!f.exists()) f = new java.io.File("src/main/assets/jane/" + name);
+                if (!f.exists()) { System.out.println("skip " + name + " (not run from the project root)"); continue; }
+                try (java.io.Reader ar = new java.io.InputStreamReader(new java.io.FileInputStream(f), java.nio.charset.StandardCharsets.UTF_8)) {
+                    UserDictionary.Parsed tp = UserDictionary.parse(ar);
+                    eq(0, tp.rejected + tp.duplicates, name + ": no rejected or duplicate lines");
+                    yes(tp.kind != UserDictionary.Kind.PHRASES && tp.accepted() > 20, name + ": a term list");
+                }
+            }
+            // ne -> ja: a 彼 / 彼女 guessed for the gender-neutral उहाँ is dropped
+            eq("右手が動きません。", JaNeTranslator.finishJa("彼の右手が動きません。", "उहाँको दाहिने हात चल्दैन।"), "guessed 彼の dropped");
+            eq("ベッドから車椅子に移すのを手伝ってください。", JaNeTranslator.finishJa("彼女をベッドから車椅子に移すのを手伝ってください。", "कृपया उहाँलाई ओछ्यानबाट ह्वीलचियरमा सार्न मद्दत गर्नुहोस्।"), "guessed 彼女を dropped");
+            eq("食事をさせていると咳き込みました。", JaNeTranslator.finishJa("食事をさせていると彼は咳き込みました。", "खाना खुवाउँदा उहाँलाई खोकी लाग्यो।"), "guessed 彼は mid-sentence dropped");
+            eq("彼女は来ました。", JaNeTranslator.finishJa("彼女は来ました。", "मेरी आमा आउनुभयो, उहाँ थाकेको छ।"), "kept when the source names a gendered person");
+            eq("彼らは来ました。", JaNeTranslator.finishJa("彼らは来ました。", "उहाँहरू आउनुभयो।"), "plural 彼ら kept");
+            eq("彼は医者です。", JaNeTranslator.finishJa("彼は医者です。", "ऊ डाक्टर हो।"), "no उहाँ in the source: kept");
+            eq("彼です。", JaNeTranslator.finishJa("彼です。", "उहाँ हो।"), "no particle: kept");
             // a phrase hit is a candidate that is still validated: a phrase that drops the number loses
             PhraseBook numPb = new PhraseBook();
             numPb.add("3時に来てください。", "कृपया आउनुहोस्।", false);

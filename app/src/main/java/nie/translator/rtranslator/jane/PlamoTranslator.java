@@ -140,7 +140,7 @@ public final class PlamoTranslator {
     private JaNeTranslator.Candidate candidate(String label, String src, String tgt, String text, List<PlamoPrompt.Turn> history,
                                                List<Glossary.Term> terms, List<String> required) throws Exception {
         String out = "ne".equals(tgt) ? JaNeTranslator.finishNe(translatePieces(src, tgt, text, history, terms), text)
-                : JaNeTranslator.finishJa(translatePieces(src, tgt, text, history, terms));
+                : JaNeTranslator.finishJa(translatePieces(src, tgt, text, history, terms), text);
         List<TranslationValidator.Issue> iss = JaNeTranslator.validate(text, out, required, tgt);
         return new JaNeTranslator.Candidate(label, text, out, null, Double.NaN, iss);
     }
@@ -209,18 +209,9 @@ public final class PlamoTranslator {
 
     // ---------------- conversation history ----------------
 
-    /** example turns {japanese, nepali} given as history while the conversation has none (null: none) */
-    private volatile List<String[]> primer = Collections.emptyList();
-
-    /**
-     * Example turns shown to the model while there is no conversation yet: a short form label or a single
-     * word gives the model no domain, and it then picks the everyday sense (भर्ना = school admission).
-     */
-    public void setPrimer(List<String[]> p) { primer = p == null ? Collections.<String[]>emptyList() : new ArrayList<>(p); }
-
     private synchronized List<PlamoPrompt.Turn> history(String src) {
         List<PlamoPrompt.Turn> h = new ArrayList<>();
-        for (String[] t : turns.isEmpty() ? primer : turns) h.add("ja".equals(src) ? new PlamoPrompt.Turn(t[0], t[1]) : new PlamoPrompt.Turn(t[1], t[0]));
+        for (String[] t : turns) h.add("ja".equals(src) ? new PlamoPrompt.Turn(t[0], t[1]) : new PlamoPrompt.Turn(t[1], t[0]));
         return h;
     }
 
