@@ -209,9 +209,18 @@ public final class PlamoTranslator {
 
     // ---------------- conversation history ----------------
 
+    /** example turns {japanese, nepali} given as history while the conversation has none (null: none) */
+    private volatile List<String[]> primer = Collections.emptyList();
+
+    /**
+     * Example turns shown to the model while there is no conversation yet: a short form label or a single
+     * word gives the model no domain, and it then picks the everyday sense (भर्ना = school admission).
+     */
+    public void setPrimer(List<String[]> p) { primer = p == null ? Collections.<String[]>emptyList() : new ArrayList<>(p); }
+
     private synchronized List<PlamoPrompt.Turn> history(String src) {
         List<PlamoPrompt.Turn> h = new ArrayList<>();
-        for (String[] t : turns) h.add("ja".equals(src) ? new PlamoPrompt.Turn(t[0], t[1]) : new PlamoPrompt.Turn(t[1], t[0]));
+        for (String[] t : turns.isEmpty() ? primer : turns) h.add("ja".equals(src) ? new PlamoPrompt.Turn(t[0], t[1]) : new PlamoPrompt.Turn(t[1], t[0]));
         return h;
     }
 
