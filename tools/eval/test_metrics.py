@@ -188,6 +188,8 @@ class NumberOrderTest(unittest.TestCase):
         self.assertGreater(M.chrf_pp_corpus_multi(["म व्यस्त छु।"], [["म काममा छु।", "म व्यस्त छु।"]]), one)
         self.assertAlmostEqual(M.chrf_pp_corpus_multi(["म व्यस्त छु।"], [["म व्यस्त छु।", ""]]), 100.0)
         self.assertIn("COUNTER_MISMATCH", [i[0] for i in M.validate("三人来ます。", "३ पटक आउँछ।", "ja-ne")])
+        self.assertIn("REPETITION", [i[0] for i in M.validate("先生。", "यी सब सिकाइसँगै सिकाइसँगै सिकाइसँगै", "ja-ne")])
+        self.assertNotIn("REPETITION", [i[0] for i in M.validate("えへへ。", "हे हे हे।", "ja-ne")])
         self.assertNotIn("COUNTER_MISMATCH", [i[0] for i in M.validate("3人来ます。", "३ जना आउँछन्।", "ja-ne")])
         self.assertEqual(M.numbers("999999999999999999999999 लाख"), ["999999999999999999999999"])
 

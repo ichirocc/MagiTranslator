@@ -267,8 +267,18 @@ public final class PlamoTranslator {
         } finally {
             activeDraft = null;
         }
+        if (!terms.isEmpty() && loops(plain)) {
+            // a glossary hint can start the model on a loop (पहिलो पहिलो पहिलो ...): once more without it
+            JaNeTranslator.Candidate bare = candidate("plamo-noterms", src, tgt, text, Collections.emptyList(), Collections.emptyList(), required);
+            if (JaNeTranslator.better(bare, plain)) plain = bare;
+        }
         if (first == null) return plain;
         return JaNeTranslator.better(plain, first) ? plain : first;
+    }
+
+    private static boolean loops(JaNeTranslator.Candidate c) {
+        for (TranslationValidator.Issue i : c.issues) if (i.kind == TranslationValidator.Kind.REPETITION) return true;
+        return false;
     }
 
     private JaNeTranslator.Candidate candidate(String label, String src, String tgt, String text, List<PlamoPrompt.Turn> history,

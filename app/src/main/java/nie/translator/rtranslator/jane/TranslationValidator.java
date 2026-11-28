@@ -208,6 +208,8 @@ public final class TranslationValidator {
         // same number, another counter (3人 -> ३ पटक): soft, a unit can be legitimately restated
         String cm = Traps.counterMismatch(nie.translator.rtranslator.jane.text.KanjiNumber.toDigits(sj), tn);
         if (cm != null) issues.add(new Issue(Kind.COUNTER_MISMATCH, false, cm));
+        String loop = Traps.neLoop(tn);
+        if (loop != null) issues.add(new Issue(Kind.REPETITION, true, loop));
     }
 
     private static void checkNumbers(List<String> a, List<String> b, List<Issue> issues) {
