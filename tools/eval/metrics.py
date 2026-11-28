@@ -211,6 +211,24 @@ WORD_SENSES = [
     ('上がる(熱)', re.compile(r"熱が上が"), re.compile(r"माथि"), re.compile(r"बढ|आयो|आउ")),
     ('出る(便)', re.compile(r"(便|うんち|おしっこ|尿)が出"), re.compile(r"बाहिर"), re.compile(r"दिसा|पिसाब|मल|मूत्र")),
 ]
+# opposite pairs (label, ja1, ne1, ja2, ne2): the source says one side, the output only the other (昨日 -> भोलि)
+ANTONYM_PAIRS = [
+    ('昨日/明日', re.compile(r"昨日|きのう"), re.compile(r"हिजो"), re.compile(r"明日|あした"), re.compile(r"भोलि")),
+    ('右/左', re.compile(r"右"), re.compile(r"दायाँ|दाहिने"), re.compile(r"左"), re.compile(r"बायाँ|देब्रे")),
+    ('朝/夜', re.compile(r"朝"), re.compile(r"बिहान"), re.compile(r"夜|晩|夕方"), re.compile(r"बेलुका|राति|साँझ")),
+    ('熱/冷', re.compile(r"熱い|暑い|あつい"), re.compile(r"तातो|गर्मी"), re.compile(r"冷たい|寒い|つめたい|さむい"), re.compile(r"चिसो|जाडो")),
+]
+
+
+def antonym_swapped(src, hyp, src_lang):
+    for name, ja1, ne1, ja2, ne2 in ANTONYM_PAIRS:
+        sides = [(ja1, ne1, ja2, ne2), (ja2, ne2, ja1, ne1)] if src_lang == "ja" else [(ne1, ja1, ne2, ja2), (ne2, ja2, ne1, ja1)]
+        for s1, t1, s2, t2 in sides:
+            if s1.search(src) and not s2.search(src) and t2.search(hyp) and not t1.search(hyp):
+                return name
+    return None
+
+
 NE_WORD = re.compile("[ऀ-ॣ०-ॿ]+")  # excludes danda । ॥
 JA_SCRIPT = re.compile("[぀-ヿ一-鿿]")
 DEVANAGARI = re.compile("[ऀ-ॿ]")
@@ -479,6 +497,9 @@ def validate(src, hyp, direction, required_targets=None):
                 or (re.search(r"飲ませ|食べさせ", src) and re.search(r"खानुहोस्|पिउनुहोस्", hyp) and not re.search(r"खुवा|पिला|लगाउ", hyp))
                 or (re.search(r"休憩", src) and not re.search(r"休み|休暇|有給", src) and re.search(r"बिदा", hyp))):
             issues.append(("CARE_WORD_SWAPPED", True, None))
+        a = antonym_swapped(src, hyp, "ja")
+        if a:
+            issues.append(("ANTONYM_SWAPPED", True, a))
         for sense, j, wrong, right in WORD_SENSES:
             if j.search(src) and wrong.search(hyp) and not right.search(hyp):
                 issues.append(("WORD_SENSE", False, sense))
@@ -527,6 +548,9 @@ def validate(src, hyp, direction, required_targets=None):
     if (re.search(r"(ज्यू|जी|ज्यु|आमाजु|बुबाजु|उहाँ)(ले)?\s", src) and re.search(r"नुभयो|नुहुन्छ|नुभएको", src)
             and not re.search(r"(^|[\s,।])(म|मैले|मलाई|मेरो|हामी|हामीले)(?=[\s,।])", src) and re.search(r"私|僕|わたし", hyp)):
         issues.append(("PERSON_REVERSED", True, None))
+    a = antonym_swapped(src, hyp, "ne")
+    if a:
+        issues.append(("ANTONYM_SWAPPED", True, a))
     if re.search(r"सक्छु कि सक्दिनँ|सक्छु कि सक्दिन", src) and not re.search(r"かどうか|か不安|か心配|か分から|自信|務まるか|できるか", hyp):
         issues.append(("ALTERNATIVE_LOST", True, None))
     return issues

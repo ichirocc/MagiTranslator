@@ -180,6 +180,13 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(ne["cur"], {"RUPEE"})
 
 
+class AntonymTest(unittest.TestCase):
+    def test_swap(self):
+        self.assertIn("ANTONYM_SWAPPED", [i[0] for i in M.validate("昨日、転びました。", "भोलि लडें।", "ja-ne")])
+        self.assertNotIn("ANTONYM_SWAPPED", [i[0] for i in M.validate("昨日、転びました。", "हिजो लडें।", "ja-ne")])
+        self.assertIn("ANTONYM_SWAPPED", [i[0] for i in M.validate("दायाँ हात उठाउनुहोस्।", "左手を上げてください。", "ne-ja")])
+
+
 class WordSenseTest(unittest.TestCase):
     def test_sense(self):
         self.assertIn("WORD_SENSE", [i[0] for i in M.validate("熱を下げる薬です。", "यो ज्वरो लैजाने औषधि हो।", "ja-ne")])

@@ -48,6 +48,8 @@ public final class TranslationValidator {
         CARE_WORD_SWAPPED,
         /** polysemous care word in the wrong sense (soft): 熱を下げる as take away, 布団をかける as phone */
         WORD_SENSE,
+        /** opposite words swapped (hard): 昨日 as भोलि, 右 as बायाँ, 朝 as बेलुका, 熱い as चिसो */
+        ANTONYM_SWAPPED,
         /** ne->ja: "can I or not" turned into a flat refusal */
         ALTERNATIVE_LOST,
         /** seasonal: 熱中症 as fever, heater off as on, getting cold as make cold */
@@ -138,6 +140,8 @@ public final class TranslationValidator {
             java.util.regex.Matcher dir = java.util.regex.Pattern.compile("[北南東西]" + java.util.regex.Pattern.quote(place)).matcher(tgt.originalText);
             if (inSrc && dir.find() && !NE_DIRECTION.matcher(src.originalText).find()) issues.add(new Issue(Kind.PLACE_ADDED, true, dir.group()));
         }
+        String anto = Traps.antonymSwapped(src.originalText, tgt.originalText, false);
+        if (anto != null) issues.add(new Issue(Kind.ANTONYM_SWAPPED, true, anto));
     }
 
     /** ja -> ne agreement: what the Japanese source states must be expressible by the candidate's forms. */
@@ -162,6 +166,8 @@ public final class TranslationValidator {
         if (Traps.guidanceReversed(sj, tn)) issues.add(new Issue(Kind.GUIDANCE_REVERSED, true, null));
         if (Traps.watchOverLost(sj, tn)) issues.add(new Issue(Kind.WATCH_OVER_LOST, false, null));
         if (Traps.careWordSwapped(sj, tn)) issues.add(new Issue(Kind.CARE_WORD_SWAPPED, true, null));
+        String anto = Traps.antonymSwapped(sj, tn, true);
+        if (anto != null) issues.add(new Issue(Kind.ANTONYM_SWAPPED, true, anto));
         String sense = Traps.wordSense(sj, tn);
         if (sense != null) issues.add(new Issue(Kind.WORD_SENSE, false, sense));
         if (Traps.seasonalReversed(sj, tn)) issues.add(new Issue(Kind.SEASONAL_REVERSED, true, null));

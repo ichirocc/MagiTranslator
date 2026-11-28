@@ -354,6 +354,9 @@ public class JaNeLibraryTest {
         yes(kindsNJ.apply("सीता नेपालबाट आएकी हुन्।", "北ネパールから来たんです。").contains("PLACE_ADDED"), "nj17: invented 北 before ネパール");
         java.util.function.BiFunction<String, String, String> kindsJN = (s, h) -> TranslationValidator.validateJaToNe(s, h, java.util.Collections.emptyList()).toString();
         yes(kindsJN.apply("熱を下げる薬です。", "यो ज्वरो लैजाने औषधि हो।").contains("WORD_SENSE"), "polysemy: 熱を下げる as take away");
+        yes(kindsJN.apply("昨日、転びました。", "भोलि लडें।").contains("ANTONYM_SWAPPED"), "antonym: 昨日 as भोलि");
+        yes(!kindsJN.apply("昨日、転びました。", "हिजो लडें।").contains("ANTONYM_SWAPPED"), "antonym: 昨日 as हिजो is right");
+        yes(kindsNJ.apply("दायाँ हात उठाउनुहोस्।", "左手を上げてください。").contains("ANTONYM_SWAPPED"), "antonym: दायाँ as 左");
         yes(!kindsJN.apply("お皿を下げますね。", "थाल लैजान्छु है।").contains("WORD_SENSE"), "polysemy: お皿を下げる as take away is right");
         yes(!kindsNJ.apply("म पूर्वी नेपालबाट आएँ।", "東ネパールから来ました。").contains("PLACE_ADDED"), "pūrvī नेपाल = 東ネパール");
         yes(!kindsNJ.apply("चिन्ता नगर्नुहोस्", "大丈夫ですよ").contains("NEGATION_LOST"), "ne->ja: 大丈夫 renders नगर्नुहोस्");

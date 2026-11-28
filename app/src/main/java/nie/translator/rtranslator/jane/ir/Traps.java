@@ -127,4 +127,30 @@ public final class Traps {
             if (SENSE_P[i][0].matcher(ja).find() && SENSE_P[i][1].matcher(ne).find() && !SENSE_P[i][2].matcher(ne).find()) return SENSES[i][0];
         return null;
     }
+
+    // --- opposite pairs: the source says one side and the output only the other (昨日 -> भोलि, 右 -> बायाँ)
+    private static final String[][] ANTONYMS = {
+            {"昨日/明日", "昨日|きのう", "हिजो", "明日|あした", "भोलि"},
+            {"右/左", "右", "दायाँ|दाहिने", "左", "बायाँ|देब्रे"},
+            {"朝/夜", "朝", "बिहान", "夜|晩|夕方", "बेलुका|राति|साँझ"},
+            {"熱/冷", "熱い|暑い|あつい", "तातो|गर्मी", "冷たい|寒い|つめたい|さむい", "चिसो|जाडो"}
+    };
+    private static final Pattern[][] ANTONYM_P = new Pattern[ANTONYMS.length][];
+    static {
+        for (int i = 0; i < ANTONYMS.length; i++)
+            ANTONYM_P[i] = new Pattern[]{Pattern.compile(ANTONYMS[i][1]), Pattern.compile(ANTONYMS[i][2]), Pattern.compile(ANTONYMS[i][3]), Pattern.compile(ANTONYMS[i][4])};
+    }
+
+    /** @param srcIsJa true for ja -> ne; @return the pair label when swapped, else null */
+    public static String antonymSwapped(String src, String hyp, boolean srcIsJa) {
+        for (int i = 0; i < ANTONYMS.length; i++) {
+            Pattern ja1 = ANTONYM_P[i][0], ne1 = ANTONYM_P[i][1], ja2 = ANTONYM_P[i][2], ne2 = ANTONYM_P[i][3];
+            Pattern[][] sides = srcIsJa ? new Pattern[][]{{ja1, ne1, ja2, ne2}, {ja2, ne2, ja1, ne1}}
+                                        : new Pattern[][]{{ne1, ja1, ne2, ja2}, {ne2, ja2, ne1, ja1}};
+            for (Pattern[] sd : sides)
+                if (sd[0].matcher(src).find() && !sd[2].matcher(src).find() && sd[3].matcher(hyp).find() && !sd[1].matcher(hyp).find())
+                    return ANTONYMS[i][0];
+        }
+        return null;
+    }
 }
