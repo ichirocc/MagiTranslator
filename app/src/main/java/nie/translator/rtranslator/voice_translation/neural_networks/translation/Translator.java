@@ -512,7 +512,15 @@ public class Translator extends NeuralNetworkApi {
             }
             mode = newMode;
             releasedMode = -1;
-            onnxTranslationModelInitialization();
+            try {
+                onnxTranslationModelInitialization();
+            } catch (Exception | Error initError) {
+                //no half-loaded model stays selected: free what was created and mark it for reload on the next translation
+                closeSessionsQuietly();
+                mode = -1;
+                releasedMode = newMode;
+                throw initError;
+            }
             Log.i("translation", "model switched " + oldMode + " -> " + newMode);
         }
     }
@@ -1368,14 +1376,9 @@ public class Translator extends NeuralNetworkApi {
             android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
             if (encoderResult == null && currentRequestCancelled()) throw new TranslationCancelledException();
             if (encoderResult == null) {
-                if (Boolean.TRUE.equals(SILENT.get())) {
-                    //internal jane call: no UI error, the library treats it as a failed candidate
-                } else if (responseListener != null) {
-                    mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                } else {
-                    mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                }
-                throw new Exception();
+                //no UI notice here: the caller's catch reports it once through postFailure() (ERROR_EXECUTING_MODEL);
+                //internal jane calls (SILENT) see the exception and treat it as a failed candidate
+                throw new Exception("translation encoder failed");
             }
         }
         //decoder execution
@@ -1416,12 +1419,12 @@ public class Translator extends NeuralNetworkApi {
             }
         };
         int[] completeOutputArray;
-        if (beamSize > 1) {  //beam search
-            completeOutputArray = executeCacheDecoder(textToTranslate, input, encoderResult, inputLanguage, outputLanguage, beamSize, translateListener);
-        } else {  //greedy search (with kv cache)
-            completeOutputArray = executeCacheDecoder(textToTranslate, input, encoderResult, inputLanguage, outputLanguage, 1, translateListener);
+        try {
+            //a decoder error is thrown (DecoderFailedException), so a failed run never comes back as "" plus a success notice
+            completeOutputArray = executeCacheDecoder(textToTranslate, input, encoderResult, inputLanguage, outputLanguage, beamSize > 1 ? beamSize : 1, translateListener);
+        } finally {
+            if(encoderResult != null) encoderResult.close();   //also on a decoder error
         }
-        if(encoderResult != null) encoderResult.close();
         if (currentRequestCancelled()) throw new TranslationCancelledException();   //never turn a cancelled run into "" output
         if(completeOutputArray != null) {
             return tokenizer.decode(completeOutputArray);
@@ -1947,14 +1950,15 @@ public class Translator extends NeuralNetworkApi {
                 return null;   //the caller sees the cancelled ticket and delivers nothing
             }
             e.printStackTrace();
-            final int legacy = code.toLegacyCode();
-            if(responseListener != null) {
-                mainHandler.post(() -> responseListener.onFailure(new int[]{legacy}, 0));
-            }else{
-                mainHandler.post(() -> notifyError(new int[]{legacy}, 0));
-            }
+            //report once, from the request's catch (postFailure): not here as well, and never as an empty success
+            throw new DecoderFailedException(e);
         }
         return null;
+    }
+
+    /** A decoder run failed; the cause keeps the ORT error so {@link TranslationEngineErrorCode#fromThrowable} maps it. */
+    static final class DecoderFailedException extends RuntimeException {
+        DecoderFailedException(Throwable cause) { super(cause); }
     }
 
     /**

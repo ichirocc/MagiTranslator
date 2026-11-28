@@ -920,6 +920,12 @@ public class TranslationFragment extends Fragment {
         outputText.removeTextChangedListener(outputTextListener);
         inputText.clearFocus();
         outputText.clearFocus();
+        //the TTS is created in every onStart(): release it here, or each return to the screen leaks one engine connection
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts = null;
+        }
         //we detach the translate listener
         global.getTranslator().removeCallback(translateListener);
         //leaving the app's screen for good: stop the text translation instead of keeping the model busy
@@ -936,6 +942,11 @@ public class TranslationFragment extends Fragment {
             public void onSuccess() {
                 activateTranslationButton();
             }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                activateTranslationButton();   //a failed resource load must not leave the button disabled (translating reloads them)
+            }
         });
         // change language displayed
         setDisplayedFirstLanguage(language);
@@ -948,6 +959,11 @@ public class TranslationFragment extends Fragment {
             @Override
             public void onSuccess() {
                 activateTranslationButton();
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                activateTranslationButton();   //a failed resource load must not leave the button disabled (translating reloads them)
             }
         });
         // change language displayed
@@ -970,6 +986,11 @@ public class TranslationFragment extends Fragment {
             @Override
             public void onSuccess() {
                 activateTranslationButton();
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                activateTranslationButton();   //a failed resource load must not leave the button disabled (translating reloads them)
             }
         });
         // change language displayed

@@ -1049,10 +1049,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
             if (translator != null) {
                 translator.setTranslationStatus(translationMode, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts, listener);
             }else{
-                listener.onSuccess();
+                if (listener != null) listener.onSuccess();
             }
         }else{
-            listener.onSuccess();
+            if (listener != null) listener.onSuccess();
         }
     }
 
@@ -1078,28 +1078,39 @@ public class Global extends Application implements DefaultLifecycleObserver {
      */
     public void updateLanguagesAndResources(Translator.GeneralListener listener){
         getLanguages(RTranslatorMode.TEXT_TRANSLATION_MODE, false);  //this will update the recognizer langs, the translator langs and also the mozilla langs (for all the RTranslator modes)
-        setFirstTextLanguage(getFirstTextLanguage(false), new Translator.GeneralListener() {
+        //every step goes on after a failure too (the languages themselves are already saved), and the caller always
+        //gets one final answer: onFailure if any resource load failed, else onSuccess (it used to wait forever)
+        final boolean[] failed = {false};
+        final int[][] reasons = {null};
+        setFirstTextLanguage(getFirstTextLanguage(false), chain(failed, reasons, () ->
+            setSecondTextLanguage(getSecondTextLanguage(false), chain(failed, reasons, () ->
+                setFirstLanguage(getFirstLanguage(false), chain(failed, reasons, () ->
+                    setSecondLanguage(getSecondLanguage(false), chain(failed, reasons, () -> {
+                        setLanguage(getLanguage(false));
+                        if (listener == null) return;
+                        if (failed[0]) {
+                            final int[] r = reasons[0];
+                            mainHandler.post(() -> listener.onFailure(r, 0));
+                        } else {
+                            mainHandler.post(listener::onSuccess);
+                        }
+                    }))))))));
+    }
+
+    /** A listener that runs {@code next} on success and on failure, remembering the first failure. */
+    private static Translator.GeneralListener chain(final boolean[] failed, final int[][] reasons, final Runnable next) {
+        return new Translator.GeneralListener() {
             @Override
             public void onSuccess() {
-                setSecondTextLanguage(getSecondTextLanguage(false), new Translator.GeneralListener() {
-                    @Override
-                    public void onSuccess() {
-                        setFirstLanguage(getFirstLanguage(false), new Translator.GeneralListener() {
-                            @Override
-                            public void onSuccess() {
-                                setSecondLanguage(getSecondLanguage(false), new Translator.GeneralListener() {
-                                    @Override
-                                    public void onSuccess() {
-                                        setLanguage(getLanguage(false));
-                                        mainHandler.post(() -> listener.onSuccess());
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
+                next.run();
             }
-        });
+
+            @Override
+            public void onFailure(int[] r, long value) {
+                if (!failed[0]) { failed[0] = true; reasons[0] = r; }
+                next.run();
+            }
+        };
     }
 
     public String getName() {
@@ -1267,7 +1278,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if(translator != null) {
             translator.loadLanguageResources(firstLanguage, secondLanguage, mode, listener);
         }else{
-            listener.onSuccess();  //if the translator is not initialized yet we do not load the language resources
+            if (listener != null) listener.onSuccess();  //if the translator is not initialized yet we do not load the language resources
         }
     }
 

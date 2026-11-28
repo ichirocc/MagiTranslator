@@ -93,6 +93,8 @@ public abstract class VoiceTranslationService extends GeneralService {
     @Nullable
     protected TTSEngine ttsEngine;
     protected Handler mainHandler;
+    /** set first thing in onDestroy: no callback (TTS end, delayed mic restart) may reopen the mic afterwards */
+    protected volatile boolean destroyed = false;
     protected Handler mainTTSHandler;
     private static final long WAKELOCK_TIMEOUT = 600 * 1000L;  // 10 minutes, so if the service stopped without calling onDestroyed the wakeLock would still be released within 10 minutes (the wakeLock will be reacquired before the 10 minutes if the service is still running)
     private Timer wakeLockTimer;  // to reactivate the timer every 10 minutes, so as long as the service is active the wakelock will never expire
@@ -147,6 +149,7 @@ public abstract class VoiceTranslationService extends GeneralService {
                     mainHandler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
+                            if (destroyed) return;
                             if (shouldDeactivateMicDuringTTS()) {
                                 if (!isMicMute) {
                                     startVoiceRecorder();
@@ -225,6 +228,7 @@ public abstract class VoiceTranslationService extends GeneralService {
     }*/
 
     public void startVoiceRecorder() {
+        if (destroyed) return;   // a late callback (TTS end, delayed restart) after onDestroy must not reopen the mic
         Log.i("recorder", "recorder started");
         if (!Tools.hasPermissions(this, Global.REQUIRED_PERMISSIONS_VOICE)) {
             notifyError(new int[]{MISSING_MIC_PERMISSION}, -1);
@@ -340,6 +344,7 @@ public abstract class VoiceTranslationService extends GeneralService {
 
     @Override
     public synchronized void onDestroy() {
+        destroyed = true;
         super.onDestroy();
         // Stop listening to voice
         stopVoiceRecorder();
@@ -352,6 +357,8 @@ public abstract class VoiceTranslationService extends GeneralService {
             ttsEngine.stop();
             ttsEngine.shutdown();
         }
+        // drop the delayed mic restart that ttsEngine.stop() may just have scheduled (onUtteranceFinished)
+        if (mainHandler != null) mainHandler.removeCallbacksAndMessages(null);
         //stop foreground
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stopForeground(Service.STOP_FOREGROUND_REMOVE);

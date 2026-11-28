@@ -228,23 +228,28 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     }
 
     public void initializeEncoderSession() throws OrtException {
-        // release of encoder session in case of a restart
-        if(encoderSession != null){
-            encoderSession.close();
-        }
-        // encoder session initialization
+        // build the new session first: if that fails the old one stays usable
         String encoderPath = global.getFilesDir().getPath() + "/Whisper_encoder.onnx";
-        OrtSession.SessionOptions encoderSessionOptions = new OrtSession.SessionOptions();
-        if(global.isWhisperReducedRam()){
-            encoderSessionOptions.setCPUArenaAllocator(false);
-            encoderSessionOptions.setMemoryPatternOptimization(false);
-        }else {
-            encoderSessionOptions.setCPUArenaAllocator(true);
-            encoderSessionOptions.setMemoryPatternOptimization(true);
+        OrtSession fresh;
+        try (OrtSession.SessionOptions encoderSessionOptions = new OrtSession.SessionOptions()) {
+            if(global.isWhisperReducedRam()){
+                encoderSessionOptions.setCPUArenaAllocator(false);
+                encoderSessionOptions.setMemoryPatternOptimization(false);
+            }else {
+                encoderSessionOptions.setCPUArenaAllocator(true);
+                encoderSessionOptions.setMemoryPatternOptimization(true);
+            }
+            encoderSessionOptions.setSymbolicDimensionValue("batch_size", 1);
+            encoderSessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+            fresh = onnxEnv.createSession(encoderPath, encoderSessionOptions);
         }
-        encoderSessionOptions.setSymbolicDimensionValue("batch_size", 1);
-        encoderSessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-        encoderSession = onnxEnv.createSession(encoderPath, encoderSessionOptions);
+        // swap under the recognition lock (recognize() runs entirely inside it), then close the old one
+        OrtSession old;
+        synchronized (lock) {
+            old = encoderSession;
+            encoderSession = fresh;
+        }
+        if (old != null) old.close();
     }
 
     /**
@@ -257,10 +262,15 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     // (and costs a thread per utterance); recognition itself still runs under lock as before
     private final java.util.concurrent.ExecutorService enqueueExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> new Thread(r, "recognizer"));
 
+    // bumped by stop() on the caller's thread: chunks handed in before it are dropped even if still queued in the executor
+    private final java.util.concurrent.atomic.AtomicInteger generation = new java.util.concurrent.atomic.AtomicInteger();
+
     public void recognize(final float[] data, int beamSize, final String languageCode) {
+        final int gen = generation.get();
         enqueueExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                if (gen != generation.get()) return;
                 synchronized (lock) {
                     Log.e("recognizer","recognizingCalled");
                     if (data != null) {
@@ -282,9 +292,11 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     }
 
     public void recognize(final float[] data, int beamSize, final String languageCode1, final String languageCode2) {
+        final int gen = generation.get();
         enqueueExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                if (gen != generation.get()) return;
                 synchronized (lock) {
                     Log.e("recognizer","recognizingCalled");
                     if (data != null) {
@@ -881,6 +893,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      * handed in before stop() are dropped, chunks handed in after it are kept. The utterance in progress finishes.
      */
     public void stop(){
+        generation.incrementAndGet();   // chunks still waiting in the executor are skipped
         enqueueExecutor.execute(() -> {
             synchronized (lock) {
                 dataToRecognize.clear();

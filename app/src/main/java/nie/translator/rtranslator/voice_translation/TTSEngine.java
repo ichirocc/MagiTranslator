@@ -105,7 +105,8 @@ public class TTSEngine {
 
             @Override
             public void onError(int reason) {
-
+                //tell the owner (the service sets isTTSError / mutes audio) instead of failing silently
+                handler.post(() -> { if (listener != null) listener.onInitError(reason); });
             }
         });
         this.listener = listener;
@@ -133,11 +134,18 @@ public class TTSEngine {
             if (pair != null && tts != null) {
                 if(listener != null) listener.onUtteranceStarting(pair.first, !wasSpeaking);
                 executingMessage = pair;
-                if (tts.getVoice() != null && pair.second.equals(new CustomLocale(tts.getVoice().getLocale()))) {
-                    tts.speak(pair.first.getMessage().getText(), queueMode, null, String.valueOf(pair.first.getMessageID()));
-                } else {
-                    tts.setLanguage(pair.second, context);
-                    tts.speak(pair.first.getMessage().getText(), queueMode, null, String.valueOf(pair.first.getMessageID()));
+                boolean ok = true;
+                if (tts.getVoice() == null || !pair.second.equals(new CustomLocale(tts.getVoice().getLocale()))) {
+                    //LANG_MISSING_DATA / LANG_NOT_SUPPORTED: do not read the text in the previous voice
+                    ok = tts.setLanguage(pair.second, context) >= TextToSpeech.LANG_AVAILABLE;
+                }
+                if (ok) ok = tts.speak(pair.first.getMessage().getText(), queueMode, null, String.valueOf(pair.first.getMessageID())) == TextToSpeech.SUCCESS;
+                if (!ok) {
+                    //skip this message as if it had been read, so the queue and the mic restart go on
+                    Log.w("tts_engine", "cannot speak in " + pair.second.getCode());
+                    executingMessage = null;
+                    if (listener != null) listener.onUtteranceFinished(pair.first, messageQueue.isEmpty());
+                    return speak(queueMode);
                 }
                 return true;
             }else{
