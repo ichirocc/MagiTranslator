@@ -200,6 +200,8 @@ NE_NOT_NEGATION = ("नमस्ते", "नमस्कार", "नयाँ"
                    "नक्कली", "नतिजा", "नर्सरी", "नगरपालिका", "नगरमा", "नगरको", "नगरका", "नगरले", "नगरबाट", "नगरवासी",
                    "नगद", "नमुना", "नम्र", "नजर", "नरक", "नमन", "नशा", "नकल", "नरिवल", "नवीन", "नवम्बर", "नब्बे", "नहर",
                    "नवजात", "नक्सली", "नमक", "नवौं", "नरेन्द्र", "नरेश", "नवराज", "नकारात्मक", "नक्षत्र", "नक्कल", "नवशिशु", "नङ")
+# ne->ja: the Japanese says "no" without ない (だめ, 防ぐ, 〜な！, だけでなく, いいえ, まだです ...)
+JA_NEG_MEANING = re.compile(r"だめ|ダメ|駄目|いいえ|^いえ|[、。\s]いえ[、。]|けっこう|結構|まだ(?:です|[。]|$)|嫌い|きらい|防[ぐぎ]|避け|づらい|にくい|違[いうっ]|おかしい|悪い|わるい|不在|無意識|残念|大丈夫|ゆっくりで|[るぐむぶつすく]な[！!]|[るぐむぶつすく]なって|でなく|いやです")
 NE_WORD = re.compile("[ऀ-ॣ०-ॿ]+")  # excludes danda । ॥
 JA_SCRIPT = re.compile("[぀-ヿ一-鿿]")
 DEVANAGARI = re.compile("[ऀ-ॿ]")
@@ -486,8 +488,10 @@ def validate(src, hyp, direction, required_targets=None):
         return issues
     s, t = analyze_ne(src), analyze_ja(hyp)
     _check_numbers(s["numbers"], t["numbers_norm"], issues)
-    if s["negated"] != t["negated"]:
-        issues.append(("NEGATION_LOST", True, None) if s["negated"] else ("NEGATION_ADDED", False, None))
+    if s["negated"] and not t["negated"] and not JA_NEG_MEANING.search(hyp):
+        issues.append(("NEGATION_LOST", True, None))
+    if t["negated"] and not s["negated"]:
+        issues.append(("NEGATION_ADDED", False, None))
     if DEVANAGARI.search(hyp):
         issues.append(("UNTRANSLATED_SOURCE_SCRIPT", True, None))
     if t["repeat"]:

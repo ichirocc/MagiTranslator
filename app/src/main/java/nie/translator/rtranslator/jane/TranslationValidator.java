@@ -28,6 +28,9 @@ import nie.translator.rtranslator.jane.ir.WhConcept;
  */
 public final class TranslationValidator {
 
+    /** ne -> ja: the Japanese says "no" without ない (だめ, 防ぐ, 〜な！, だけでなく, いいえ, まだです ...). */
+    static final java.util.regex.Pattern JA_NEG_MEANING = java.util.regex.Pattern.compile("だめ|ダメ|駄目|いいえ|^いえ|[、。\\s]いえ[、。]|けっこう|結構|まだ(?:です|[。]|$)|嫌い|きらい|防[ぐぎ]|避け|づらい|にくい|違[いうっ]|おかしい|悪い|わるい|不在|無意識|残念|大丈夫|ゆっくりで|[るぐむぶつすく]な[！!]|[るぐむぶつすく]なって|でなく|いやです");
+
     public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
         // ne->ja meaning checks (checkNeToJaMeaning)
         QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
@@ -105,7 +108,7 @@ public final class TranslationValidator {
     /** ne -> ja, on IRs already built. */
     public static List<Issue> compareNeToJa(LanguageIR src, LanguageIR tgt, List<Issue> issues) {
         checkNumbers(src.numbers, tgt.numbersNormalized, issues);   // 三人 in the output = 3 in the source
-        if (src.negated && !tgt.negated) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
+        if (src.negated && !tgt.negated && !JA_NEG_MEANING.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
         if (!src.negated && tgt.negated) issues.add(new Issue(Kind.NEGATION_ADDED, false, null));
         if (NE_SCRIPT.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
         if (tgt.degenerateRepeat) issues.add(new Issue(Kind.REPETITION, true, null));
