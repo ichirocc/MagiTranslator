@@ -655,6 +655,7 @@ public class TranslationFragment extends Fragment {
                 }
             }
 
+            @SuppressWarnings("deprecation")  // abstract in UtteranceProgressListener: must be overridden
             @Override
             public void onError(String s) {
             }
