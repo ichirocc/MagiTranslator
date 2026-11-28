@@ -1,6 +1,7 @@
 package nie.translator.rtranslator.jane.ir;
 
 import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  * Everyday-conversation reversal traps (owner's general-conversation dictionary, layer 4):
@@ -150,6 +151,43 @@ public final class Traps {
             for (Pattern[] sd : sides)
                 if (sd[0].matcher(src).find() && !sd[2].matcher(src).find() && sd[3].matcher(hyp).find() && !sd[1].matcher(hyp).find())
                     return ANTONYMS[i][0];
+        }
+        return null;
+    }
+
+    // --- counter (助数詞) swapped: the same number with another unit (3人 -> ३ पटक). Mirrors metrics._counter_mismatch.
+    private static final String[][] COUNTERS = {
+        {"PERSON", "人|名", "जना"}, {"TIMES", "回|度", "पटक|चोटि|पल्ट"}, {"DAY", "日|日間", "दिन|गते"},
+        {"HOUR", "時間", "घण्टा"}, {"MINUTE", "分", "मिनेट"}, {"YEN", "円", "येन"}, {"KG", "キロ|kg", "किलो|केजी"},
+        {"TIME_OCLOCK", "時", "बजे|बज्यो"}, {"AGE", "歳|才", "वर्ष|बर्ष|उमेर"},
+        {"MONTH", "月|ヶ月|か月", "महिना|महिने|मार्च|अप्रिल|जनवरी"}};
+    private static final Pattern JA_COUNTER = Pattern.compile("([0-9０-９]+)\\s*(人|名|回|度|日間|日|時間|時|分|円|キロ|kg|歳|才|ヶ月|か月|月)");
+    private static final Pattern NE_COUNTER = Pattern.compile("([0-9]+)\\s*(\\S+)");
+
+    private static java.util.Map<String, java.util.Set<String>> units(String t, boolean ja) {
+        java.util.Map<String, java.util.Set<String>> out = new java.util.HashMap<>();
+        Matcher m = (ja ? JA_COUNTER : NE_COUNTER).matcher(t);
+        while (m.find()) {
+            String d = m.group(1);
+            StringBuilder sb = new StringBuilder();
+            for (char c : d.toCharArray()) sb.append(c >= '０' && c <= '９' ? (char) ('0' + c - '０') : c);
+            String n = sb.toString().replaceFirst("^0+(?=.)", "");
+            for (String[] c : COUNTERS) {
+                boolean hit = ja ? m.group(2).matches(c[1]) : Pattern.compile("^(?:" + c[2] + ")").matcher(m.group(2)).find();
+                if (hit) out.computeIfAbsent(n, k -> new java.util.HashSet<>()).add(c[0]);
+            }
+        }
+        return out;
+    }
+
+    /** "3" when 3人 became ३ पटक etc., else null. ja is the kanji-to-digits form of the source. */
+    public static String counterMismatch(String jaDigits, String ne) {
+        StringBuilder t = new StringBuilder();
+        for (char c : ne.toCharArray()) t.append(c >= '\u0966' && c <= '\u096F' ? (char) ('0' + c - 0x966) : c);
+        java.util.Map<String, java.util.Set<String>> a = units(jaDigits, true), b = units(t.toString(), false);
+        for (java.util.Map.Entry<String, java.util.Set<String>> e : a.entrySet()) {
+            java.util.Set<String> nb = b.get(e.getKey());
+            if (nb != null && java.util.Collections.disjoint(e.getValue(), nb)) return e.getKey();
         }
         return null;
     }

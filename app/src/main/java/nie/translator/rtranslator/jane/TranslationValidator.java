@@ -63,7 +63,7 @@ public final class TranslationValidator {
         return ir;
     }
 
-    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NUMBER_ORDER_CHANGED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
+    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NUMBER_ORDER_CHANGED, COUNTER_MISMATCH, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
         // ne->ja meaning checks (checkNeToJaMeaning)
         QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
         /** ja->ne agreement (IR-lite, SPEC v2 part 2): the candidate dropped what the Japanese predicate states */
@@ -205,6 +205,9 @@ public final class TranslationValidator {
         String sense = Traps.wordSense(sj, tn);
         if (sense != null) issues.add(new Issue(Kind.WORD_SENSE, false, sense));
         if (Traps.seasonalReversed(sj, tn)) issues.add(new Issue(Kind.SEASONAL_REVERSED, true, null));
+        // same number, another counter (3人 -> ३ पटक): soft, a unit can be legitimately restated
+        String cm = Traps.counterMismatch(nie.translator.rtranslator.jane.text.KanjiNumber.toDigits(sj), tn);
+        if (cm != null) issues.add(new Issue(Kind.COUNTER_MISMATCH, false, cm));
     }
 
     private static void checkNumbers(List<String> a, List<String> b, List<Issue> issues) {

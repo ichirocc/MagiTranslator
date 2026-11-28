@@ -415,6 +415,34 @@ def analyze_ne(text):
     }
 
 
+# --- counter (助数詞) swapped (Traps.counterMismatch): the same number with another unit, 3人 -> ३ पटक
+_COUNTERS = [("PERSON", r"人|名", r"जना"), ("TIMES", r"回|度", r"पटक|चोटि|पल्ट"), ("DAY", r"日|日間", r"दिन|गते"),
+             ("HOUR", r"時間", r"घण्टा"), ("MINUTE", r"分", r"मिनेट"), ("YEN", r"円", r"येन"), ("KG", r"キロ|kg", r"किलो|केजी"),
+             ("TIME_OCLOCK", r"時", r"बजे|बज्यो"), ("AGE", r"歳|才", r"वर्ष|बर्ष|उमेर"),
+             ("MONTH", r"月|ヶ月|か月", r"महिना|महिने|मार्च|अप्रिल|जनवरी")]
+_JA_COUNTER = re.compile(r"([0-9０-９]+)\s*(人|名|回|度|日間|日|時間|時|分|円|キロ|kg|歳|才|ヶ月|か月|月)")
+_NE_COUNTER = re.compile(r"([0-9]+)\s*(\S+)")
+
+
+def _units(t, ja):
+    out = {}
+    for m in (_JA_COUNTER if ja else _NE_COUNTER).finditer(t):
+        n = m.group(1).translate(str.maketrans("０１２３４５６７８９", "0123456789")).lstrip("0") or "0"
+        for k, jr, nr in _COUNTERS:
+            if (re.fullmatch(jr, m.group(2)) if ja else re.match("(?:" + nr + ")", m.group(2))):
+                out.setdefault(n, set()).add(k)
+    return out
+
+
+def _counter_mismatch(ja_digits, ne):
+    t = "".join(chr(48 + ord(c) - 0x966) if 0x966 <= ord(c) <= 0x96F else c for c in ne)
+    a, b = _units(ja_digits, True), _units(t, False)
+    for n, ks in a.items():
+        if n in b and not (ks & b[n]):
+            return n
+    return None
+
+
 def _check_numbers(a, b, issues):
     rest = list(b)
     for n in a:
@@ -534,6 +562,9 @@ def validate(src, hyp, direction, required_targets=None):
                 or (re.search(r"(スイッチ|電源|暖房|ヒーター)[^。]*(切|消)", src) and re.search(r"चलाउनुहोस्|अन गर्नुहोस्", hyp) and not re.search(r"बन्द|अफ", hyp))
                 or (re.search(r"冷える|冷えない|冷え込", src) and re.search(r"चिसो बनाउनुहोस्|चिसो पार्नुहोस्", hyp))):
             issues.append(("SEASONAL_REVERSED", True, None))
+        cm = _counter_mismatch(kanji_to_digits(src), hyp)
+        if cm is not None:
+            issues.append(("COUNTER_MISMATCH", False, cm))
         # currency (TranslationValidator.checkCurrencyJaToNe)
         if "YEN" in s["cur"] and "YEN" not in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "येन"))
