@@ -202,6 +202,15 @@ NE_NOT_NEGATION = ("नमस्ते", "नमस्कार", "नयाँ"
                    "नवजात", "नक्सली", "नमक", "नवौं", "नरेन्द्र", "नरेश", "नवराज", "नकारात्मक", "नक्षत्र", "नक्कल", "नवशिशु", "नङ")
 # ne->ja: the Japanese says "no" without ない (だめ, 防ぐ, 〜な！, だけでなく, いいえ, まだです ...)
 JA_NEG_MEANING = re.compile(r"だめ|ダメ|駄目|いいえ|^いえ|[、。\s]いえ[、。]|けっこう|結構|まだ(?:です|[。]|$)|嫌い|きらい|防[ぐぎ]|避け|づらい|にくい|違[いうっ]|おかしい|悪い|わるい|不在|無意識|残念|大丈夫|ゆっくりで|[るぐむぶつすく]な[！!]|[るぐむぶつすく]なって|でなく|いやです")
+# polysemous care words: (sense, ja context, ne wrong-sense, ne right-sense); soft WORD_SENSE when only the wrong sense appears
+WORD_SENSES = [
+    ('下げる(熱・血圧)', re.compile(r"(熱|血圧|体温|熱さまし)[^。]{0,6}下げ"), re.compile(r"लैजा|हटाउ"), re.compile(r"घट|कम")),
+    ('下げる(食器)', re.compile(r"(食器|お皿|皿|お膳|トレー|下膳)[^。]{0,6}下げ|下膳"), re.compile(r"घटाउ|कम गर"), re.compile(r"लैजा|हटाउ|उठाउ|सफा")),
+    ('かける(声)', re.compile(r"声を?かけ|声かけ"), re.compile(r"फोन"), re.compile(r"बोला|कुरा|भन")),
+    ('かける(布団)', re.compile(r"(布団|毛布|タオルケット|ひざ掛け|膝掛け)[^。]{0,4}かけ"), re.compile(r"फोन|बोला"), re.compile(r"ओढा|ढाक|राख")),
+    ('上がる(熱)', re.compile(r"熱が上が"), re.compile(r"माथि"), re.compile(r"बढ|आयो|आउ")),
+    ('出る(便)', re.compile(r"(便|うんち|おしっこ|尿)が出"), re.compile(r"बाहिर"), re.compile(r"दिसा|पिसाब|मल|मूत्र")),
+]
 NE_WORD = re.compile("[ऀ-ॣ०-ॿ]+")  # excludes danda । ॥
 JA_SCRIPT = re.compile("[぀-ヿ一-鿿]")
 DEVANAGARI = re.compile("[ऀ-ॿ]")
@@ -470,6 +479,10 @@ def validate(src, hyp, direction, required_targets=None):
                 or (re.search(r"飲ませ|食べさせ", src) and re.search(r"खानुहोस्|पिउनुहोस्", hyp) and not re.search(r"खुवा|पिला|लगाउ", hyp))
                 or (re.search(r"休憩", src) and not re.search(r"休み|休暇|有給", src) and re.search(r"बिदा", hyp))):
             issues.append(("CARE_WORD_SWAPPED", True, None))
+        for sense, j, wrong, right in WORD_SENSES:
+            if j.search(src) and wrong.search(hyp) and not right.search(hyp):
+                issues.append(("WORD_SENSE", False, sense))
+                break
         if ((re.search(r"熱中症", src) and re.search(r"ज्वरो", hyp) and not re.search(r"हिट|गर्मी|लु ", hyp))
                 or (re.search(r"(スイッチ|電源|暖房|ヒーター)[^。]*(切|消)", src) and re.search(r"चलाउनुहोस्|अन गर्नुहोस्", hyp) and not re.search(r"बन्द|अफ", hyp))
                 or (re.search(r"冷える|冷えない|冷え込", src) and re.search(r"चिसो बनाउनुहोस्|चिसो पार्नुहोस्", hyp))):

@@ -352,6 +352,9 @@ public class JaNeLibraryTest {
         yes(kindsNJ.apply("म नेपालबाट आएँ।", "ネバダ州シアトル出身。").contains("PLACE_MISSING"), "nj17: नेपाल missing");
         yes(kindsNJ.apply("म नेपालबाट आएँ।", "ネバダ州シアトル出身。").contains("PLACE_ADDED"), "nj17: hallucinated ネバダ/シアトル");
         yes(kindsNJ.apply("सीता नेपालबाट आएकी हुन्।", "北ネパールから来たんです。").contains("PLACE_ADDED"), "nj17: invented 北 before ネパール");
+        java.util.function.BiFunction<String, String, String> kindsJN = (s, h) -> TranslationValidator.validateJaToNe(s, h, java.util.Collections.emptyList()).toString();
+        yes(kindsJN.apply("熱を下げる薬です。", "यो ज्वरो लैजाने औषधि हो।").contains("WORD_SENSE"), "polysemy: 熱を下げる as take away");
+        yes(!kindsJN.apply("お皿を下げますね。", "थाल लैजान्छु है।").contains("WORD_SENSE"), "polysemy: お皿を下げる as take away is right");
         yes(!kindsNJ.apply("म पूर्वी नेपालबाट आएँ।", "東ネパールから来ました。").contains("PLACE_ADDED"), "pūrvī नेपाल = 東ネパール");
         yes(!kindsNJ.apply("चिन्ता नगर्नुहोस्", "大丈夫ですよ").contains("NEGATION_LOST"), "ne->ja: 大丈夫 renders नगर्नुहोस्");
         yes(kindsNJ.apply("आज म जान्नँ।", "今日は行きます。").contains("NEGATION_LOST"), "ne->ja: real negation loss still caught");

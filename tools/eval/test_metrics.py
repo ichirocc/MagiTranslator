@@ -180,6 +180,12 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(ne["cur"], {"RUPEE"})
 
 
+class WordSenseTest(unittest.TestCase):
+    def test_sense(self):
+        self.assertIn("WORD_SENSE", [i[0] for i in M.validate("熱を下げる薬です。", "यो ज्वरो लैजाने औषधि हो।", "ja-ne")])
+        self.assertNotIn("WORD_SENSE", [i[0] for i in M.validate("お皿を下げますね。", "थाल लैजान्छु है।", "ja-ne")])
+
+
 class NeJaCoverTest(unittest.TestCase):
     def test_direction_invented(self):
         k = [i[0] for i in M.validate("सीता नेपालबाट आएकी हुन्।", "北ネパールから来たんです。", "ne-ja")]

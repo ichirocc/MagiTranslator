@@ -46,6 +46,8 @@ public final class TranslationValidator {
         GUIDANCE_REVERSED, WATCH_OVER_LOST,
         /** care words swapped: かゆい as pain, 飲ませて as eat-yourself, 休憩 as day off */
         CARE_WORD_SWAPPED,
+        /** polysemous care word in the wrong sense (soft): 熱を下げる as take away, 布団をかける as phone */
+        WORD_SENSE,
         /** ne->ja: "can I or not" turned into a flat refusal */
         ALTERNATIVE_LOST,
         /** seasonal: 熱中症 as fever, heater off as on, getting cold as make cold */
@@ -160,6 +162,8 @@ public final class TranslationValidator {
         if (Traps.guidanceReversed(sj, tn)) issues.add(new Issue(Kind.GUIDANCE_REVERSED, true, null));
         if (Traps.watchOverLost(sj, tn)) issues.add(new Issue(Kind.WATCH_OVER_LOST, false, null));
         if (Traps.careWordSwapped(sj, tn)) issues.add(new Issue(Kind.CARE_WORD_SWAPPED, true, null));
+        String sense = Traps.wordSense(sj, tn);
+        if (sense != null) issues.add(new Issue(Kind.WORD_SENSE, false, sense));
         if (Traps.seasonalReversed(sj, tn)) issues.add(new Issue(Kind.SEASONAL_REVERSED, true, null));
     }
 

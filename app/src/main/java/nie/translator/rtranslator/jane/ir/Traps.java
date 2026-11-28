@@ -105,4 +105,26 @@ public final class Traps {
         if (JA_SWITCH_OFF.matcher(ja).find() && NE_TURN_ON.matcher(ne).find() && !NE_TURN_OFF.matcher(ne).find()) return true;
         return JA_GETS_COLD.matcher(ja).find() && NE_MAKE_COLD.matcher(ne).find();
     }
+
+    // --- polysemous care words: the Nepali shows only the wrong sense (熱を下げる as "take away", 布団をかける as "phone")
+    private static final String[][] SENSES = {
+            {"下げる(熱・血圧)", "(熱|血圧|体温|熱さまし)[^。]{0,6}下げ", "लैजा|हटाउ", "घट|कम"},
+            {"下げる(食器)", "(食器|お皿|皿|お膳|トレー|下膳)[^。]{0,6}下げ|下膳", "घटाउ|कम गर", "लैजा|हटाउ|उठाउ|सफा"},
+            {"かける(声)", "声を?かけ|声かけ", "फोन", "बोला|कुरा|भन"},
+            {"かける(布団)", "(布団|毛布|タオルケット|ひざ掛け|膝掛け)[^。]{0,4}かけ", "फोन|बोला", "ओढा|ढाक|राख"},
+            {"上がる(熱)", "熱が上が", "माथि", "बढ|आयो|आउ"},
+            {"出る(便)", "(便|うんち|おしっこ|尿)が出", "बाहिर", "दिसा|पिसाब|मल|मूत्र"}
+    };
+    private static final Pattern[][] SENSE_P = new Pattern[SENSES.length][];
+    static {
+        for (int i = 0; i < SENSES.length; i++)
+            SENSE_P[i] = new Pattern[]{Pattern.compile(SENSES[i][1]), Pattern.compile(SENSES[i][2]), Pattern.compile(SENSES[i][3])};
+    }
+
+    /** @return the sense label when the Nepali carries only the wrong sense, else null */
+    public static String wordSense(String ja, String ne) {
+        for (int i = 0; i < SENSES.length; i++)
+            if (SENSE_P[i][0].matcher(ja).find() && SENSE_P[i][1].matcher(ne).find() && !SENSE_P[i][2].matcher(ne).find()) return SENSES[i][0];
+        return null;
+    }
 }
