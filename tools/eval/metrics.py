@@ -83,6 +83,19 @@ def chrf_pp_corpus(hyps, refs):
     return 0.0 if total is None else _f_from_stats(total)
 
 
+def chrf_pp_corpus_multi(hyps, refs_list):
+    """Corpus chrF++ with several references per sentence (sacrebleu's rule): each sentence adds the stats of
+    the reference it matches best. refs_list[i] is a list of references for hyps[i]; empty ones are ignored."""
+    total = None
+    for h, refs in zip(hyps, refs_list):
+        refs = [r for r in refs if r and r.strip()]
+        if not refs:
+            continue
+        st = max((chrf_stats(h, r) for r in refs), key=_f_from_stats)
+        total = st if total is None else [[a + b for a, b in zip(x, y)] for x, y in zip(total, st)]
+    return 0.0 if total is None else _f_from_stats(total)
+
+
 # ---------------------------------------------------------------- numbers (QualityScorer.numbers)
 _NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?")  # Java \d is ASCII-only by default
 
