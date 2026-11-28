@@ -190,6 +190,16 @@ public class ConversationService extends VoiceTranslationService {
                         if (isFinal && (translatedText == null || translatedText.trim().isEmpty())) {
                             return;   //nothing to show or speak (e.g. the received text was only fillers)
                         }
+                        if (!isFinal) {
+                            //a streaming draft is only shown: the TTS language list is needed for the final result alone
+                            //(with a failing TTS the list is empty and was fetched again for every draft)
+                            message.setTextToTranslate(text);
+                            message.setText(translatedText);
+                            GuiMessage draft = new GuiMessage(message, inputLanguage, outputLanguage, resultID, false, false);
+                            notifyMessage(draft);
+                            addOrUpdateMessage(draft);
+                            return;
+                        }
                         global.getTTSLanguages(true, new Global.GetLocalesListListener() {
                             @Override
                             public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
