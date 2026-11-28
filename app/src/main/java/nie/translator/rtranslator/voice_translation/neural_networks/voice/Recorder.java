@@ -80,7 +80,7 @@ public class Recorder {
     private final Callback mCallback;
     private int sampleRate;
     @Nullable
-    private final AudioRecord mAudioRecord;
+    private volatile AudioRecord mAudioRecord;   //reopened in executeStart() when the mic was busy at construction
     private int mPrevBufferMaxSize;   //the size of the mPrevBuffer (It depends on the settings of the app (prevVoiceDuration))
     private float[] mBuffer;  //PCM FLOAT data, used for Speech recognition and volume level notification
     private short[] mBufferShort;  //PCM 16bit data, used for VAD
