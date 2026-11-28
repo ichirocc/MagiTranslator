@@ -16,6 +16,75 @@ public class JaNeLibraryTest {
     public static void main(String[] args) throws Exception {
         // normaliser
         eq("駅はどこですか？", JaNormalizer.normalize("えーと、駅はどこですか?"), "filler + ascii ?");
+        // literary forms rewritten for the model
+        eq("今よく寝ていらっしゃるよ", JaNormalizer.modernize("今よく寝てお出でだよ"), "お出でだ -> いらっしゃる");
+        eq("今よく寝ていらっしゃるよ", JaNormalizer.modernize("今よく寝てお出だよ"), "お出だ (no で) -> いらっしゃる");
+        eq("看護婦さんを、やとってください", JaNormalizer.modernize("看護婦さんを、やとって頂戴"), "頂戴 -> ください");
+        eq("病人には言わないようにしなさい。", JaNormalizer.modernize("病人には言わぬようにしたまえ。"), "ぬ / たまえ");
+        eq("どうせ死ぬんだから", JaNormalizer.modernize("どうせ死ぬんだから"), "死ぬ is not a negative");
+        eq("病人にばかり構っていないで", JaNormalizer.modernize("病人にばかり構って居らずに"), "居らず");
+        eq("ところでお父さんの病気はどうなんです", JaNormalizer.modernize("時にお父さんの病気はどうなんです"), "時に = by the way");
+        eq("時には休みます", JaNormalizer.modernize("時には休みます"), "時には (sometimes) kept");
+        eq("居間にいます", JaNormalizer.modernize("居間に居ます"), "居間 kept, 居ます -> います");
+        eq("こっちでやっておくよ！", JaNormalizer.modernize("こっちでやっとくよ！"), "やっとく -> やっておく");
+        eq("さっき送っておいたよ。", JaNormalizer.modernize("さっき送っといたよ。"), "送っといた -> 送っておいた");
+        eq("読んでおきます。", JaNormalizer.modernize("読んどきます。"), "読んどく -> 読んでおく");
+        eq("きっとくるよ。", JaNormalizer.modernize("きっとくるよ。"), "きっとくる is not a contraction");
+        eq("ちょっとくらい休もう。", JaNormalizer.modernize("ちょっとくらい休もう。"), "ちょっとくらい kept");
+        eq("忘れてしまった。", JaNormalizer.modernize("忘れちゃった。"), "ちゃった -> てしまった");
+        eq("薬を飲まなければならないよ。", JaNormalizer.modernize("薬を飲まなきゃよ。").replace("ならないよ", "ならないよ"), "なきゃ at the end");
+        eq("कृपया जाँच गरिदिनुहोला कि?", NePostEditor.edit("कृपया कृपया जाँच गरिदिनुहोला कि?"), "कृपया कृपया -> कृपया");
+        // similar phrase-book sentences as examples for the model
+        {
+            ExampleBank eb = new ExampleBank();
+            eb.add("車椅子のブレーキをかけてください。", "कृपया ह्वीलचियरको ब्रेक लगाउनुहोस्।", false, false);
+            eb.add("お茶をどうぞ。", "चिया लिनुहोस्।", false, false);
+            eb.add("ベッドの柵を上げてください。", "ओछ्यानको रेलिङ माथि उठाउनुहोस्।", true, false);
+            java.util.List<String[]> ex = eb.similar("車椅子のブレーキを外してください。", "ja", 2, 0.4);
+            yes(!ex.isEmpty() && ex.get(0)[0].startsWith("車椅子のブレーキ"), "the closest example comes first");
+            yes(eb.similar("車椅子のブレーキをかけてください", "ja", 2, 0.4).isEmpty(), "the input itself is not an example");
+            yes(eb.similar("今日はいい天気ですね。", "ja", 2, 0.4).isEmpty(), "nothing similar: no example");
+            yes(eb.similar("ओछ्यानको रेलिङ माथि उठाउनुहोस् है।", "ne", 2, 0.4).isEmpty(), "a ja>ne line is not an ne -> ja example");
+            PhraseBook epb = new PhraseBook().withFallback(new PhraseBook());
+            epb.add("お茶をどうぞ。", "चिया लिनुहोस्।", false);
+            eq(1, epb.examples().size(), "phrase book lines become examples");
+            final java.util.List<String> ep = new java.util.ArrayList<>();
+            TextCompletion exFake = (prompt, max, stops) -> { ep.add(prompt); return "कफी लिनुहोस्।"; };
+            PlamoTranslator ept = new PlamoTranslator(exFake, Glossary.withDefaults());
+            ept.setHistory(0, 0);
+            ept.setPhraseBook(epb);
+            ept.translate("お茶をどうぞ、熱いです。", "ja", "ne");
+            yes(ep.size() == 1 && ep.get(0).contains("चिया लिनुहोस्"), "a similar example is in the prompt, one model call");
+        }
+        // short answers read with the question just asked
+        eq("はい、まだ終わっていません。", JaAnswer.clarify("まだ終わっていませんか？", "はい。"), "はい to a negative question agrees with it");
+        eq("いいえ、もう終わっています。", JaAnswer.clarify("まだ終わっていませんか？", "いいえ。"), "いいえ to a negative question: the opposite");
+        eq("はい、痛くないです。", JaAnswer.clarify("痛くないですか？", "はい"), "はい: not painful");
+        eq("いいえ、お怪我はあります。", JaAnswer.clarify("お怪我はありませんか？", "いいえ"), "いいえ: hurt");
+        eq("はい。", JaAnswer.clarify("一緒に行きませんか？", "はい。"), "an invitation (行きませんか) is not a negative question");
+        eq("はい。", JaAnswer.clarify("これ、田中さんの本じゃないですか？", "はい。"), "じゃないですか seeks agreement: unchanged");
+        eq("大丈夫です、必要ありません。", JaAnswer.clarify("手伝いましょうか？", "大丈夫です。"), "大丈夫 to an offer declines");
+        eq("大丈夫です、必要ありません。", JaAnswer.clarify("袋は必要ですか？", "結構です。"), "結構です to an offer declines");
+        eq("はい、問題ありません。", JaAnswer.clarify("これを使ってもいいですか？", "いいです。"), "いいです to a permission agrees");
+        eq("はい、問題ありません。", JaAnswer.clarify("この日付でよろしいですか？", "大丈夫です"), "大丈夫 to a check agrees");
+        eq("ちょっと難しいです。", JaAnswer.clarify("明日シフト交代できますか？", "ちょっと…"), "ちょっと… to a request declines");
+        eq("大丈夫です。", JaAnswer.clarify("今日は雨です。", "大丈夫です。"), "no question: unchanged");
+        eq("レジ袋はいりません。", JaAnswer.declines("レジ袋は結構です。"), "〜は結構です declines");
+        eq("それは結構ですね。", JaAnswer.declines("それは結構ですね。"), "結構ですね is praise: unchanged");
+        {
+            final java.util.List<String> ap = new java.util.ArrayList<>();
+            TextCompletion ansFake = (prompt, max, stops) -> {
+                ap.add(prompt);
+                if (prompt.contains("झोला")) return "袋は必要ですか？";
+                if (prompt.contains("必要ありません")) return "पर्दैन, धन्यवाद।";
+                return "हुन्छ।";
+            };
+            PlamoTranslator at = new PlamoTranslator(ansFake, Glossary.withDefaults());
+            at.translate("झोला चाहिन्छ?", "ne", "ja");
+            eq("पर्दैन, धन्यवाद।", at.translate("結構です。", "ja", "ne").text, "結構です after the bag offer is translated as a refusal");
+            eq("हुन्छ।", at.translate("結構です。", "ja", "ne").text, "the question is used once only");
+        }
+        eq("बिस्तारै बिस्तारै हिँड्नुहोस्।", NePostEditor.edit("बिस्तारै बिस्तारै हिँड्नुहोस्।"), "reduplication kept");
         eq("あの人は先生です", JaNormalizer.normalize("あの人は先生です"), "keep あの人");
         eq("すみません。いいです", JaNormalizer.normalize("あの、すみません。まあ、いいです"), "multiple fillers");
         eq("ABC123", JaNormalizer.normalize("ＡＢＣ１２３"), "NFKC width");
@@ -576,6 +645,146 @@ public class JaNeLibraryTest {
             eq("कृपया एकछिन पर्खनुहोस्।", upb.lookupJaNe("少々お待ちください"), "phrase lookup ignores final punctuation");
             yes(upb.lookupNeJa("पहिले जानुहोस्") == null, "ja>ne-only phrase not used for ne->ja");
             eq("少々お待ちください。", upb.lookupNeJa("कृपया एकछिन पर्खनुहोस् ।"), "ne->ja phrase lookup ignores danda spacing");
+            // ne>ja lines: another Nepali wording of a Japanese phrase, keyed by the Nepali (not a duplicate)
+            UserDictionary.Parsed nj = UserDictionary.parse(new java.io.StringReader("#!jane phrases\nおたふくかぜ\tमम्प्स\nおたふくかぜ\tहाँडे रोग\tne>ja\n"));
+            eq(2, nj.accepted(), "phrases: ne>ja line sharing the Japanese is not a duplicate");
+            PhraseBook njb = new PhraseBook();
+            UserDictionary.apply(nj, null, njb);
+            eq("मम्प्स", njb.lookupJaNe("おたふくかぜ"), "ne>ja line not used for ja->ne");
+            eq("おたふくかぜ", njb.lookupNeJa("हाँडे रोग"), "ne>ja line used for ne->ja");
+            eq("おたふくかぜ", njb.lookupNeJa("मम्प्स"), "two-way line still read back");
+            // fallback: asked only for sentences the user's book does not know
+            PhraseBook fbk = new PhraseBook(); fbk.add("頭囲", "टाउको परिधि", false); fbk.add("胸囲", "छाती परिधि", false);
+            PhraseBook mine = new PhraseBook().withFallback(fbk);
+            mine.add("頭囲", "टाउकोको नाप", false); mine.add("やあ", "छाती परिधि", true); mine.add("どうも", "छाती परिधि", false);
+            eq("टाउकोको नाप", mine.lookupJaNe("頭囲"), "fallback: the user's phrase wins");
+            eq("छाती परिधि", mine.lookupJaNe("胸囲"), "fallback: used for an unknown sentence");
+            eq("頭囲", mine.lookupNeJa("टाउको परिधि"), "fallback: ne->ja for an unknown Nepali");
+            yes(mine.lookupNeJa("छाती परिधि") == null, "fallback: not asked for a Nepali the user made ambiguous");
+            // the bundled asset parses cleanly and every line is reachable
+            java.io.File asset = new java.io.File("app/src/main/assets/jane/phrases_builtin.tsv");
+            if (!asset.exists()) asset = new java.io.File("src/main/assets/jane/phrases_builtin.tsv");
+            if (asset.exists()) {
+                UserDictionary.Parsed bp;
+                try (java.io.Reader ar = new java.io.InputStreamReader(new java.io.FileInputStream(asset), java.nio.charset.StandardCharsets.UTF_8)) { bp = UserDictionary.parse(ar); }
+                eq(0, bp.rejected + bp.duplicates, "built-in phrases: no rejected or duplicate lines");
+                PhraseBook bb = new PhraseBook();
+                UserDictionary.apply(bp, null, bb);
+                int unreachable = 0;
+                for (UserDictionary.Entry e : bp.entries) {
+                    if (!e.neToJaOnly && !e.target.equals(bb.lookupJaNe(e.source))) { unreachable++; System.out.println("  ja->ne unreachable: " + e.source); }
+                    if (!e.jaToNeOnly && !e.source.equals(bb.lookupNeJa(e.target))) { unreachable++; System.out.println("  ne->ja unreachable: " + e.target); }
+                }
+                eq(0, unreachable, "built-in phrases: every line is used in its direction(s)");
+            } else System.out.println("skip built-in phrases asset check (not run from the project root)");
+            // built-in term lists: every line valid, no duplicate source
+            for (String name : new String[]{"terms_builtin_ja_ne.tsv", "terms_builtin_ne_ja.tsv"}) {
+                java.io.File f = new java.io.File("app/src/main/assets/jane/" + name);
+                if (!f.exists()) f = new java.io.File("src/main/assets/jane/" + name);
+                if (!f.exists()) { System.out.println("skip " + name + " (not run from the project root)"); continue; }
+                try (java.io.Reader ar = new java.io.InputStreamReader(new java.io.FileInputStream(f), java.nio.charset.StandardCharsets.UTF_8)) {
+                    UserDictionary.Parsed tp = UserDictionary.parse(ar);
+                    eq(0, tp.rejected + tp.duplicates, name + ": no rejected or duplicate lines");
+                    yes(tp.kind != UserDictionary.Kind.PHRASES && tp.accepted() > 20, name + ": a term list");
+                }
+            }
+            // ne -> ja: a 彼 / 彼女 guessed for the gender-neutral उहाँ is dropped
+            eq("右手が動きません。", JaNeTranslator.finishJa("彼の右手が動きません。", "उहाँको दाहिने हात चल्दैन।"), "guessed 彼の dropped");
+            eq("ベッドから車椅子に移すのを手伝ってください。", JaNeTranslator.finishJa("彼女をベッドから車椅子に移すのを手伝ってください。", "कृपया उहाँलाई ओछ्यानबाट ह्वीलचियरमा सार्न मद्दत गर्नुहोस्।"), "guessed 彼女を dropped");
+            eq("食事をさせていると咳き込みました。", JaNeTranslator.finishJa("食事をさせていると彼は咳き込みました。", "खाना खुवाउँदा उहाँलाई खोकी लाग्यो।"), "guessed 彼は mid-sentence dropped");
+            eq("彼女は来ました。", JaNeTranslator.finishJa("彼女は来ました。", "मेरी आमा आउनुभयो, उहाँ थाकेको छ।"), "kept when the source names a gendered person");
+            eq("彼らは来ました。", JaNeTranslator.finishJa("彼らは来ました。", "उहाँहरू आउनुभयो।"), "plural 彼ら kept");
+            eq("彼は医者です。", JaNeTranslator.finishJa("彼は医者です。", "ऊ डाक्टर हो।"), "no उहाँ in the source: kept");
+            eq("彼です。", JaNeTranslator.finishJa("彼です。", "उहाँ हो।"), "no particle: kept");
+            // ne -> ja: a first person past report with no subject is retried with मैले when read as a request
+            yes(PlamoTranslator.firstPersonPastWithoutSubject("ब्रेक लगाउन बिर्सें।"), "1sg past without subject");
+            yes(!PlamoTranslator.firstPersonPastWithoutSubject("मैले राम्ररी बुझिनँ"), "subject written: no retry");
+            yes(PlamoTranslator.firstPersonPastWithoutSubject("राम्ररी बुझिनँ।"), "negative 1sg past");
+            yes(!PlamoTranslator.firstPersonPastWithoutSubject("मैले गल्ती गरें, माफ गर्नुहोस्।"), "ends in a request: no retry");
+            yes(!PlamoTranslator.firstPersonPastWithoutSubject("उहाँ लड्नुभयो।"), "third person: no retry");
+            yes(PlamoTranslator.requestOrVolitional("書きましょう。") && PlamoTranslator.requestOrVolitional("忘れないでください。")
+                    && !PlamoTranslator.requestOrVolitional("忘れました。"), "request / invitation endings");
+            yes(PlamoTranslator.tenseLost("ब्रेक लगाउन बिर्सें।", "ブレーキをかけるのを忘れます。"), "positive past read as present");
+            yes(!PlamoTranslator.tenseLost("ब्रेक लगाउन बिर्सें।", "ブレーキをかけ忘れました。"), "past kept");
+            yes(!PlamoTranslator.tenseLost("राम्ररी बुझिनँ।", "よくわかりません。"), "negative past as わかりません is right");
+            eq("के हेर्नुपर्छ?", PlamoTranslator.deliberative("के हेर्ने?"), "deliberative -ने? asks what to do");
+            eq("पानी कति पिउनुभयो भनेर कहाँ लेख्नुपर्छ?", PlamoTranslator.deliberative("पानी कति पिउनुभयो भनेर कहाँ लेख्ने?"), "deliberative in a longer question");
+            eq("तपाईं कहिले जाने?", PlamoTranslator.deliberative("तपाईं कहिले जाने?"), "second person: a question about you, unchanged");
+            eq("भोलि जाने?", PlamoTranslator.deliberative("भोलि जाने?"), "no question word: unchanged");
+            eq("राम्रो काम गर्ने।", PlamoTranslator.deliberative("राम्रो काम गर्ने।"), "not a question: unchanged");
+            eq("すみません、これどこに置くの？", JaNeTranslator.finishJa("お父さん、これどこに置くの？", "दाइ, यो कहाँ राख्ने?"), "vocative दाइ is not a father");
+            eq("お姉さんは来ました。", JaNeTranslator.finishJa("お姉さんは来ました。", "दिदी आउनुभयो।"), "दिदी as a subject is kept");
+            // verb stems (~) match every conjugation, never a longer unrelated word
+            {
+                Glossary sg = Glossary.withDefaults();
+                sg.putUserReverse("ढाँट~", "嘘をつく");
+                sg.putUserReverse("सर्कि~", "むせる");
+                java.util.List<Glossary.Term> st = sg.termsNeJa("ढाँट्नु नगर्नुस् न", 8);
+                eq("[ढाँट्नु=嘘をつく?]", st, "stem term matches a conjugated verb, given as written");
+                eq("[सर्किनुभयो=むせる?]", sg.termsNeJa("उहाँ खाना खाँदा सर्किनुभयो।", 8), "stem: honorific past");
+                eq("[]", sg.termsNeJa("ठाउँमा सर्कल गर्नुहोस्।", 8), "stem सर्कि does not match सर्कल");
+                eq("[ढाँटेन=嘘をつく?]", sg.termsNeJa("मलाई ढाँटेन", 8), "stem: negative past");
+                eq("[]", sg.termsNeJa("बढाँटको", 8), "stem only at the start of a word");
+            }
+            {
+                final java.util.List<String> vp = new java.util.ArrayList<>();
+                TextCompletion vocFake = (prompt, max, stops) -> { vp.add(prompt); return "ご飯食べた？"; };
+                PlamoTranslator vt = new PlamoTranslator(vocFake, Glossary.withDefaults());
+                vt.setHistory(0, 0);
+                eq("ねえ、ご飯食べた？", vt.translate("ए बाबु, खाना खाइस्?", "ne", "ja").text, "ए बाबु, is a call: ねえ、");
+                yes(!vp.get(0).contains("बाबु"), "the call is not given to the model");
+                vp.clear();
+                eq("すみません、ご飯食べた？", vt.translate("दिदी, खाना खानुभयो?", "ne", "ja").text, "दिदी, to an elder colleague: すみません、");
+                vp.clear();
+                vt.translate("हे भगवान्! अब म के गरूँ?", "ne", "ja");
+                yes(vp.get(0).contains("हे भगवान्"), "हे भगवान् is not a call to a person");
+                vp.clear();
+                eq("ご飯食べた？", vt.translate("ए, खाना खानुभयो?", "ne", "ja").text, "a bare ए, is an exclamation, left to the model");
+                yes(vp.get(0).contains("ए,"), "... and given to it");
+            }
+            {
+                // who acts, from the Japanese ending (the subject left out)
+                eq(JaPerson.Person.YOU, JaPerson.of("お薬を飲んでいただけますか。"), "ていただけますか: the listener");
+                eq(JaPerson.Person.YOU, JaPerson.of("寒くない？"), "a sensation asked: the listener");
+                eq(JaPerson.Person.ME, JaPerson.of("腰が痛い。"), "a sensation stated: the speaker");
+                eq(JaPerson.Person.ME, JaPerson.of("早く帰りたい。"), "a wish stated: the speaker");
+                eq(JaPerson.Person.ME, JaPerson.of("お茶をお持ちします。"), "humble お〜します: the speaker");
+                eq(null, JaPerson.of("おむつ交換をお願いします。"), "お願いします is a request, not humble speech of the speaker");
+                eq(JaPerson.Person.NOT_ME, JaPerson.of("息子さんがいらっしゃいました。".replace("息子さんが", "")), "respect speech: not the speaker");
+                eq(null, JaPerson.of("昨日、資料を送りました。"), "plain ます fixes nobody");
+                eq(null, JaPerson.of("嬉しそうだね。"), "observed (そう): not the speaker, left alone");
+                eq(null, JaPerson.of("田中さんは休みたがっている。"), "subject named");
+                yes(JaPerson.contradicts(JaPerson.Person.YOU, "के म औषधि सेवन गर्न सक्छु?"), "Nepali first person for a request");
+                yes(!JaPerson.contradicts(JaPerson.Person.YOU, "के तपाईं औषधि खान सक्नुहुन्छ?"), "Nepali second person agrees");
+                yes(!JaPerson.contradicts(JaPerson.Person.ME, "म तपाईंको ढाड पुछिदिनेछु।"), "तपाईंको is an owner, not the subject");
+                yes(!JaPerson.contradicts(JaPerson.Person.NOT_ME, "मलाई मद्दत गर्नुभएकोमा धन्यवाद।"), "मलाई is an object");
+                eq("あなたがお薬を飲んでいただけますか。", JaPerson.withSubject("お薬を飲んでいただけますか。", JaPerson.Person.YOU), "subject written for the model");
+                final java.util.List<String> jp = new java.util.ArrayList<>();
+                TextCompletion personFake = (prompt, max, stops) -> {
+                    jp.add(prompt);
+                    return prompt.contains("あなたがお薬") ? "के तपाईं औषधि खान सक्नुहुन्छ?" : "के म औषधि सेवन गर्न सक्छु?";
+                };
+                PlamoTranslator ptp = new PlamoTranslator(personFake, Glossary.withDefaults());
+                ptp.setHistory(0, 0);
+                eq("के तपाईं औषधि खान सक्नुहुन्छ?", ptp.translate("お薬を飲んでいただけますか。", "ja", "ne").text, "retried with あなたが when the person is wrong");
+                eq(2, jp.size(), "one retry");
+            }
+            {
+                final java.util.List<String> prompts = new java.util.ArrayList<>();
+                TextCompletion subjFake = (prompt, max, stops) -> {
+                    prompts.add(prompt);
+                    if (prompt.contains("मैले ब्रेक")) return "私はブレーキをかけ忘れました。";
+                    if (prompt.contains("ब्रेक")) return "休憩するのを忘れないでください。";
+                    return "わかりました。";
+                };
+                PlamoTranslator pt = new PlamoTranslator(subjFake, Glossary.withDefaults());
+                pt.setHistory(0, 0);
+                eq("ブレーキをかけ忘れました。", pt.translate("ब्रेक लगाउन बिर्सें।", "ne", "ja").text, "subject retry fixes the request reading, 私は dropped");
+                eq(2, prompts.size(), "one retry only");
+                prompts.clear();
+                pt.translate("मैले बुझें।", "ne", "ja");
+                eq(1, prompts.size(), "no retry when the output is not a request");
+            }
             // a phrase hit is a candidate that is still validated: a phrase that drops the number loses
             PhraseBook numPb = new PhraseBook();
             numPb.add("3時に来てください。", "कृपया आउनुहोस्।", false);

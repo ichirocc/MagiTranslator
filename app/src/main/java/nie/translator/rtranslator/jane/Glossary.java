@@ -236,15 +236,22 @@ public final class Glossary {
             Matcher m = nepaliWord(k).matcher(work);
             if (!m.find()) continue;
             at.add(new int[]{m.start(), out.size()});
-            out.add(new Term(k, all.get(k), req.get(k)));
+            out.add(new Term(k.endsWith(STEM_MARK) ? m.group() : k, all.get(k), req.get(k)));   // a stem: the word as written
             do { for (int i = m.start(); i < m.end(); i++) work.setCharAt(i, '\u0000'); } while (m.find());
         }
         return limit(out, at, max);
     }
 
+    /** marks a Nepali verb stem in a term list (ne-ja-terms): ढाँट~ */
+    public static final String STEM_MARK = "~";
+
+    static String stem(String neTerm) {
+        return neTerm.endsWith(STEM_MARK) ? neTerm.substring(0, neTerm.length() - STEM_MARK.length()) : neTerm;
+    }
+
     // ँ/ं are interchangeable in nepaliWord(): compare with both folded to ं
     private static boolean mayContainNe(String text, String term) {
-        return text.replace('ँ', 'ं').contains(term.replace('ँ', 'ं'));
+        return text.replace('ँ', 'ं').contains(stem(term).replace('ँ', 'ं'));
     }
 
     private static final Map<String, Pattern> NE_WORD_CACHE = java.util.Collections.synchronizedMap(new LinkedHashMap<String, Pattern>(64, 0.75f, true) {
@@ -265,16 +272,22 @@ public final class Glossary {
         return p;
     }
 
-    /** A Nepali term at the start of a word, ending the word or followed by a case marker / plural. */
+    /**
+     * A Nepali term at the start of a word, ending the word or followed by a case marker / plural. A term
+     * ending in {@value #STEM_MARK} is a verb stem and matches the whole word in any conjugation:
+     * ढाँट~ is ढाँट्नु, ढाँट्छ, ढाँटेको ... (a verb has dozens of forms; listing them failed: लड्नुभयो, लडेर, ...).
+     */
     static Pattern nepaliWord(String neTerm) {
         Pattern p = NE_WORD_CACHE.get(neTerm);
         if (p != null) return p;
+        boolean isStem = neTerm.endsWith(STEM_MARK);
         StringBuilder rx = new StringBuilder("(?<![\\u0900-\\u0963\\u0966-\\u097F])");
-        for (char c : neTerm.toCharArray()) {
+        for (char c : stem(neTerm).toCharArray()) {
             if (c == 'ँ' || c == 'ं') rx.append("[\\u0901\\u0902]");
             else rx.append(Pattern.quote(String.valueOf(c)));
         }
-        rx.append("(?=$|[^\\u0900-\\u0963\\u0966-\\u097F]|").append(NE_CASE_MARKERS).append(")");
+        if (isStem) rx.append("[\\u0900-\\u0963\\u0966-\\u097F]*");
+        else rx.append("(?=$|[^\\u0900-\\u0963\\u0966-\\u097F]|").append(NE_CASE_MARKERS).append(")");
         p = Pattern.compile(rx.toString());
         NE_WORD_CACHE.put(neTerm, p);
         return p;

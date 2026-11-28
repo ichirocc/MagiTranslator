@@ -2,7 +2,7 @@
 """Checks the jane dictionaries (dictionaries/*.tsv) for data accidents.
 
 Errors (exit 1): a missing or wrong header, a line without exactly the expected columns, an empty side, a line in
-the wrong script (no Japanese on the ja side, no Devanagari on the ne side), a phrase marker other than ja>ne.
+the wrong script (no Japanese on the ja side, no Devanagari on the ne side), a phrase marker other than ja>ne / ne>ja.
 Warnings (exit 0, listed with --warnings): the same key twice with different targets, and terms whose two
 directions disagree (ja->ne X but ne->ja X -> another Japanese word). Warnings are often legitimate (synonyms).
 
@@ -60,8 +60,8 @@ def lint(d):
             if not src or not tgt:
                 errors.append("%s:%d: empty side" % (name, n))
                 continue
-            if len(cols) == 3 and cols[2].strip() not in ("", "ja>ne"):
-                errors.append("%s:%d: third column must be ja>ne, not %r" % (name, n, cols[2]))
+            if len(cols) == 3 and cols[2].strip() not in ("", "ja>ne", "ne>ja"):
+                errors.append("%s:%d: third column must be ja>ne or ne>ja, not %r" % (name, n, cols[2]))
             if not script_ok(src, a):
                 errors.append("%s:%d: %s side has no %s text: %r" % (name, n, a, a, src[:30]))
             if not script_ok(tgt, b):

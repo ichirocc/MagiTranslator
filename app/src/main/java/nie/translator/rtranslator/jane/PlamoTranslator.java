@@ -44,6 +44,26 @@ public final class PlamoTranslator {
 
     public void setPhraseBook(PhraseBook p) { phrases = p == null ? new PhraseBook() : p; }
 
+    /** examples given before the history: at most this many, at least this similar (Dice on character bigrams) */
+    static final int MAX_EXAMPLES = 2;
+    static final double MIN_EXAMPLE_SIMILARITY = 0.4;
+    private volatile boolean useExamples = true;
+    private volatile double minExampleSimilarity = MIN_EXAMPLE_SIMILARITY;
+
+    /** How similar an example must be (0..1, Dice on character bigrams). */
+    public void setExampleSimilarity(double min) { minExampleSimilarity = min; }
+
+    /** Similar phrase-book sentences as examples for the model (default on). */
+    public void setExamples(boolean on) { useExamples = on; }
+
+    private List<PlamoPrompt.Turn> examples(String src, String text) {
+        if (!useExamples) return Collections.emptyList();
+        List<PlamoPrompt.Turn> out = new ArrayList<>();
+        for (String[] e : phrases.examples().similar(text, src, MAX_EXAMPLES, minExampleSimilarity))
+            out.add(0, new PlamoPrompt.Turn(e[0], e[1]));   // the closest one last, next to the input
+        return out;
+    }
+
     /** Japanese output in polite style (default true). */
     public void setPolite(boolean on) { polite = on; }
 
@@ -67,7 +87,10 @@ public final class PlamoTranslator {
     public void setDraftListener(java.util.function.Consumer<String> listener) { draftListener = listener; }
 
     /** Forgets the conversation (new conversation, language change). */
-    public synchronized void clearConversation() { turns.clear(); }
+    public synchronized void clearConversation() { turns.clear(); lastQuestionJa = null; }
+
+    /** the Japanese of the other speaker's question just translated (ne -> ja), read by a short answer (JaAnswer) */
+    private volatile String lastQuestionJa;
 
     public synchronized int historySize() { return turns.size(); }
 
@@ -85,10 +108,16 @@ public final class PlamoTranslator {
             String out = JaNeTranslator.finishNe(phrase, norm);
             if (!out.isEmpty()) return remember(norm, out, phraseResult(norm, out, "ne"));
         }
-        // subjectless set phrases (手が離せない, お待たせしました, 見守っていますね) with the subject stated
-        String model = JaIdioms.rewrite(norm);
-        List<Glossary.Term> terms = glossary.termsJaNe(model, null, MAX_TERMS);
-        JaNeTranslator.Candidate best = run("ja", "ne", model, terms);
+        // a short answer (はい, 結構です ...) means what the question just asked decides: written out in full;
+        // then older forms in today's Japanese, and subjectless set phrases (手が離せない, お待たせしました) with
+        // the subject stated. What the model reads; the history keeps what was said
+        String q = historyTurns > 0 ? lastQuestionJa : null;
+        lastQuestionJa = null;
+        String m = JaIdioms.rewrite(JaNormalizer.modernize(JaAnswer.declines(q == null ? norm : JaAnswer.clarify(q, norm))));
+        List<Glossary.Term> terms = glossary.termsJaNe(m, null, MAX_TERMS);
+        JaNeTranslator.Candidate best = run("ja", "ne", m, terms);
+        JaPerson.Person who = JaPerson.of(m);
+        if (JaPerson.contradicts(who, best.output)) best = withJaSubject(m, who, terms, best);
         return remember(norm, best.output, new JaNeTranslator.Result(best.output, Collections.singletonList(best), best.issues));
     }
 
@@ -100,9 +129,110 @@ public final class PlamoTranslator {
             String out = JaNeTranslator.finishJa(phrase);
             if (!out.isEmpty()) return remember(out, t, phraseResult(t, out, "ja"));
         }
-        List<Glossary.Term> terms = glossary.termsNeJa(t, MAX_TERMS);
-        JaNeTranslator.Candidate best = run("ne", "ja", t, terms);
+        // what the model reads; the history keeps what was said
+        String q = t, call = "";
+        java.util.regex.Matcher v = NE_LEAD_VOCATIVE.matcher(t);
+        if (v.find() && v.end() < t.length()) {
+            q = t.substring(v.end()).trim();
+            call = NE_ELDER.matcher(v.group(2)).matches() ? "すみません、" : "ねえ、";
+        }
+        q = deliberative(q);
+        List<Glossary.Term> terms = glossary.termsNeJa(q, MAX_TERMS);
+        JaNeTranslator.Candidate best = run("ne", "ja", q, terms);
+        if (firstPersonPastWithoutSubject(q) && tenseLost(q, best.output)) best = withSubject(q, terms, best);
+        if (!call.isEmpty() && !best.output.startsWith(call)) {
+            String out = call + best.output;
+            best = new JaNeTranslator.Candidate(best.label, t, out, null, Double.NaN, JaNeTranslator.validate(t, out, Collections.emptyList(), "ja"));
+        }
+        lastQuestionJa = best.output.matches("(?s).*([？?]|か。?)\\s*$") ? best.output : null;
         return remember(best.output, t, new JaNeTranslator.Result(best.output, Collections.singletonList(best), best.issues));
+    }
+
+    /**
+     * A report in the first person past with the subject left out (ब्रेक लगाउन बिर्सें "I forgot the brake",
+     * दिसा जाँच तालिकामा लेखें "I wrote it in the bowel chart") was read by the model as a request or an
+     * invitation (忘れないでください, 書きましょう) or in the present (忘れます). With the subject written out (मैले ...)
+     * it gets the tense right; the 私は it then adds is dropped, as Japanese leaves it out. Kept only when the
+     * tense is then right.
+     */
+    private JaNeTranslator.Candidate withSubject(String t, List<Glossary.Term> terms, JaNeTranslator.Candidate first) throws Exception {
+        List<String> required = new ArrayList<>();
+        for (Glossary.Term g : terms) if (g.required && !required.contains(g.target)) required.add(g.target);
+        JaNeTranslator.Candidate c = candidate("plamo+subject", "ne", "ja", "मैले " + t, Collections.emptyList(), terms, required);
+        String out = JaNeTranslator.finishJa(LEADING_WATASHI.matcher(c.output).replaceFirst(""));
+        if (out.isEmpty() || tenseLost(t, out)) return first;
+        JaNeTranslator.Candidate fixed = new JaNeTranslator.Candidate("plamo+subject", t, out, null, Double.NaN,
+                JaNeTranslator.validate(t, out, required, "ja"));
+        return JaNeTranslator.better(first, fixed) ? first : fixed;
+    }
+
+    /**
+     * The Japanese ending fixes who acts (お薬を飲んでいただけますか: the listener) but the Nepali says someone else
+     * (के म औषधि सेवन गर्न सक्छु? "may I take the medicine?"). Translated once more with the subject written out
+     * (あなたが / 私が), which Japanese leaves unsaid but a translation needs; kept only when it then agrees.
+     */
+    private JaNeTranslator.Candidate withJaSubject(String ja, JaPerson.Person who, List<Glossary.Term> terms, JaNeTranslator.Candidate first) throws Exception {
+        String explicit = JaPerson.withSubject(ja, who);
+        if (explicit.equals(ja)) return first;
+        List<String> required = new ArrayList<>();
+        for (Glossary.Term g : terms) if (g.required && !required.contains(g.target)) required.add(g.target);
+        JaNeTranslator.Candidate c = candidate("plamo+subject", "ja", "ne", explicit, Collections.emptyList(), terms, required);
+        if (c.output.isEmpty() || JaPerson.contradicts(who, c.output)) return first;
+        JaNeTranslator.Candidate fixed = new JaNeTranslator.Candidate("plamo+subject", ja, c.output, null, Double.NaN,
+                JaNeTranslator.validate(ja, c.output, required, "ne"));
+        return JaNeTranslator.better(first, fixed) ? first : fixed;
+    }
+
+    private static final java.util.regex.Pattern LEADING_WATASHI = java.util.regex.Pattern.compile("^(私|わたし)(は|が)、?");
+    // last word of the text: a first person past (बिर्सें, लेखिसकें, भएँ) or its negative (बुझिनँ, गरिनँ)
+    private static final java.util.regex.Pattern NE_FIRST_PERSON_PAST = java.util.regex.Pattern.compile("(ें|ेँ|एँ|िनँ|इनँ)[।?!\\s]*$");
+    private static final java.util.regex.Pattern NE_SUBJECT = java.util.regex.Pattern.compile("(?<![\\u0900-\\u097F])(म|मैले|हामी|हामीले)(?![\\u0900-\\u097F])");
+    // Japanese ending in a request or an invitation, with no past tense
+    private static final java.util.regex.Pattern JA_REQUEST_END = java.util.regex.Pattern.compile("(ください|下さい|ましょう|ましょうか|なさい|しよう)[。！？!?]*$");
+
+    static boolean firstPersonPastWithoutSubject(String ne) {
+        return ne != null && NE_FIRST_PERSON_PAST.matcher(ne).find() && !NE_SUBJECT.matcher(ne).find();
+    }
+
+    // a positive first person past (not बुझिनँ: わかりません is a right reading of "I did not understand")
+    private static final java.util.regex.Pattern NE_POSITIVE_PAST = java.util.regex.Pattern.compile("(ें|ेँ|एँ)[।?!\\s]*$");
+    private static final java.util.regex.Pattern JA_PAST_END = java.util.regex.Pattern.compile("(た|だ|ました|でした|ませんでした|かった)(よ|ね|けど)?[。！？!?]*$");
+
+    /** The Japanese of a first person past report reads as a request, or (for a positive past) not as past. */
+    static boolean tenseLost(String ne, String ja) {
+        if (requestOrVolitional(ja)) return true;
+        return ja != null && NE_POSITIVE_PAST.matcher(ne).find() && !JA_PAST_END.matcher(ja.trim()).find();
+    }
+
+    /**
+     * A call at the start (ए बाबु, / दिदी,) is not part of the sentence: the model wrote ए बाबु as アバブ and
+     * दाइ as お父さん. It is taken off before the model reads the text and given back as すみません、 (to an elder
+     * colleague: दिदी, दाइ) or ねえ、. Parents and grandparents (आमा, बुबा) are left in: the model gets them right,
+     * and so is a bare ए, (an exclamation: あ、 / え、, not a call).
+     */
+    private static final java.util.regex.Pattern NE_LEAD_VOCATIVE = java.util.regex.Pattern.compile(
+            "^\\s*(ए|हे|ओए|ओइ)?\\s*(बाबु|नानी|छोरा|छोरी|दिदी|दाइ|दाजु|भाइ|बहिनी)\\s*[,،!]\\s*");
+    private static final java.util.regex.Pattern NE_ELDER = java.util.regex.Pattern.compile("दिदी|दाइ|दाजु");
+
+    /**
+     * "What should I ...?" asked with the bare -ने form (के हेर्ने? कहाँ लेख्ने?) was read as a plain question
+     * about someone else (何を見るのですか); with -नुपर्छ ("must") the model asks what to do (何を見ればいいですか).
+     * Only a short question with a question word and no second person (तपाईं जाने? is "are you going?").
+     */
+    static String deliberative(String ne) {
+        if (ne == null || ne.length() > 80) return ne;
+        java.util.regex.Matcher m = NE_DELIBERATIVE.matcher(ne);
+        if (!m.find() || !NE_QUESTION_WORD.matcher(ne).find() || NE_SECOND_PERSON.matcher(ne).find()) return ne;
+        return ne.substring(0, m.start(1)) + "नुपर्छ" + ne.substring(m.end(1));
+    }
+
+    private static final java.util.regex.Pattern NE_DELIBERATIVE = java.util.regex.Pattern.compile("[\\u0915-\\u0939\\u094D\\u093E-\\u094C](ने)\\s*\\?\\s*$");
+    private static final java.util.regex.Pattern NE_QUESTION_WORD = java.util.regex.Pattern.compile(
+            "(?<![\\u0900-\\u097F])(के|कहाँ|कहां|कति|कसरी|कुन|कहिले|किन|कसलाई|कसले)(?![\\u0900-\\u097F])");
+    private static final java.util.regex.Pattern NE_SECOND_PERSON = java.util.regex.Pattern.compile("तपाई|तपाइ|तिमी|तँ|हजुर");
+
+    static boolean requestOrVolitional(String ja) {
+        return ja != null && JA_REQUEST_END.matcher(ja.trim()).find();
     }
 
     private static JaNeTranslator.Result phraseResult(String source, String out, String outLang) {
@@ -115,11 +245,13 @@ public final class PlamoTranslator {
     private JaNeTranslator.Candidate run(String src, String tgt, String text, List<Glossary.Term> terms) throws Exception {
         List<String> required = new ArrayList<>();
         for (Glossary.Term g : terms) if (g.required && !required.contains(g.target)) required.add(g.target);
-        List<PlamoPrompt.Turn> history = history(src);
+        List<PlamoPrompt.Turn> ex = examples(src, text), conversation = history(src);
+        List<PlamoPrompt.Turn> history = new ArrayList<>(ex);
+        history.addAll(conversation);
         JaNeTranslator.Candidate first = null;
         activeDraft = draftListener;   // drafts during the first model call only: a retry is not shown half-done
         draftPrefix.setLength(0);
-        if (!history.isEmpty()) {
+        if (!conversation.isEmpty()) {   // with no conversation the call below is the same prompt
             try {
                 first = candidate("plamo+history", src, tgt, text, history, terms, required);
                 activeDraft = null;
@@ -131,7 +263,7 @@ public final class PlamoTranslator {
         }
         JaNeTranslator.Candidate plain;
         try {
-            plain = candidate("plamo", src, tgt, text, Collections.emptyList(), terms, required);
+            plain = candidate(ex.isEmpty() ? "plamo" : "plamo+examples", src, tgt, text, ex, terms, required);
         } finally {
             activeDraft = null;
         }
@@ -152,7 +284,7 @@ public final class PlamoTranslator {
     private JaNeTranslator.Candidate candidate(String label, String src, String tgt, String text, List<PlamoPrompt.Turn> history,
                                                List<Glossary.Term> terms, List<String> required) throws Exception {
         String out = "ne".equals(tgt) ? JaIdioms.neParticles(text, JaNeTranslator.finishNe(translatePieces(src, tgt, text, history, terms), text))
-                : JaNeTranslator.finishJa(translatePieces(src, tgt, text, history, terms));
+                : JaNeTranslator.finishJa(translatePieces(src, tgt, text, history, terms), text);
         List<TranslationValidator.Issue> iss = JaNeTranslator.validate(text, out, required, tgt);
         return new JaNeTranslator.Candidate(label, text, out, null, Double.NaN, iss);
     }

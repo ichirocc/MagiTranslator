@@ -24,7 +24,8 @@ import java.util.Set;
  * <pre>
  *   #!jane ja-ne-terms   japanese&lt;TAB&gt;nepali        terms for ja -> ne
  *   #!jane ne-ja-terms   nepali&lt;TAB&gt;japanese        terms for ne -> ja
- *   #!jane phrases       japanese&lt;TAB&gt;nepali[&lt;TAB&gt;ja&gt;ne]   whole sentences ("ja&gt;ne" = ja -> ne only)
+ *   #!jane phrases       japanese&lt;TAB&gt;nepali[&lt;TAB&gt;ja&gt;ne|ne&gt;ja]   whole sentences ("ja&gt;ne" = ja -> ne only,
+ *                        "ne&gt;ja" = ne -> ja only: another Nepali wording of a Japanese phrase listed elsewhere)
  * </pre>
  * Lines starting with # are comments. Entries are user data, not verified dictionary truth (SPEC v2
  * Part 4): terms only steer the ranking (PREFERRED), phrases only add a candidate that still goes
@@ -46,11 +47,16 @@ public final class UserDictionary {
     public static final int MAX_ENTRIES = 50_000;
     public static final int MAX_FIELD_CHARS = 400;
     public static final String JA_TO_NE_ONLY = "ja>ne";
+    public static final String NE_TO_JA_ONLY = "ne>ja";
 
     public static final class Entry {
         public final String source, target;
-        public final boolean jaToNeOnly;
-        Entry(String source, String target, boolean jaToNeOnly) { this.source = source; this.target = target; this.jaToNeOnly = jaToNeOnly; }
+        public final boolean jaToNeOnly, neToJaOnly;
+        Entry(String source, String target, boolean jaToNeOnly, boolean neToJaOnly) {
+            this.source = source; this.target = target; this.jaToNeOnly = jaToNeOnly; this.neToJaOnly = neToJaOnly;
+        }
+        /** a ne>ja line is keyed by its Nepali side, so it may share its Japanese with a two-way line */
+        String key() { return neToJaOnly ? "ne\u0000" + target : source; }
     }
 
     /** Result of reading one file: only counts are meant to be shown or logged, never the entries. */
@@ -91,7 +97,7 @@ public final class UserDictionary {
             if (line.trim().isEmpty() || line.startsWith("#")) continue;
             Entry e = entry(kind, line);
             if (e == null) { rejected++; continue; }
-            if (!seen.add(e.source)) { dup++; continue; }
+            if (!seen.add(e.key())) { dup++; continue; }
             if (out.size() >= MAX_ENTRIES) { rejected++; continue; }
             out.add(e);
         }
@@ -103,16 +109,17 @@ public final class UserDictionary {
         if (c.length < 2 || c.length > 3) return null;
         String a = clean(c[0]), b = clean(c[1]);
         if (a == null || b == null) return null;
-        boolean only = false;
+        boolean jaNeOnly = false, neJaOnly = false;
         if (c.length == 3) {
             String flag = c[2].trim();
-            if (kind != Kind.PHRASES || !(flag.isEmpty() || JA_TO_NE_ONLY.equals(flag))) return null;
-            only = !flag.isEmpty();
+            if (kind != Kind.PHRASES || !(flag.isEmpty() || JA_TO_NE_ONLY.equals(flag) || NE_TO_JA_ONLY.equals(flag))) return null;
+            jaNeOnly = JA_TO_NE_ONLY.equals(flag);
+            neJaOnly = NE_TO_JA_ONLY.equals(flag);
         }
         // the Japanese side must not be Devanagari and the Nepali side must be (catches swapped columns)
         String ja = kind == Kind.NE_JA_TERMS ? b : a, ne = kind == Kind.NE_JA_TERMS ? a : b;
         if (hasDevanagari(ja) || !hasDevanagari(ne)) return null;
-        return new Entry(a, b, only);
+        return new Entry(a, b, jaNeOnly, neJaOnly);
     }
 
     private static String clean(String s) {
@@ -136,7 +143,7 @@ public final class UserDictionary {
             switch (p.kind) {
                 case JA_NE_TERMS: glossary.putUser(e.source, e.target); break;
                 case NE_JA_TERMS: glossary.putUserReverse(e.source, e.target); break;
-                case PHRASES: phrases.add(e.source, e.target, e.jaToNeOnly); break;
+                case PHRASES: phrases.add(e.source, e.target, e.jaToNeOnly, e.neToJaOnly); break;
             }
         }
     }

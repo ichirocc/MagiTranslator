@@ -10,18 +10,33 @@ import java.util.Set;
  * Whole-sentence phrases from a user dictionary. A hit only adds a candidate: it is validated and
  * ranked like any model output, never returned unconditionally. Lines marked "ja>ne" are not used for
  * ne -> ja (the Nepali is ambiguous when read back). A Nepali sentence that maps to two different
- * Japanese phrases is not used for ne -> ja either.
+ * Japanese phrases is not used for ne -> ja either. Lines marked "ne>ja" are used only for ne -> ja.
+ * A book can have a fallback (the built-in phrases): it is asked only for sentences this book does not
+ * know at all, so the user's own entries always win and never become ambiguous because of it.
  */
 public final class PhraseBook {
     private final Map<String, String> jaNe = new HashMap<>();
     private final Map<String, String> neJa = new HashMap<>();
     private final Set<String> ambiguousNe = new HashSet<>();
 
-    public void add(String ja, String ne, boolean jaToNeOnly) {
-        if (ja == null || ne == null) return;
+    private PhraseBook fallback;
+
+    /** Sets the book asked for sentences this one has no entry for (a book is not its own fallback). */
+    public PhraseBook withFallback(PhraseBook f) {
+        if (f == this) throw new IllegalArgumentException("a phrase book cannot fall back to itself");
+        fallback = f;
+        return this;
+    }
+
+    public void add(String ja, String ne, boolean jaToNeOnly) { add(ja, ne, jaToNeOnly, false); }
+
+    public void add(String ja, String ne, boolean jaToNeOnly, boolean neToJaOnly) {
+        if (ja == null || ne == null || (jaToNeOnly && neToJaOnly)) return;
         String kj = keyJa(ja), kn = keyNe(ne);
         if (kj.isEmpty() || kn.isEmpty()) return;
-        jaNe.putIfAbsent(kj, ne.trim());
+        pairs.add(new Object[]{ja.trim(), ne.trim(), jaToNeOnly, neToJaOnly});
+        examples = null;
+        if (!neToJaOnly) jaNe.putIfAbsent(kj, ne.trim());
         if (ambiguousNe.contains(kn)) return;
         //a ja>ne line is not read back itself, but it still counts as a second Japanese reading of this Nepali:
         //either order (one-way line first or last), the Nepali is then ambiguous and not used for ne -> ja
@@ -41,9 +56,35 @@ public final class PhraseBook {
 
     public int size() { return jaNe.size(); }
 
-    public String lookupJaNe(String ja) { return ja == null ? null : jaNe.get(keyJa(ja)); }
+    /** every accepted line as written: {ja, ne, jaToNeOnly, neToJaOnly}, for the example bank */
+    private final java.util.List<Object[]> pairs = new java.util.ArrayList<>();
+    private volatile ExampleBank examples;
 
-    public String lookupNeJa(String ne) { return ne == null ? null : neJa.get(keyNe(ne)); }
+    /** This book's lines (then the fallback's) as an example bank, built on first use. */
+    public ExampleBank examples() {
+        ExampleBank b = examples;
+        if (b != null) return b;
+        b = new ExampleBank();
+        for (PhraseBook p = this; p != null; p = p.fallback)
+            for (Object[] e : p.pairs) b.add((String) e[0], (String) e[1], (Boolean) e[2], (Boolean) e[3]);
+        examples = b;
+        return b;
+    }
+
+    public String lookupJaNe(String ja) {
+        if (ja == null) return null;
+        String v = jaNe.get(keyJa(ja));
+        return v != null || fallback == null ? v : fallback.lookupJaNe(ja);
+    }
+
+    public String lookupNeJa(String ne) {
+        if (ne == null) return null;
+        String kn = keyNe(ne);
+        String v = neJa.get(kn);
+        // a Nepali this book knows but does not read back (ambiguous or ja>ne) is not handed to the fallback
+        if (v != null || fallback == null || ambiguousNe.contains(kn) || oneWayJa.containsKey(kn)) return v;
+        return fallback.lookupNeJa(ne);
+    }
 
     // compiled once (keys are built for every lookup and every loaded line)
     private static final java.util.regex.Pattern JA_SPACES = java.util.regex.Pattern.compile("[\\s　]+");
