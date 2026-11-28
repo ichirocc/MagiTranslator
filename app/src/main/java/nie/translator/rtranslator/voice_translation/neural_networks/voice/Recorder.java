@@ -526,7 +526,10 @@ public class Recorder {
                             }
                             jumped = true;
                         }
-                        if ((oldTailIndex < headIndex && tailIndex > headIndex) || (oldTailIndex > headIndex && tailIndex > headIndex && jumped)) {  //if we overwrote the oldest data
+                        //if we overwrote the oldest data. Once the buffer is full, headIndex == oldTailIndex + 1, so a read that
+                        //wraps around always passes it: that case (oldTail < head, jumped) was missing, headIndex was left behind
+                        //and the buffer looked almost empty (the speech start then got less of the audio before it)
+                        if ((oldTailIndex < headIndex && (tailIndex > headIndex || jumped)) || (oldTailIndex > headIndex && tailIndex > headIndex && jumped)) {
                             headIndex = (tailIndex + 1) % mBuffer.length;  //we adjust the headIndex accordingly
                         }
                         //we notify volume level
@@ -647,7 +650,8 @@ public class Recorder {
             // To do this, we iterate the section just wrote of mBuffer, convert each value from ENCODING_PCM_FLOAT to ENCODING_PCM_16BIT and insert these values in the corresponding section of mBufferShort.
             for(int i=offset; i<offset+outputSize; i++){
                 //The range with ENCODING_PCM_16BIT is [-32768, 32767], while with ENCODING_PCM_FLOAT it is [-1, 1], so we convert accordingly
-                mBufferShort[i] = (short) (mBuffer[i] * 32768);
+                //clamped: a full-scale sample (1.0) became (short) 32768 = -32768, the opposite sign
+                mBufferShort[i] = (short) Math.max(-32768, Math.min(32767, Math.round(mBuffer[i] * 32768)));
             }
         }else{  //ENCODING == AudioFormat.ENCODING_PCM_16BIT
             outputSize = mAudioRecord.read(mBufferShort, offset, size, AudioRecord.READ_BLOCKING);

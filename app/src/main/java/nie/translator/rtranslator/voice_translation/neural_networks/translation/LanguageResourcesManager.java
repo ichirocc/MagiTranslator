@@ -202,6 +202,10 @@ public class LanguageResourcesManager {
                 !languageResourcesIndicator.isResourcePairContainedInOtherModes(currentModeResources[0], currentModeResources[1], rtranslatorMode)) {
             tatoebaLinks.remove(currentModeResources[0].getISO3Language() + "-" + currentModeResources[1].getISO3Language());
         }
+        //the old resources of this mode may be unloaded already: until the new ones are loaded the indicator holds none
+        //(a failed load left it naming the old languages, so their resources were taken as loaded and never reloaded)
+        currentModeResources[0] = null;
+        currentModeResources[1] = null;
         //we load all the resources of the new languages that are not already loaded
         performLoadLanguageResources(srcLang, tgtLang, rtranslatorMode);
         //we update the indicator to reflect the new resources status

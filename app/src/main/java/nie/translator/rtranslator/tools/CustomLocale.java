@@ -232,6 +232,18 @@ public class CustomLocale implements Comparable<CustomLocale>, Serializable {
         return false;
     }
 
+    /** Consistent with {@link #equals}: equals() was overridden alone, so equal locales could hash differently. */
+    @Override
+    public int hashCode() {
+        String language;
+        try {
+            language = getLanguage() != null ? getISO3Language() : null;
+        } catch (MissingResourceException e) {
+            language = getLanguage();
+        }
+        return java.util.Objects.hash(language, getCountry());
+    }
+
     public boolean equalsLanguage(CustomLocale locale) {
         if (getLanguage() != null && locale != null && locale.getLanguage() != null) {
             return getISO3Language().equals(locale.getISO3Language());

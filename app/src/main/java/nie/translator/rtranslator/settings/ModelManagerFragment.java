@@ -414,6 +414,11 @@ public class ModelManagerFragment extends Fragment {
                                     startRTranslator();
                                 }
                             }
+
+                            @Override
+                            public void onFailure(int[] reasons, long value) {   //loading the languages' resources failed
+                                notifyApplyError(ApplySettingsStage.TRANSLATION_MODEL, ErrorCodes.ERROR_LOADING_MODEL, value, editDialogLayout);
+                            }
                         });
                     }
 
