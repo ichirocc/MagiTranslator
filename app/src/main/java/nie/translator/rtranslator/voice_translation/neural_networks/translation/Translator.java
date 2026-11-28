@@ -1959,7 +1959,6 @@ public class Translator extends NeuralNetworkApi {
             //report once, from the request's catch (postFailure): not here as well, and never as an empty success
             throw new DecoderFailedException(e);
         }
-        return null;
     }
 
     /** A decoder run failed; the cause keeps the ORT error so {@link TranslationEngineErrorCode#fromThrowable} maps it. */
