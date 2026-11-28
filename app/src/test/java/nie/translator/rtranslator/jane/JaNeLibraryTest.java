@@ -624,6 +624,34 @@ public class JaNeLibraryTest {
             eq("राम्रो काम गर्ने।", PlamoTranslator.deliberative("राम्रो काम गर्ने।"), "not a question: unchanged");
             eq("すみません、これどこに置くの？", JaNeTranslator.finishJa("お父さん、これどこに置くの？", "दाइ, यो कहाँ राख्ने?"), "vocative दाइ is not a father");
             eq("お姉さんは来ました。", JaNeTranslator.finishJa("お姉さんは来ました。", "दिदी आउनुभयो।"), "दिदी as a subject is kept");
+            // verb stems (~) match every conjugation, never a longer unrelated word
+            {
+                Glossary sg = Glossary.withDefaults();
+                sg.putUserReverse("ढाँट~", "嘘をつく");
+                sg.putUserReverse("सर्कि~", "むせる");
+                java.util.List<Glossary.Term> st = sg.termsNeJa("ढाँट्नु नगर्नुस् न", 8);
+                eq("[ढाँट्नु=嘘をつく?]", st, "stem term matches a conjugated verb, given as written");
+                eq("[सर्किनुभयो=むせる?]", sg.termsNeJa("उहाँ खाना खाँदा सर्किनुभयो।", 8), "stem: honorific past");
+                eq("[]", sg.termsNeJa("ठाउँमा सर्कल गर्नुहोस्।", 8), "stem सर्कि does not match सर्कल");
+                eq("[ढाँटेन=嘘をつく?]", sg.termsNeJa("मलाई ढाँटेन", 8), "stem: negative past");
+                eq("[]", sg.termsNeJa("बढाँटको", 8), "stem only at the start of a word");
+            }
+            {
+                final java.util.List<String> vp = new java.util.ArrayList<>();
+                TextCompletion vocFake = (prompt, max, stops) -> { vp.add(prompt); return "ご飯食べた？"; };
+                PlamoTranslator vt = new PlamoTranslator(vocFake, Glossary.withDefaults());
+                vt.setHistory(0, 0);
+                eq("ねえ、ご飯食べた？", vt.translate("ए बाबु, खाना खाइस्?", "ne", "ja").text, "ए बाबु, is a call: ねえ、");
+                yes(!vp.get(0).contains("बाबु"), "the call is not given to the model");
+                vp.clear();
+                eq("すみません、ご飯食べた？", vt.translate("दिदी, खाना खानुभयो?", "ne", "ja").text, "दिदी, to an elder colleague: すみません、");
+                vp.clear();
+                vt.translate("हे भगवान्! अब म के गरूँ?", "ne", "ja");
+                yes(vp.get(0).contains("हे भगवान्"), "हे भगवान् is not a call to a person");
+                vp.clear();
+                eq("ご飯食べた？", vt.translate("ए, खाना खानुभयो?", "ne", "ja").text, "a bare ए, is an exclamation, left to the model");
+                yes(vp.get(0).contains("ए,"), "... and given to it");
+            }
             {
                 final java.util.List<String> prompts = new java.util.ArrayList<>();
                 TextCompletion subjFake = (prompt, max, stops) -> {

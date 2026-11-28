@@ -98,10 +98,21 @@ public final class PlamoTranslator {
             String out = JaNeTranslator.finishJa(phrase);
             if (!out.isEmpty()) return remember(out, t, phraseResult(t, out, "ja"));
         }
-        String q = deliberative(t);   // what the model reads; the history keeps what was said
+        // what the model reads; the history keeps what was said
+        String q = t, call = "";
+        java.util.regex.Matcher v = NE_LEAD_VOCATIVE.matcher(t);
+        if (v.find() && v.end() < t.length()) {
+            q = t.substring(v.end()).trim();
+            call = NE_ELDER.matcher(v.group(2)).matches() ? "すみません、" : "ねえ、";
+        }
+        q = deliberative(q);
         List<Glossary.Term> terms = glossary.termsNeJa(q, MAX_TERMS);
         JaNeTranslator.Candidate best = run("ne", "ja", q, terms);
         if (firstPersonPastWithoutSubject(q) && tenseLost(q, best.output)) best = withSubject(q, terms, best);
+        if (!call.isEmpty() && !best.output.startsWith(call)) {
+            String out = call + best.output;
+            best = new JaNeTranslator.Candidate(best.label, t, out, null, Double.NaN, JaNeTranslator.validate(t, out, Collections.emptyList(), "ja"));
+        }
         return remember(best.output, t, new JaNeTranslator.Result(best.output, Collections.singletonList(best), best.issues));
     }
 
@@ -143,6 +154,16 @@ public final class PlamoTranslator {
         if (requestOrVolitional(ja)) return true;
         return ja != null && NE_POSITIVE_PAST.matcher(ne).find() && !JA_PAST_END.matcher(ja.trim()).find();
     }
+
+    /**
+     * A call at the start (ए बाबु, / दिदी,) is not part of the sentence: the model wrote ए बाबु as アバブ and
+     * दाइ as お父さん. It is taken off before the model reads the text and given back as すみません、 (to an elder
+     * colleague: दिदी, दाइ) or ねえ、. Parents and grandparents (आमा, बुबा) are left in: the model gets them right,
+     * and so is a bare ए, (an exclamation: あ、 / え、, not a call).
+     */
+    private static final java.util.regex.Pattern NE_LEAD_VOCATIVE = java.util.regex.Pattern.compile(
+            "^\\s*(ए|हे|ओए|ओइ)?\\s*(बाबु|नानी|छोरा|छोरी|दिदी|दाइ|दाजु|भाइ|बहिनी)\\s*[,،!]\\s*");
+    private static final java.util.regex.Pattern NE_ELDER = java.util.regex.Pattern.compile("दिदी|दाइ|दाजु");
 
     /**
      * "What should I ...?" asked with the bare -ने form (के हेर्ने? कहाँ लेख्ने?) was read as a plain question

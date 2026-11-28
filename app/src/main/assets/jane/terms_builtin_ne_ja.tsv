@@ -1,6 +1,7 @@
 #!jane ne-ja-terms
 # Built-in medical and care terms (ne -> ja), see terms_builtin_ja_ne.tsv. Verbs are given in their
 # dictionary form (むせる, not むせました): the model conjugates them, and a conjugated hint came out twice (むせましました).
+# A Nepali term ending in ~ is a verb stem and matches every conjugation (सर्कि~ = सर्कियो, सर्किनुभयो ...).
 # --- medical ---
 ठेउला	水ぼうそう
 दादुरा	はしか
@@ -61,12 +62,20 @@
 ब्रेक लगाउन	ブレーキをかける
 ब्रेक लगाएर	ブレーキをかける
 ब्रेक लगाउनुहोस्	ブレーキをかける
-सर्किनुभयो	むせる
-सर्कियो	むせる
-सर्किएमा	むせる
-सर्किन्छ	むせる
 दिसा जाँच तालिका	排便チェック表
 बिहानको सिफ्ट	早番
 बेलुकाको सिफ्ट	遅番
 रेकर्ड	記録
 सिकाइदिनुहोस्	教えてください
+सर्कि~	むせる
+# --- colloquial speech and idioms (drama-style dialogue) ---
+ढाँट~	嘘をつく
+बिरामी पर~	病気になる
+मन अमिलो	悲しい
+तर के गर्ने	でも仕方ない
+सिस्टर	看護師さん
+सास फेर्न गाह्रो	息苦しい
+नाडी	脈
+चुरोट	タバコ
+चुरोट खा~	タバコを吸う
+बाँच्नुहुन्छ कि हुन्न	助かるかどうか
