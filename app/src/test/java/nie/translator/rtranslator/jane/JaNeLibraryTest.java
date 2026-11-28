@@ -34,6 +34,34 @@ public class JaNeLibraryTest {
         eq("忘れてしまった。", JaNormalizer.modernize("忘れちゃった。"), "ちゃった -> てしまった");
         eq("薬を飲まなければならないよ。", JaNormalizer.modernize("薬を飲まなきゃよ。").replace("ならないよ", "ならないよ"), "なきゃ at the end");
         eq("कृपया जाँच गरिदिनुहोला कि?", NePostEditor.edit("कृपया कृपया जाँच गरिदिनुहोला कि?"), "कृपया कृपया -> कृपया");
+        // short answers read with the question just asked
+        eq("はい、まだ終わっていません。", JaAnswer.clarify("まだ終わっていませんか？", "はい。"), "はい to a negative question agrees with it");
+        eq("いいえ、もう終わっています。", JaAnswer.clarify("まだ終わっていませんか？", "いいえ。"), "いいえ to a negative question: the opposite");
+        eq("はい、痛くないです。", JaAnswer.clarify("痛くないですか？", "はい"), "はい: not painful");
+        eq("いいえ、お怪我はあります。", JaAnswer.clarify("お怪我はありませんか？", "いいえ"), "いいえ: hurt");
+        eq("はい。", JaAnswer.clarify("一緒に行きませんか？", "はい。"), "an invitation (行きませんか) is not a negative question");
+        eq("はい。", JaAnswer.clarify("これ、田中さんの本じゃないですか？", "はい。"), "じゃないですか seeks agreement: unchanged");
+        eq("大丈夫です、必要ありません。", JaAnswer.clarify("手伝いましょうか？", "大丈夫です。"), "大丈夫 to an offer declines");
+        eq("大丈夫です、必要ありません。", JaAnswer.clarify("袋は必要ですか？", "結構です。"), "結構です to an offer declines");
+        eq("はい、問題ありません。", JaAnswer.clarify("これを使ってもいいですか？", "いいです。"), "いいです to a permission agrees");
+        eq("はい、問題ありません。", JaAnswer.clarify("この日付でよろしいですか？", "大丈夫です"), "大丈夫 to a check agrees");
+        eq("ちょっと難しいです。", JaAnswer.clarify("明日シフト交代できますか？", "ちょっと…"), "ちょっと… to a request declines");
+        eq("大丈夫です。", JaAnswer.clarify("今日は雨です。", "大丈夫です。"), "no question: unchanged");
+        eq("レジ袋はいりません。", JaAnswer.declines("レジ袋は結構です。"), "〜は結構です declines");
+        eq("それは結構ですね。", JaAnswer.declines("それは結構ですね。"), "結構ですね is praise: unchanged");
+        {
+            final java.util.List<String> ap = new java.util.ArrayList<>();
+            TextCompletion ansFake = (prompt, max, stops) -> {
+                ap.add(prompt);
+                if (prompt.contains("झोला")) return "袋は必要ですか？";
+                if (prompt.contains("必要ありません")) return "पर्दैन, धन्यवाद।";
+                return "हुन्छ।";
+            };
+            PlamoTranslator at = new PlamoTranslator(ansFake, Glossary.withDefaults());
+            at.translate("झोला चाहिन्छ?", "ne", "ja");
+            eq("पर्दैन, धन्यवाद।", at.translate("結構です。", "ja", "ne").text, "結構です after the bag offer is translated as a refusal");
+            eq("हुन्छ।", at.translate("結構です。", "ja", "ne").text, "the question is used once only");
+        }
         eq("बिस्तारै बिस्तारै हिँड्नुहोस्।", NePostEditor.edit("बिस्तारै बिस्तारै हिँड्नुहोस्।"), "reduplication kept");
         eq("あの人は先生です", JaNormalizer.normalize("あの人は先生です"), "keep あの人");
         eq("すみません。いいです", JaNormalizer.normalize("あの、すみません。まあ、いいです"), "multiple fillers");

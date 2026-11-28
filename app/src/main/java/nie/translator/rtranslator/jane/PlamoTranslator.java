@@ -67,7 +67,10 @@ public final class PlamoTranslator {
     public void setDraftListener(java.util.function.Consumer<String> listener) { draftListener = listener; }
 
     /** Forgets the conversation (new conversation, language change). */
-    public synchronized void clearConversation() { turns.clear(); }
+    public synchronized void clearConversation() { turns.clear(); lastQuestionJa = null; }
+
+    /** the Japanese of the other speaker's question just translated (ne -> ja), read by a short answer (JaAnswer) */
+    private volatile String lastQuestionJa;
 
     public synchronized int historySize() { return turns.size(); }
 
@@ -85,7 +88,10 @@ public final class PlamoTranslator {
             String out = JaNeTranslator.finishNe(phrase, norm);
             if (!out.isEmpty()) return remember(norm, out, phraseResult(norm, out, "ne"));
         }
-        String m = JaNormalizer.modernize(norm);   // what the model reads; the history keeps what was said
+        // a short answer (はい, 結構です ...) means what the question just asked decides: written out in full
+        String q = historyTurns > 0 ? lastQuestionJa : null;
+        lastQuestionJa = null;
+        String m = JaNormalizer.modernize(JaAnswer.declines(q == null ? norm : JaAnswer.clarify(q, norm)));   // what the model reads; the history keeps what was said
         List<Glossary.Term> terms = glossary.termsJaNe(m, null, MAX_TERMS);
         JaNeTranslator.Candidate best = run("ja", "ne", m, terms);
         JaPerson.Person who = JaPerson.of(m);
@@ -116,6 +122,7 @@ public final class PlamoTranslator {
             String out = call + best.output;
             best = new JaNeTranslator.Candidate(best.label, t, out, null, Double.NaN, JaNeTranslator.validate(t, out, Collections.emptyList(), "ja"));
         }
+        lastQuestionJa = best.output.matches("(?s).*([？?]|か。?)\\s*$") ? best.output : null;
         return remember(best.output, t, new JaNeTranslator.Result(best.output, Collections.singletonList(best), best.issues));
     }
 
