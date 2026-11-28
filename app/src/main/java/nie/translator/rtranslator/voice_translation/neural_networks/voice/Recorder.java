@@ -417,7 +417,16 @@ public class Recorder {
     /** Caller must hold lifecycleLock. */
     private void executeStart() {
         pendingStart = false;
-        if (destroyed || mAudioRecord == null || mThread != null) return;
+        if (destroyed || mThread != null) return;
+        if (mAudioRecord == null) {
+            //the mic was busy (a call, another app) when this Recorder was built: try again now instead of staying
+            //silent for the whole session
+            mAudioRecord = createAudioRecord();
+            if (mAudioRecord == null) {
+                Log.e(TAG, "cannot open the microphone (16 kHz)");
+                return;
+            }
+        }
         commands.clear();
         running = true;
         try {

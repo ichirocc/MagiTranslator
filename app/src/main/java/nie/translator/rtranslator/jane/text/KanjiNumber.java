@@ -19,7 +19,9 @@ public final class KanjiNumber {
 
     // idioms whose numerals are not quantities (一度 = once, 一番 = most, 一人前 = full-fledged ...)
     private static final String[] IDIOMS = {"一人前", "一人っ子", "一人ひとり", "一日中", "一時的", "一回り", "二人三脚", "一枚岩", "十人十色", "一年中",
-            "三日月", "三日坊主", "万年筆", "万年床", "一時停止", "一時期", "一時帰国", "一時保存", "二日酔い", "百人一首", "五月雨", "五月蝿"};
+            "三日月", "三日坊主", "万年筆", "万年床", "一時停止", "一時期", "一時帰国", "一時保存", "二日酔い", "百人一首", "五月雨", "五月蝿",
+            // 一時 = "for a while / at one point", not 1 o'clock
+            "一時は", "一時の", "一時中断", "一時外出", "一時退院", "一時預かり"};
     // 十分 (じゅうぶん) means "enough"; it is 10 minutes only after an hour (三時十分) or before a
     // duration/relative marker (十分間, 十分後, 十分ほど ...)
     private static final Pattern JUPPUN_AFTER = Pattern.compile("^分(?:間|後|前|以内|ほど|くらい|ぐらい|程度|おき|ごと)");

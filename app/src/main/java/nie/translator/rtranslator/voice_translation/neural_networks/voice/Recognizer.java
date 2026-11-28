@@ -178,6 +178,7 @@ public class Recognizer extends NeuralNetworkApi {
     // so the initializer and detokenizer sessions are shared with the base model.
     private OrtSession neEncoderSession, neCacheInitSession, neCacheInitBatchSession, neDecoderSession;
     private boolean neModelTried = false;
+    private long neModelRetryAt = 0;   //> 0: a temporary failure (memory), ensureNeModel() may try again from then
     private OrtEnvironment onnxEnv;
 
 
@@ -773,6 +774,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     /** Lazily loads the Nepali Whisper (files/Whisper_ne/). Returns false (base model is used) when absent or broken. */
     private boolean ensureNeModel() {
         if (neDecoderSession != null) return true;
+        if (neModelTried && neModelRetryAt > 0 && System.currentTimeMillis() >= neModelRetryAt) { neModelTried = false; neModelRetryAt = 0; }
         if (neModelTried) return false;
         neModelTried = true;
         if (!nie.translator.rtranslator.tools.MemoryGuard.hasRoomFor(global,
@@ -808,6 +810,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
             return true;
         } catch (Exception ex) {
             ex.printStackTrace();
+            //out of memory is temporary: try again in 5 minutes. A broken file stays on the base model (no retry loop)
+            String m = String.valueOf(ex.getMessage()).toLowerCase(java.util.Locale.ROOT);
+            if (m.contains("bad_alloc") || m.contains("out of memory") || m.contains("failed to allocate")) neModelRetryAt = System.currentTimeMillis() + 5 * 60_000L;
             //a broken file: free the sessions already created (native memory), the base model is used from now on
             for (OrtSession partial : new OrtSession[]{e, c, cb}) {
                 if (partial != null) try { partial.close(); } catch (Exception ignored) {}
