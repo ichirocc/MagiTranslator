@@ -43,6 +43,26 @@ public final class TranslationValidator {
         return ja;
     }
 
+    // every candidate of one request is checked against the same source: its IR (immutable) is analysed once per
+    // thread instead of once per candidate. One entry per direction, keyed by the exact source text.
+    private static final ThreadLocal<Object[]> LAST_JA = new ThreadLocal<>(), LAST_NE = new ThreadLocal<>();
+
+    private static nie.translator.rtranslator.jane.ir.LanguageIR sourceJa(String text) {
+        Object[] c = LAST_JA.get();
+        if (c != null && c[0].equals(text)) return (nie.translator.rtranslator.jane.ir.LanguageIR) c[1];
+        nie.translator.rtranslator.jane.ir.LanguageIR ir = JaAnalyzer.analyze(text);
+        LAST_JA.set(new Object[]{text, ir});
+        return ir;
+    }
+
+    private static nie.translator.rtranslator.jane.ir.LanguageIR sourceNe(String text) {
+        Object[] c = LAST_NE.get();
+        if (c != null && c[0].equals(text)) return (nie.translator.rtranslator.jane.ir.LanguageIR) c[1];
+        nie.translator.rtranslator.jane.ir.LanguageIR ir = NeAnalyzer.analyze(text);
+        LAST_NE.set(new Object[]{text, ir});
+        return ir;
+    }
+
     public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
         // ne->ja meaning checks (checkNeToJaMeaning)
         QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
@@ -86,7 +106,7 @@ public final class TranslationValidator {
     public static List<Issue> validateJaToNe(String sourceJa, String ne, List<String> requiredTargets) {
         List<Issue> issues = new ArrayList<>();
         if (ne == null || ne.trim().isEmpty()) { issues.add(new Issue(Kind.EMPTY, true, null)); return issues; }
-        return compareJaToNe(JaAnalyzer.analyze(sourceJa), NeAnalyzer.analyze(ne), requiredTargets, issues);
+        return compareJaToNe(sourceJa(sourceJa), NeAnalyzer.analyze(ne), requiredTargets, issues);
     }
 
     /** ja -> ne, on IRs already built (the source IR can be reused across candidates). */
@@ -120,7 +140,7 @@ public final class TranslationValidator {
     public static List<Issue> validateNeToJa(String sourceNe, String ja) {
         List<Issue> issues = new ArrayList<>();
         if (ja == null || ja.trim().isEmpty()) { issues.add(new Issue(Kind.EMPTY, true, null)); return issues; }
-        return compareNeToJa(NeAnalyzer.analyze(sourceNe), JaAnalyzer.analyze(ja), issues);
+        return compareNeToJa(sourceNe(sourceNe), JaAnalyzer.analyze(ja), issues);
     }
 
     /** ne -> ja, on IRs already built. */
