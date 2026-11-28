@@ -504,6 +504,13 @@ public class JaNeLibraryTest {
             yes(udBad, "user dictionary without header rejected");
             yes(UserDictionary.kindOf("﻿#!jane phrases") == UserDictionary.Kind.PHRASES, "header with BOM");
             Glossary ug = Glossary.withDefaults();
+            PhraseBook amb1 = new PhraseBook();
+            amb1.add("こんにちは", "नमस्ते", false); amb1.add("やあ", "नमस्ते", true);
+            yes(amb1.lookupNeJa("नमस्ते") == null, "phrasebook: a ja>ne line after a two-way one makes the Nepali ambiguous");
+            PhraseBook amb2 = new PhraseBook();
+            amb2.add("やあ", "नमस्ते", true); amb2.add("こんにちは", "नमस्ते", false);
+            yes(amb2.lookupNeJa("नमस्ते") == null, "phrasebook: ... and before it");
+            yes("नमस्ते".equals(amb2.lookupJaNe("やあ")), "phrasebook: ja>ne still used for ja -> ne");
             PhraseBook upb = new PhraseBook();
             UserDictionary.apply(ut, ug, upb);
             java.util.List<String> pref = ug.userPreferred("高血圧の薬です。");

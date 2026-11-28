@@ -18,6 +18,8 @@ import com.downloader.PRDownloader;
 import com.downloader.Progress;
 import com.downloader.Status;
 
+import org.apache.commons.io.FileUtils;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -277,7 +279,15 @@ public class Downloader {
             if (r == ModelStore.Result.CANCELLED) return;
             final boolean verified = r == ModelStore.Result.INSTALLED || r == ModelStore.Result.INSTALLED_WITH_PREVIOUS;
             mainHandler.post(() -> {
-                if (downloadGroupInfo.getRunningDownloadIndex() != runningDownloadIndex) return;   //cancelled meanwhile
+                if (downloadGroupInfo.getRunningDownloadIndex() != runningDownloadIndex) {
+                    //paused during the hash check (a cancel never gets here: the gate refused the move). The model is
+                    //installed, so record it: resuming goes on with unzip / integrity test instead of downloading it again
+                    if (verified) {
+                        download.setCurrentProgress(100);
+                        download.setDownloadCompleted(true);
+                    }
+                    return;
+                }
                 if (verified) {
                     onVerifiedDownloadComplete();
                 } else {
@@ -462,6 +472,8 @@ public class Downloader {
 
     private void unpackZip(String path, String zipname, UnpackListener listener) {
         if(unzipThread == null) {
+            final int startGeneration;
+            synchronized (installLock) { startGeneration = installGeneration; }
             unzipThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -562,6 +574,19 @@ public class Downloader {
                         // If we stopped due to an interrupt, exit without deleting the zip or calling listeners;
                         // the field is cleared so that a resume can start the extraction again (it stayed set)
                         if (Thread.currentThread().isInterrupted()) {
+                            //a cancel (not a pause, which resumes from these files) removes what was extracted: the
+                            //folder is not recorded in DownloadInfo until the end, so deleteDownloadedFiles cannot find
+                            //it. Done here, after this thread stopped writing, so the delete does not race the extraction.
+                            boolean cancelled;
+                            synchronized (installLock) { cancelled = installGeneration != startGeneration; }
+                            if (cancelled && topFolder != null && !topFolder.isEmpty()) {
+                                try {
+                                    File extracted = ZipSafety.resolve(path, topFolder);
+                                    FileUtils.deleteDirectory(extracted);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
                             final Thread self = Thread.currentThread();
                             mainHandler.post(() -> { if (unzipThread == self) unzipThread = null; });
                             return;

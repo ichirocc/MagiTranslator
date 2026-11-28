@@ -185,12 +185,16 @@ public class Translator extends NeuralNetworkApi {
                     CustomLocale secondLanguage = global.getSecondLanguage(true);
                     CustomLocale language = global.getLanguage(true);
 
-                    if(languageResourcesManager == null) {
-                        languageResourcesManager = new LanguageResourcesManager(global, mode == MOZILLA, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts,
-                                firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage);
-                    }else{
-                        languageResourcesManager.setStatus(mode == MOZILLA, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts,
-                                firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage, language);
+                    //same lock as the language-change loads (loadLanguageResources): the two must not load/unload at once.
+                    //Order translationLock -> langResourcesLock, as in the translation path.
+                    synchronized (langResourcesLock) {
+                        if(languageResourcesManager == null) {
+                            languageResourcesManager = new LanguageResourcesManager(global, mode == MOZILLA, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts,
+                                    firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage);
+                        }else{
+                            languageResourcesManager.setStatus(mode == MOZILLA, useMozillaForVoiceTranslation, useTatoeba, useTranslationDicts,
+                                    firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage, language);
+                        }
                     }
 
                     //eventual initialization of language detector (it must happen after the language resources initialization)
@@ -1435,12 +1439,14 @@ public class Translator extends NeuralNetworkApi {
 
     @Nullable
     private OnnxTensor executeEncoder(int[] inputIDs, int[] attentionMask){
+        //every native object is released in finally, also when a run throws (it used to leak on errors)
+        OnnxTensor inputIDsTensor = null, attentionMaskTensor = null;
+        Map<String,OnnxTensor> input = new HashMap<String,OnnxTensor>();
+        Map<String,OnnxTensor> embedInput = new HashMap<String,OnnxTensor>();
+        OrtSession.Result embedResult = null;
         try {
-            OnnxTensor inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, inputIDs);
-            OnnxTensor attentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, attentionMask);
-            Map<String,OnnxTensor> input = new HashMap<String,OnnxTensor>();
-            Map<String,OnnxTensor> embedInput = new HashMap<String,OnnxTensor>();
-            OrtSession.Result embedResult = null;
+            inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, inputIDs);
+            attentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, attentionMask);
             if(mode == NLLB_CACHE) {
                 //we do the embedding separately and then we pass the result to the encoder
                 embedInput.put("input_ids", inputIDsTensor);
@@ -1468,21 +1474,21 @@ public class Translator extends NeuralNetworkApi {
                 input.put("attention_mask",attentionMaskTensor);
             }
             OrtSession.Result result = encoderSession.run(input, runOpts());
-            if(embedResult != null){
-                embedResult.close();
-            }
             Optional<OnnxValue> output = result.get("last_hidden_state");
-
-            //release memory
-            inputIDsTensor.close();
-            attentionMaskTensor.close();
-            embedInput.forEach((s, onnxTensor) -> onnxTensor.close());
-            input.forEach((s, onnxTensor) -> onnxTensor.close());
-
-            return (OnnxTensor) output.get();
+            return (OnnxTensor) output.get();   //the caller closes it
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        } finally {
+            //each tensor once: the maps share input_ids / attention_mask, and embed_matrix belongs to embedResult
+            java.util.Set<OnnxTensor> owned = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+            if (inputIDsTensor != null) owned.add(inputIDsTensor);
+            if (attentionMaskTensor != null) owned.add(attentionMaskTensor);
+            owned.addAll(embedInput.values());
+            OnnxTensor embedMatrix = input.get("embed_matrix");
+            for (OnnxTensor t : input.values()) if (t != embedMatrix) owned.add(t);
+            for (OnnxTensor t : owned) { try { t.close(); } catch (Exception ignored) {} }
+            if (embedResult != null) { try { embedResult.close(); } catch (Exception ignored) {} }
         }
     }
 

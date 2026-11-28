@@ -90,20 +90,18 @@ public class LanguageDetector {
                         }
                         // we use Lingua for detection
                         String langCode = languageResourcesManager.detectLanguageWithLingua(text);
-                        if(!langCode.equals("und")){
+                        if(!langCode.equals("und") && isSelected(langCode, languages)){
                             listener.onSuccess(langCode);
                             return;
                         }
                     }
-                    //we use FastText for detection
-                    if(wordsCount <= 1) {
-                        long time = System.currentTimeMillis();
-                        String langCode = predictLanguage(nativePtr, text, confidenceThreshold);
-                        android.util.Log.i("lid_performance", "FastText language identification done in: " + (System.currentTimeMillis() - time) + "ms");
-                        listener.onSuccess(langCode);
-                        return;
-                    }
-                    listener.onSuccess("und");
+                    //FastText for every length: it was skipped from 2 words up, so a long utterance (7+ words, where
+                    //FastText is most reliable) always came back "und"
+                    long time = System.currentTimeMillis();
+                    String langCode = predictLanguage(nativePtr, text, confidenceThreshold);
+                    android.util.Log.i("lid_performance", "FastText language identification done in: " + (System.currentTimeMillis() - time) + "ms");
+                    //only one of the selected languages counts: a third language would be taken as the other side
+                    listener.onSuccess(langCode != null && isSelected(langCode, languages) ? langCode : "und");
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -112,6 +110,20 @@ public class LanguageDetector {
                 }
             }
         }).start();
+    }
+
+    /** true if {@code code} names one of the selected languages (ISO 639-3 as the detectors return, or any code CustomLocale reads) */
+    private static boolean isSelected(String code, CustomLocale[] languages) {
+        if (languages == null || languages.length == 0) return true;   //no restriction given
+        if ("und".equals(code)) return false;
+        CustomLocale detected = null;
+        try { detected = new CustomLocale(code); } catch (Exception ignored) {}
+        for (CustomLocale lang : languages) {
+            if (lang == null) continue;
+            if (code.equals(lang.getISO3Language()) || code.equals(lang.getCode())) return true;
+            if (detected != null && detected.equalsLanguage(lang)) return true;
+        }
+        return false;
     }
 
     /**
