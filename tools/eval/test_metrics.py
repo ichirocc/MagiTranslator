@@ -180,6 +180,13 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(ne["cur"], {"RUPEE"})
 
 
+class AnswerNoTest(unittest.TestCase):
+    def test_leading_iie(self):
+        self.assertIn("NEGATION_LOST", [i[0] for i in M.validate("अहँ, छैन।", "いいえ、あります。", "ne-ja")])
+        self.assertNotIn("NEGATION_LOST", [i[0] for i in M.validate("अहँ, छैन।", "いいえ、ありません。", "ne-ja")])
+        self.assertNotIn("NEGATION_LOST", [i[0] for i in M.validate("होइन", "いいえ", "ne-ja")])
+
+
 class AntonymTest(unittest.TestCase):
     def test_swap(self):
         self.assertIn("ANTONYM_SWAPPED", [i[0] for i in M.validate("昨日、転びました。", "भोलि लडें।", "ja-ne")])

@@ -33,6 +33,16 @@ public final class TranslationValidator {
 
     static final java.util.regex.Pattern NE_DIRECTION = java.util.regex.Pattern.compile("उत्तर|दक्षिण|पूर्व|पश्चिम");
 
+    private static final java.util.regex.Pattern NE_ANSWER_NO = java.util.regex.Pattern.compile("^\\s*(?:होइन|हैन|अहँ|अँह|अहं)\\s*[,،।]?\\s*");
+    private static final java.util.regex.Pattern JA_ANSWER_NO = java.util.regex.Pattern.compile("^\\s*(?:いいえ|いえ|いや)\\s*[、,。]?\\s*");
+
+    /** A leading いいえ only covers the Nepali "no" word: if the rest of the Nepali is negated too, the rest of the Japanese must be. */
+    static String jaForNegCover(String ne, String ja) {
+        String rest = NE_ANSWER_NO.matcher(ne).replaceFirst("");
+        if (!rest.equals(ne) && nie.translator.rtranslator.jane.ir.NeAnalyzer.hasNegation(rest)) return JA_ANSWER_NO.matcher(ja).replaceFirst("");
+        return ja;
+    }
+
     public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
         // ne->ja meaning checks (checkNeToJaMeaning)
         QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
@@ -114,7 +124,7 @@ public final class TranslationValidator {
     /** ne -> ja, on IRs already built. */
     public static List<Issue> compareNeToJa(LanguageIR src, LanguageIR tgt, List<Issue> issues) {
         checkNumbers(src.numbers, tgt.numbersNormalized, issues);   // 三人 in the output = 3 in the source
-        if (src.negated && !tgt.negated && !JA_NEG_MEANING.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
+        if (src.negated && !tgt.negated && !JA_NEG_MEANING.matcher(jaForNegCover(src.originalText, tgt.originalText)).find()) issues.add(new Issue(Kind.NEGATION_LOST, true, null));
         if (!src.negated && tgt.negated) issues.add(new Issue(Kind.NEGATION_ADDED, false, null));
         if (NE_SCRIPT.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.UNTRANSLATED_SOURCE_SCRIPT, true, null));
         if (tgt.degenerateRepeat) issues.add(new Issue(Kind.REPETITION, true, null));

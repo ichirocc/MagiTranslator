@@ -229,6 +229,19 @@ def antonym_swapped(src, hyp, src_lang):
     return None
 
 
+NE_ANSWER_NO = re.compile(r"^\s*(?:होइन|हैन|अहँ|अँह|अहं)\s*[,،।]?\s*")
+JA_ANSWER_NO = re.compile(r"^\s*(?:いいえ|いえ|いや)\s*[、,。]?\s*")
+
+
+def _ja_for_neg_cover(ne, ja):
+    """A leading いいえ only covers the Nepali "no" answer word: when the rest of the Nepali is negated too
+    (होइन, अझै सबै सम्झेको छैन), the rest of the Japanese must carry the negation (いいえ、まだ全部覚えています is wrong)."""
+    rest = NE_ANSWER_NO.sub("", ne, count=1)
+    if rest != ne and ne_has_negation(rest):
+        return JA_ANSWER_NO.sub("", ja, count=1)
+    return ja
+
+
 NE_WORD = re.compile("[ऀ-ॣ०-ॿ]+")  # excludes danda । ॥
 JA_SCRIPT = re.compile("[぀-ヿ一-鿿]")
 DEVANAGARI = re.compile("[ऀ-ॿ]")
@@ -522,7 +535,7 @@ def validate(src, hyp, direction, required_targets=None):
         return issues
     s, t = analyze_ne(src), analyze_ja(hyp)
     _check_numbers(s["numbers"], t["numbers_norm"], issues)
-    if s["negated"] and not t["negated"] and not JA_NEG_MEANING.search(hyp):
+    if s["negated"] and not t["negated"] and not JA_NEG_MEANING.search(_ja_for_neg_cover(src, hyp)):
         issues.append(("NEGATION_LOST", True, None))
     if t["negated"] and not s["negated"]:
         issues.append(("NEGATION_ADDED", False, None))
