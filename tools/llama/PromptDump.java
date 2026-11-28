@@ -53,7 +53,7 @@ public class PromptDump {
     private static List<PlamoPrompt.Turn> examples(PhraseBook b, boolean on, String src, String text) {
         List<PlamoPrompt.Turn> out = new ArrayList<>();
         if (!on) return out;
-        for (String[] e : b.examples().similar(text, src, 2, 0.4)) out.add(0, new PlamoPrompt.Turn(e[0], e[1]));
+        for (String[] e : b.examples().similar(text, src, Integer.getInteger("k", 3), Double.parseDouble(System.getProperty("sim", "0.3")))) out.add(0, new PlamoPrompt.Turn(e[0], e[1]));
         return out;
     }
 

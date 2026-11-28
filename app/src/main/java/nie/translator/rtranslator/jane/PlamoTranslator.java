@@ -45,8 +45,10 @@ public final class PlamoTranslator {
     public void setPhraseBook(PhraseBook p) { phrases = p == null ? new PhraseBook() : p; }
 
     /** examples given before the history: at most this many, at least this similar (Dice on character bigrams) */
-    static final int MAX_EXAMPLES = 2;
-    static final double MIN_EXAMPLE_SIMILARITY = 0.4;
+    // 3 examples at 0.3 similarity: the only setting up on all of dev/A/B (2026-11-28, ja->ne chrF++ dev 53.2->54.8,
+    // A 49.2->49.8, B 53.3->53.5; 4 at 0.3 lowered B, 3 at 0.4 lowered A), about +70 ms to the first draft on a PC
+    static final int MAX_EXAMPLES = 3;
+    static final double MIN_EXAMPLE_SIMILARITY = 0.3;
     private volatile boolean useExamples = true;
     private volatile double minExampleSimilarity = MIN_EXAMPLE_SIMILARITY;
 
