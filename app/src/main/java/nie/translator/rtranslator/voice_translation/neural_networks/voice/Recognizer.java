@@ -282,7 +282,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
             public void run() {
                 if (gen != generation.get()) return;
                 synchronized (lock) {
-                    Log.e("recognizer","recognizingCalled");
+                    Log.d("recognizer","recognizingCalled");
                     if (data != null) {
                         if ("ne".equals(bareLanguage(languageCode))) {
                             //MagiTranslator: decode Nepali twice in one batch (constrained + free) and keep the best
@@ -309,7 +309,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
             public void run() {
                 if (gen != generation.get()) return;
                 synchronized (lock) {
-                    Log.e("recognizer","recognizingCalled");
+                    Log.d("recognizer","recognizingCalled");
                     if (data != null) {
                         dataToRecognize.addLast(new DataContainer(data, beamSize, languageCode1, languageCode2));
                         if (dataToRecognize.size() >= 1 && !recognizing) {
