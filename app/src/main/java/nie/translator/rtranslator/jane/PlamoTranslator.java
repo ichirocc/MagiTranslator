@@ -181,6 +181,9 @@ public final class PlamoTranslator {
                     if (cut < 0 && Character.isWhitespace(c)) cut = i;   //a space is the fallback; keep looking for a comma
                 }
                 if (cut < 0) cut = MAX_PIECE_CHARS;
+                //never inside a syllable: not after a virama (्) nor before a vowel sign / nukta / nasal mark
+                while (cut > 1 && (rest.charAt(cut - 1) == '\u094D' || Character.getType(rest.charAt(cut)) == Character.NON_SPACING_MARK
+                        || Character.getType(rest.charAt(cut)) == Character.COMBINING_SPACING_MARK || Character.isLowSurrogate(rest.charAt(cut)))) cut--;
                 String head = rest.substring(0, cut).trim();
                 if (!head.isEmpty()) out.add(head);
                 rest = rest.substring(cut).trim();

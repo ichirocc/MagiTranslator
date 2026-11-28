@@ -68,6 +68,12 @@ public class JaNeLibraryTest {
           java.util.List<String> cp = PlamoTranslator.capLength(java.util.Collections.singletonList(sb.toString().trim()));
           boolean okLen = cp.size() > 1; for (String p : cp) okLen &= p.length() <= PlamoTranslator.MAX_PIECE_CHARS;
           yes(okLen, "PLaMo pieces capped at MAX_PIECE_CHARS"); }
+        { StringBuilder sb = new StringBuilder(); while (sb.length() < 1000) sb.append("क्षत्रिय");
+          String t = sb.toString(); java.util.List<String> cp = PlamoTranslator.capLength(java.util.Collections.singletonList(t));
+          boolean ok = String.join("", cp).equals(t);
+          for (String p : cp) { int ty = Character.getType(p.charAt(0)); ok &= p.length() <= PlamoTranslator.MAX_PIECE_CHARS
+                  && ty != Character.NON_SPACING_MARK && ty != Character.COMBINING_SPACING_MARK && p.charAt(p.length() - 1) != '\u094D'; }
+          yes(ok, "PLaMo pieces never cut inside a Devanagari syllable"); }
         eq("[行きます。, 明日ですね。, はい。]", JaSegmenter.split("行きます 明日ですね はい"), "split polite ends incl. ね");
         // transliteration
         eq("तानाका", KanaDevanagari.transliterate("タナカ"), "タナカ");

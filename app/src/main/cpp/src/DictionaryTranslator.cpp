@@ -155,14 +155,18 @@ std::vector<std::string> translateWord(const std::string& word, const std::strin
 bool containsWord(const std::string& word, const std::string& lang){
     std::shared_ptr<mydata::DataMap> dict = nullptr;
 
-    // Assume models are already loaded in cache
-    if(lang != "eng"){
-        if(dict_cache.find(lang) == dict_cache.end()) throw std::runtime_error("Missing loaded dict: " + lang);
-        dict = dict_cache[lang]->toEnglishDict;
-    } else {
-        // if the lang is english we use the deu dict -> from english (loaded all the time) because it is by far the largest one
-        if(dict_cache.find("deu") == dict_cache.end()) throw std::runtime_error("Missing loaded dict: " + lang);
-        dict = dict_cache["deu"]->fromEnglishDict;
+    // Assume models are already loaded in cache. Looked up under service_mutex like translateWord (a load /
+    // unload changes the map at the same time otherwise); the shared_ptr copy keeps it alive for the search below
+    {
+        std::lock_guard<std::mutex> lock(service_mutex);
+        if(lang != "eng"){
+            if(dict_cache.find(lang) == dict_cache.end()) throw std::runtime_error("Missing loaded dict: " + lang);
+            dict = dict_cache[lang]->toEnglishDict;
+        } else {
+            // if the lang is english we use the deu dict -> from english (loaded all the time) because it is by far the largest one
+            if(dict_cache.find("deu") == dict_cache.end()) throw std::runtime_error("Missing loaded dict: " + lang);
+            dict = dict_cache["deu"]->fromEnglishDict;
+        }
     }
 
     // we search only in the keys of the toEng dict, not also in the values of fromEng for a performance reason (too slow)

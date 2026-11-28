@@ -38,7 +38,7 @@ void initializeService() {
 
     if (global_service == nullptr) {
         BlockingService::Config blockingConfig;
-        blockingConfig.cacheSize = 0;  //todo: change it back to 256 in release
+        blockingConfig.cacheSize = 256;  //repeated sentences (set phrases) are not translated again
         blockingConfig.logger.level = "off";
         global_service = std::make_unique<BlockingService>(blockingConfig);
     }
@@ -72,14 +72,18 @@ std::vector<std::string> translateMultiple(std::vector<std::string> &&inputs, co
 
     if(srcLang == trgLang) return inputs;
 
-    // Assume models are already loaded in cache
-    if (srcLang != "en") {
-        if(model_cache.find(srcLang) == model_cache.end()) throw std::runtime_error("Missing loaded src model: "+srcLang);
-        firstModel = model_cache[srcLang]->toEnglishModel;
-    }
-    if (trgLang != "en") {
-        if(model_cache.find(trgLang) == model_cache.end()) throw std::runtime_error("Missing loaded trg model: "+trgLang);
-        secondModel = model_cache[trgLang]->fromEnglishModel;
+    // Assume models are already loaded in cache. The lookup takes service_mutex (a load / unload changes the map
+    // at the same time otherwise); the shared_ptr copies keep the models alive for this call after the lock
+    {
+        std::lock_guard<std::mutex> lock(service_mutex);
+        if (srcLang != "en") {
+            if(model_cache.find(srcLang) == model_cache.end()) throw std::runtime_error("Missing loaded src model: "+srcLang);
+            firstModel = model_cache[srcLang]->toEnglishModel;
+        }
+        if (trgLang != "en") {
+            if(model_cache.find(trgLang) == model_cache.end()) throw std::runtime_error("Missing loaded trg model: "+trgLang);
+            secondModel = model_cache[trgLang]->fromEnglishModel;
+        }
     }
 
     std::vector<ResponseOptions> responseOptions;
