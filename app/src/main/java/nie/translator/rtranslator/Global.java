@@ -135,7 +135,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         useTatoeba = sharedPreferences.getBoolean("useTatoeba", false);
         useTranslationDictionaries = sharedPreferences.getBoolean("useTranslationDictionaries", false);
         useMozillaForVoiceTranslation = sharedPreferences.getBoolean("useMozillaForVoiceTranslation", false);
-        whisperReducedRam = sharedPreferences.getBoolean("whisperReducedRam", getTotalRamSize() <= 7000);
+        //default (until the user sets it): memory first on phones with 8 GB or less (totalMem of an 8 GB phone reads about
+        //7,400-7,700 MB, so 7000 left them on the faster, larger encoder while PLaMo 2B (1.8 GB) shares the memory)
+        whisperReducedRam = sharedPreferences.getBoolean("whisperReducedRam", getTotalRamSize() <= 9000);
         translationMode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
 
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
