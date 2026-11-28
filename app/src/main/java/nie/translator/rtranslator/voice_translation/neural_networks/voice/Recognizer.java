@@ -437,6 +437,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                     final int firstRecordedStep = prefixLen - 3;   //keeps the original layout: content starts at index 3
                     double noSpeechProb1 = 0;
                     double noSpeechProb2 = 0;
+                    int scored1 = 0, scored2 = 0;   //tokens summed into outputProbability1 / 2
                     
                     while (!(max == eos && max2 == eos)) {
                         initialTime = System.currentTimeMillis();
@@ -511,20 +512,16 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                             inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, new int[]{max, max2}, new long[]{2,1});
                         }
 
-                        if(batchSize == 1 && j >= firstRecordedStep && !finished1){
-                            //single row (one language, or the Nepali model): the score was never summed here, so it
-                            //stayed 0 and the silence rule (avg logprob < -1) could never fire
+                        //the score covers the generated text only (j >= prefixLen), as in Whisper: the predictions made while the
+                        //forced prefix is fed (transcribe / no-timestamps / prompt tokens) are near-certain and pulled the
+                        //average up, most for short utterances, so the silence rule fired less than it should
+                        if(j >= prefixLen && !finished1){
                             outputProbability1 = outputProbability1 + Math.log(Utils.softmax(outputValues[max], outputValues));
+                            scored1++;
                         }
-                        if(batchSize == 2 && j >= firstRecordedStep){
-                            //we calculate and update the probabilities of the two output sentences
-                            double softmax = Utils.softmax(outputValues[max], outputValues);
-                            if(!finished1) {
-                                outputProbability1 = outputProbability1 + Math.log(softmax);
-                            }
-                            if(!finished2) {
-                                outputProbability2 = outputProbability2 + Math.log(Utils.softmax(outputValues2[max2], outputValues2));
-                            }
+                        if(batchSize == 2 && j >= prefixLen && !finished2){
+                            outputProbability2 = outputProbability2 + Math.log(Utils.softmax(outputValues2[max2], outputValues2));
+                            scored2++;
                         }
 
                         if(j >= maxTokens + (prefixLen - 4)) {
@@ -555,14 +552,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                         j++;
                     }
 
-                    if(batchSize == 1 && completeOutput.size() > 0) {
-                        outputProbability1 = outputProbability1 / completeOutput.size();   //same scale as the dual path's silence rule
-                    }
-                    if(batchSize == 2) {
-                        //we normalize the scores based on the number of tokens of the respective sequence
-                        outputProbability1 = outputProbability1 / completeOutput.size();
-                        outputProbability2 = outputProbability2 / completeOutput2.size();
-                    }
+                    //average log-probability per generated token
+                    if (scored1 > 0) outputProbability1 = outputProbability1 / scored1;
+                    if (batchSize == 2 && scored2 > 0) outputProbability2 = outputProbability2 / scored2;
 
                     //execution of the detokenizer
                     if(batchSize == 1) {
