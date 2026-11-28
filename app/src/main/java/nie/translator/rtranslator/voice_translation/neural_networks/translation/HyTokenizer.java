@@ -175,10 +175,13 @@ public final class HyTokenizer {
             pieces = next;
         }
         for (String piece : pieces) {
-            int[] ids = cache.get(piece);
+            //access-ordered LinkedHashMap: get() reorders the list, so reads and writes share one lock (the
+            //tokenizer can be reached from more than one thread); bpe() runs outside it
+            int[] ids;
+            synchronized (cache) { ids = cache.get(piece); }
             if (ids == null) {
                 ids = bpe(byteLevel(piece));
-                cache.put(piece, ids);
+                synchronized (cache) { cache.put(piece, ids); }
             }
             for (int id : ids) out.add(id);
         }
