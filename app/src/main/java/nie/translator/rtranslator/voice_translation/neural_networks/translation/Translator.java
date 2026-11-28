@@ -716,6 +716,22 @@ public class Translator extends NeuralNetworkApi {
         if (start) continueMessages();
     }
 
+    /** The conversation ended: drop the queued messages and stop the one being translated (no result is delivered). */
+    public void cancelConversation() {
+        synchronized (lock) {
+            dataToTranslate.clear();
+        }
+        cancellation.cancelScope(Global.RTranslatorMode.CONVERSATION_MODE.ordinal());
+    }
+
+    /** A peer disconnected: its messages still waiting are dropped (the one in progress finishes). */
+    public void dropQueuedMessagesFrom(Peer peer) {
+        if (peer == null) return;
+        synchronized (lock) {
+            dataToTranslate.removeIf(d -> peer.equals(d.conversationMessageToTranslate.getSender()));
+        }
+    }
+
     private void continueMessages() {
         new Thread(this::translateNextMessage, "messageTranslationPerformer").start();
     }

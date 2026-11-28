@@ -93,6 +93,7 @@ public abstract class VoiceTranslationService extends GeneralService {
     @Nullable
     protected TTSEngine ttsEngine;
     protected Handler mainHandler;
+    private static final Object MIC_RESTART_TOKEN = new Object();   //cancels only the delayed mic restart
     /** set first thing in onDestroy: no callback (TTS end, delayed mic restart) may reopen the mic afterwards */
     protected volatile boolean destroyed = false;
     protected Handler mainTTSHandler;
@@ -133,7 +134,12 @@ public abstract class VoiceTranslationService extends GeneralService {
             void onUtteranceStarting(GuiMessage message, boolean first) {
                 //if (ttsEngine != null && shouldDeactivateMicDuringTTS() && ttsEngine.isEmpty() && !ttsEngine.isPaused()) {
                 notifyTTSStarted(String.valueOf(message.getMessageID()));
-                if(first) {
+                //a mic restart scheduled at the end of the previous reading must not fire during this one (the mic
+                //would hear the TTS)
+                mainHandler.removeCallbacksAndMessages(MIC_RESTART_TOKEN);
+                //same condition as the restart in onUtteranceFinished: with a Bluetooth headset the mic stays on (it
+                //was stopped here and then never restarted, so the conversation stopped after the first reading)
+                if(first && shouldDeactivateMicDuringTTS()) {
                     if (isMicAutomatic) stopVoiceRecorder();
                     notifyMicDeactivated();   // we notify the client
                 }
@@ -150,6 +156,7 @@ public abstract class VoiceTranslationService extends GeneralService {
                         @Override
                         public void run() {
                             if (destroyed) return;
+                            if (ttsEngine != null && !ttsEngine.isEmpty()) return;   //another reading is queued: it restarts the mic when it ends
                             if (shouldDeactivateMicDuringTTS()) {
                                 if (!isMicMute) {
                                     startVoiceRecorder();
@@ -157,7 +164,7 @@ public abstract class VoiceTranslationService extends GeneralService {
                                 notifyMicActivated();
                             }
                         }
-                    }, TIME_BEFORE_REACTIVATING_MIC_AFTER_TTS);  //4000
+                    }, MIC_RESTART_TOKEN, TIME_BEFORE_REACTIVATING_MIC_AFTER_TTS);  //4000
                 }
             }
 
