@@ -266,6 +266,13 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     // bumped by stop() on the caller's thread: chunks handed in before it are dropped even if still queued in the executor
     private final java.util.concurrent.atomic.AtomicInteger generation = new java.util.concurrent.atomic.AtomicInteger();
 
+    /** "ne-NP" / "ja_JP" -> "ne" / "ja" for Whisper's language tokens and the Nepali checks; the reported code stays as given */
+    private static String bareLanguage(String code) {
+        if (code == null) return null;
+        int cut = code.indexOf('-'); if (cut < 0) cut = code.indexOf('_');
+        return (cut > 0 ? code.substring(0, cut) : code).toLowerCase(java.util.Locale.ROOT);
+    }
+
     public void recognize(final float[] data, int beamSize, final String languageCode) {
         final int gen = generation.get();
         if (enqueueExecutor.isShutdown()) return;   //destroyed: a late chunk from an old reference is dropped
@@ -276,7 +283,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                 synchronized (lock) {
                     Log.e("recognizer","recognizingCalled");
                     if (data != null) {
-                        if ("ne".equals(languageCode)) {
+                        if ("ne".equals(bareLanguage(languageCode))) {
                             //MagiTranslator: decode Nepali twice in one batch (constrained + free) and keep the best
                             DataContainer dual = new DataContainer(data, beamSize, languageCode, languageCode);
                             dual.neDual = true;
@@ -329,7 +336,9 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                     OnnxTensor audioTensor = OnnxTensor.createTensor(onnxEnv, floatAudioDataBuffer, TensorUtils.tensorShape(1L, (long) data.data.length));
 
                     // if we generate more than this number of tokens it means that we have an infinite loop due to the fact that the sound cannot be transcribed with the language selected
-                    int maxTokens = (data.data.length / Recorder.SAMPLE_RATE_CANDIDATES[0]) * MAX_TOKENS_PER_SECOND;
+                    //proportional, rounded up: whole seconds gave 0 tokens under 1 s ("はい" hit the limit at once and came
+                    //back empty) and 30 for anything up to 1.99 s
+                    int maxTokens = Math.max(1, (int) Math.ceil((double) data.data.length / Recorder.SAMPLE_RATE_CANDIDATES[0] * MAX_TOKENS_PER_SECOND));
                     if(maxTokens > MAX_TOKENS){
                         maxTokens = MAX_TOKENS;
                     }
@@ -631,7 +640,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
                                 android.util.Log.i("result", "row 2 dropped as silence, no_speech=" + noSpeechProb2);
                                 t2 = UNDEFINED_TEXT;
                             }
-                            boolean neFirst = "ne".equals(data.languageCode), neSecond = "ne".equals(data.languageCode2);
+                            boolean neFirst = "ne".equals(bareLanguage(data.languageCode)), neSecond = "ne".equals(bareLanguage(data.languageCode2));
                             boolean neWins = (neFirst && outputProbability1 >= outputProbability2) || (neSecond && outputProbability2 > outputProbability1);
                             if (neWins && ensureNeModel()) {
                                 // the base model decided "this is Nepali": transcribe again with the Nepali model and
@@ -727,7 +736,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      * score and break the two-language auto detection (e.g. ja vs ne).
      */
     private float[] constrainedLogits(float[] raw, @Nullable String languageCode, ArrayList<Integer> generated) {
-        if (!"ne".equals(languageCode)) return raw;
+        if (!"ne".equals(bareLanguage(languageCode))) return raw;
         boolean[] allowed = getNeAllowedTokens();
         if (allowed.length == 0) return raw;
         float[] logits = raw.clone();
@@ -943,6 +952,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
     }
 
     public int getLanguageID(String language){
+        language = bareLanguage(language);
         for (int i = 0; i < LANGUAGES.length; i++) {
             if (LANGUAGES[i].equals(language)) {
                 return START_TOKEN_ID + i + 1;
