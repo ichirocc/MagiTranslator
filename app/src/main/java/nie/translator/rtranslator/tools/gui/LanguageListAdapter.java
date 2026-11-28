@@ -168,6 +168,7 @@ public class LanguageListAdapter extends BaseAdapter implements Filterable {
             return results; // Runs on background thread automatically!
         }
 
+        @SuppressWarnings("unchecked")  // results.values is the list performFiltering put there
         @Override
         protected void publishResults(CharSequence constraint, FilterResults results) {
             // This runs on the UI thread automatically

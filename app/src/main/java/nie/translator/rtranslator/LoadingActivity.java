@@ -61,6 +61,8 @@ public class LoadingActivity extends GeneralActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        //every activity this one opens fades in (was overridePendingTransition after each startActivity, deprecated)
+        overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out);
         Intent intent = getIntent();
         String previousActivity = intent.getStringExtra("activity");
         boolean fromWidget = intent.getBooleanExtra("from_widget", false);
@@ -212,7 +214,6 @@ public class LoadingActivity extends GeneralActivity {
         Intent intent = new Intent(this, AccessActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         finish();
     }
 
@@ -235,7 +236,6 @@ public class LoadingActivity extends GeneralActivity {
             }
 
             startActivity(intent);
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             finish();
         }else{
             startImageActivity();
@@ -247,7 +247,6 @@ public class LoadingActivity extends GeneralActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra("startWithModelManager", true);
         startActivity(intent);
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         finish();
     }
 
@@ -256,7 +255,6 @@ public class LoadingActivity extends GeneralActivity {
         Intent intent = new Intent(LoadingActivity.this, ImageActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         finish();
     }
 
@@ -465,7 +463,6 @@ public class LoadingActivity extends GeneralActivity {
         Intent intent = new Intent(LoadingActivity.this, AccessActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         finish();
     }
 

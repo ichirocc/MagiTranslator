@@ -205,6 +205,7 @@ public class GuiTools {
                 info.addAction(readAction);
             }
 
+            @SuppressWarnings("deprecation")  // read on an explicit double tap by the user; the API 36 alternatives (live regions, pane titles) announce on changes instead
             @Override
             public boolean performAccessibilityAction(@NonNull View host, int action, Bundle args) {
                 // 3. Handle the double-tap to read the text
@@ -252,7 +253,7 @@ public class GuiTools {
 
     public static void requestAccessibilityFocus(View view) {
         view.post(() -> {
-            if (ViewCompat.isAttachedToWindow(view)
+            if (view.isAttachedToWindow()
                     && view.getVisibility() == View.VISIBLE) {
 
                 view.performAccessibilityAction(

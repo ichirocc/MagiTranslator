@@ -25,6 +25,7 @@ import androidx.fragment.app.FragmentPagerAdapter;
 
 import java.util.List;
 
+@SuppressWarnings("deprecation")  // FragmentPagerAdapter kept: ViewPager2 needs the pager screens rewritten
 public class CustomFragmentPagerAdapter extends FragmentPagerAdapter {
     private Context context;
     private List<String> titles;

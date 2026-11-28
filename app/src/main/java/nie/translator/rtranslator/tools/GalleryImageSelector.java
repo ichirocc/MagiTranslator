@@ -166,6 +166,7 @@ public class GalleryImageSelector {
                 builder.setCancelable(true);
                 builder.setTitle(activity.getString(R.string.title_image_selector));
                 builder.setItems(items, new DialogInterface.OnClickListener() {
+                    @SuppressWarnings("deprecation")  // kept: the Activity Result API needs launchers registered at creation; the request codes are shared with other callers
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         if (which == 0) {
@@ -207,6 +208,7 @@ public class GalleryImageSelector {
      * @param data
      * @param saveImage   if you want to save the image in this method or not
      */
+    @SuppressWarnings("deprecation")  // kept: the Activity Result API needs launchers registered at creation; the request codes are shared with other callers
     public void onActivityResult(int requestCode, int resultCode, Intent data, boolean saveImage) {
         if (requestCode == PICK_IMAGE && resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
             //copyFile the result into cache

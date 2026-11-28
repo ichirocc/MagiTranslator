@@ -204,6 +204,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         Preference userDictionaryImport = findPreference("userDictionaryImport");
         if (userDictionaryImport != null) {
             userDictionaryImport.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @SuppressWarnings("deprecation")  // kept: the Activity Result API needs launchers registered at creation; the request codes are shared with other callers
                 @Override
                 public boolean onPreferenceClick(Preference preference) {
                     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -292,6 +293,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
     }
 
+    @SuppressWarnings("deprecation")  // kept: the Activity Result API needs launchers registered at creation; the request codes are shared with other callers
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);

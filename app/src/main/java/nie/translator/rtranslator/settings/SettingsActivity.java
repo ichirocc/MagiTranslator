@@ -65,12 +65,8 @@ public class SettingsActivity extends GeneralActivity {
             toolbar.setNavigationIcon(icon);
         }
 
-        View decorView = getWindow().getDecorView();
-        decorView.setSystemUiVisibility(
-                decorView.getSystemUiVisibility()
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        );
+        //drawn behind the system bars: targetSdk 36 always lays windows out edge to edge (the old
+        //SYSTEM_UI_FLAG_LAYOUT_STABLE | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN request is the default and was removed)
 
         Bundle b = getIntent().getExtras();
         boolean startWithModelManager = b != null && b.getBoolean("startWithModelManager");

@@ -169,6 +169,7 @@ public class UserDataFragment extends Fragment {
         builder.create().show();
     }
 
+    @SuppressWarnings("deprecation")  // kept: the Activity Result API needs launchers registered at creation; the request codes are shared with other callers
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);

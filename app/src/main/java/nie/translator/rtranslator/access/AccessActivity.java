@@ -61,12 +61,8 @@ public class AccessActivity extends GeneralActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_access);
 
-        View decorView = getWindow().getDecorView();
-        decorView.setSystemUiVisibility(
-                decorView.getSystemUiVisibility()
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        );
+        //drawn behind the system bars: targetSdk 36 always lays windows out edge to edge (the old
+        //SYSTEM_UI_FLAG_LAYOUT_STABLE | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN request is the default and was removed)
 
         Global global = (Global) getApplication();
         if (savedInstanceState != null) {
@@ -218,6 +214,7 @@ public class AccessActivity extends GeneralActivity {
         }
     }
 
+    @SuppressWarnings("deprecation")  // kept: the Activity Result API needs launchers registered at creation; the request codes are shared with other callers
     private void requestAllFilesPermission() {
         try {
             Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);

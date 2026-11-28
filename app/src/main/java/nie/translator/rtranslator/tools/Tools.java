@@ -240,6 +240,7 @@ public class Tools {
         return file.delete();
     }
 
+    @SuppressWarnings("deprecation")  // only this app's own services are listed, which is what is asked here (the deprecation is about other apps')
     public static ArrayList<String> getRunningServices(Context context) {
         ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         ArrayList<String> runningServicesNames = new ArrayList<>();
