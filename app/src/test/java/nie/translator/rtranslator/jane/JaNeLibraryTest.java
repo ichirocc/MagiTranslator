@@ -351,6 +351,10 @@ public class JaNeLibraryTest {
         eq(0, hardNJ.apply("उनी परिवारसँग रमाइलो गर्छिन्।", "彼女は家族と円満に過ごす。"), "円満 is not currency");
         yes(kindsNJ.apply("म नेपालबाट आएँ।", "ネバダ州シアトル出身。").contains("PLACE_MISSING"), "nj17: नेपाल missing");
         yes(kindsNJ.apply("म नेपालबाट आएँ।", "ネバダ州シアトル出身。").contains("PLACE_ADDED"), "nj17: hallucinated ネバダ/シアトル");
+        yes(kindsNJ.apply("सीता नेपालबाट आएकी हुन्।", "北ネパールから来たんです。").contains("PLACE_ADDED"), "nj17: invented 北 before ネパール");
+        yes(!kindsNJ.apply("म पूर्वी नेपालबाट आएँ।", "東ネパールから来ました。").contains("PLACE_ADDED"), "pūrvī नेपाल = 東ネパール");
+        yes(!kindsNJ.apply("चिन्ता नगर्नुहोस्", "大丈夫ですよ").contains("NEGATION_LOST"), "ne->ja: 大丈夫 renders नगर्नुहोस्");
+        yes(kindsNJ.apply("आज म जान्नँ।", "今日は行きます。").contains("NEGATION_LOST"), "ne->ja: real negation loss still caught");
         eq(0, hardNJ.apply("म नेपालबाट आएँ।", "私はネパールから来ました。"), "nj17: ネパール ok");
         eq(0, hardNJ.apply("म नेपाली बोल्छु।", "私はネパール語を話します。"), "नेपाली -> ネパール語 is not a place mention");
         eq(0, hardNJ.apply("म जापानी सिक्दैछु।", "私は日本語を勉強しています。"), "जापानी -> 日本語 ok");

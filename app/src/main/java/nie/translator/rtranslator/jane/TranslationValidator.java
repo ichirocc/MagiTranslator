@@ -31,6 +31,8 @@ public final class TranslationValidator {
     /** ne -> ja: the Japanese says "no" without ない (だめ, 防ぐ, 〜な！, だけでなく, いいえ, まだです ...). */
     static final java.util.regex.Pattern JA_NEG_MEANING = java.util.regex.Pattern.compile("だめ|ダメ|駄目|いいえ|^いえ|[、。\\s]いえ[、。]|けっこう|結構|まだ(?:です|[。]|$)|嫌い|きらい|防[ぐぎ]|避け|づらい|にくい|違[いうっ]|おかしい|悪い|わるい|不在|無意識|残念|大丈夫|ゆっくりで|[るぐむぶつすく]な[！!]|[るぐむぶつすく]なって|でなく|いやです");
 
+    static final java.util.regex.Pattern NE_DIRECTION = java.util.regex.Pattern.compile("उत्तर|दक्षिण|पूर्व|पश्चिम");
+
     public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
         // ne->ja meaning checks (checkNeToJaMeaning)
         QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
@@ -130,6 +132,9 @@ public final class TranslationValidator {
             if (inSrc && !tgt.places.contains(place)) issues.add(new Issue(Kind.PLACE_MISSING, true, place));
             // a known place in the output that the source never mentions: hallucinated (ネバダ州シアトル)
             if (!inSrc && tgt.placesAsPlace.contains(place)) issues.add(new Issue(Kind.PLACE_ADDED, true, place));
+            // 北ネパール for plain नेपाल: an invented direction
+            java.util.regex.Matcher dir = java.util.regex.Pattern.compile("[北南東西]" + java.util.regex.Pattern.quote(place)).matcher(tgt.originalText);
+            if (inSrc && dir.find() && !NE_DIRECTION.matcher(src.originalText).find()) issues.add(new Issue(Kind.PLACE_ADDED, true, dir.group()));
         }
     }
 

@@ -180,5 +180,15 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(ne["cur"], {"RUPEE"})
 
 
+class NeJaCoverTest(unittest.TestCase):
+    def test_direction_invented(self):
+        k = [i[0] for i in M.validate("सीता नेपालबाट आएकी हुन्।", "北ネパールから来たんです。", "ne-ja")]
+        self.assertIn("PLACE_ADDED", k)
+
+    def test_negation_without_nai(self):
+        for ne, ja in [("चिन्ता नगर्नुहोस्", "大丈夫ですよ"), ("नदौडनुहोस्।", "走るな！"), ("पर्दैन।", "けっこうです。")]:
+            self.assertNotIn("NEGATION_LOST", [i[0] for i in M.validate(ne, ja, "ne-ja")])
+        self.assertIn("NEGATION_LOST", [i[0] for i in M.validate("आज म जान्नँ।", "今日は行きます。", "ne-ja")])
+
 if __name__ == "__main__":
     unittest.main()

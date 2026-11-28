@@ -508,6 +508,9 @@ def validate(src, hyp, direction, required_targets=None):
             issues.append(("PLACE_MISSING", True, p[0]))
         if p[0] not in s["places"] and p[0] in t["places_as_place"]:
             issues.append(("PLACE_ADDED", True, p[0]))
+        m = re.search("[北南東西]" + p[0], hyp)  # 北ネパール for plain नेपाल: an invented direction
+        if m and p[0] in s["places"] and not re.search("उत्तर|दक्षिण|पूर्व|पश्चिम", src):
+            issues.append(("PLACE_ADDED", True, m.group()))
     if (re.search(r"(ज्यू|जी|ज्यु|आमाजु|बुबाजु|उहाँ)(ले)?\s", src) and re.search(r"नुभयो|नुहुन्छ|नुभएको", src)
             and not re.search(r"(^|[\s,।])(म|मैले|मलाई|मेरो|हामी|हामीले)(?=[\s,।])", src) and re.search(r"私|僕|わたし", hyp)):
         issues.append(("PERSON_REVERSED", True, None))
