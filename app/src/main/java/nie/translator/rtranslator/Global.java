@@ -612,6 +612,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
     }
 
     public void deleteSpeechRecognizer(){
+        if (speechRecognizer != null) speechRecognizer.destroy();   //free its ONNX sessions and thread, not only the reference
         speechRecognizer = null;
     }
 

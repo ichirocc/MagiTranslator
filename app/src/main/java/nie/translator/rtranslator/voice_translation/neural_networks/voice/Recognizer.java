@@ -267,6 +267,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
 
     public void recognize(final float[] data, int beamSize, final String languageCode) {
         final int gen = generation.get();
+        if (enqueueExecutor.isShutdown()) return;   //destroyed: a late chunk from an old reference is dropped
         enqueueExecutor.execute(new Runnable() {
             @Override
             public void run() {
@@ -293,6 +294,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
 
     public void recognize(final float[] data, int beamSize, final String languageCode1, final String languageCode2) {
         final int gen = generation.get();
+        if (enqueueExecutor.isShutdown()) return;   //destroyed: a late chunk from an old reference is dropped
         enqueueExecutor.execute(new Runnable() {
             @Override
             public void run() {
@@ -894,6 +896,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      */
     public void stop(){
         generation.incrementAndGet();   // chunks still waiting in the executor are skipped
+        if (enqueueExecutor.isShutdown()) return;
         enqueueExecutor.execute(() -> {
             synchronized (lock) {
                 dataToRecognize.clear();
@@ -901,8 +904,29 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
         });
     }
 
+    /**
+     * Releases the sessions and the recognizer thread (Global.deleteSpeechRecognizer, e.g. after a failed load, before
+     * the next load creates a new Recognizer). Queued chunks are dropped; an utterance in progress finishes first,
+     * because the close runs on the recognizer's own thread under {@code lock}.
+     */
     public void destroy() {
-        //eventually if in the future I decide to load Whisper only for WalkieTalkie and Conversation then all the resources will be released here
+        generation.incrementAndGet();
+        try {
+            enqueueExecutor.execute(() -> {
+                synchronized (lock) {
+                    dataToRecognize.clear();
+                    for (OrtSession s : new OrtSession[]{session, initSession, encoderSession, cacheInitSession, cacheInitBatchSession,
+                            decoderSession, neEncoderSession, neCacheInitSession, neCacheInitBatchSession, neDecoderSession}) {
+                        if (s != null) { try { s.close(); } catch (Exception ignored) {} }
+                    }
+                    session = initSession = encoderSession = cacheInitSession = cacheInitBatchSession = decoderSession = null;
+                    neEncoderSession = neCacheInitSession = neCacheInitBatchSession = neDecoderSession = null;
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException alreadyDestroyed) {
+            return;
+        }
+        enqueueExecutor.shutdown();   //the thread ends after the close above
     }
 
     public int getLanguageID(String language){
@@ -993,7 +1017,7 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
      * utterance in progress) and this returns at once: true when the Nepali model is loaded and a release was queued.
      */
     public boolean releaseIdleNeModel() {
-        if (neDecoderSession == null) return false;   //racy read, only to skip an obviously useless request
+        if (neDecoderSession == null || enqueueExecutor.isShutdown()) return false;   //racy read, only to skip an obviously useless request
         enqueueExecutor.execute(this::releaseIdleNeModelNow);
         return true;
     }

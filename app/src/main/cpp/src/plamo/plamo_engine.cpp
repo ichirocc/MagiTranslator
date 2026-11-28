@@ -47,11 +47,22 @@ Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeComplete(JNIEnv *env, jc
     std::string out;
     // optional draft listener: an object with void onPartial(byte[]) (UTF-8 text so far)
     jmethodID onPartial = nullptr;
+    jmethodID isCancelled = nullptr;   // optional boolean isCancelled(): polled before each token
     if (listener) {
         jclass cls = env->GetObjectClass(listener);
         onPartial = env->GetMethodID(cls, "onPartial", "([B)V");
-        env->DeleteLocalRef(cls);
         if (!onPartial) env->ExceptionClear();
+        isCancelled = env->GetMethodID(cls, "isCancelled", "()Z");
+        if (!isCancelled) env->ExceptionClear();
+        env->DeleteLocalRef(cls);
+    }
+    std::function<bool()> should_stop;
+    if (isCancelled) {
+        should_stop = [env, listener, isCancelled]() {
+            jboolean c = env->CallBooleanMethod(listener, isCancelled);
+            if (env->ExceptionCheck()) { env->ExceptionClear(); return false; }
+            return c == JNI_TRUE;
+        };
     }
     std::function<void(const std::string &)> on_text;
     if (onPartial) {
@@ -64,7 +75,7 @@ Java_nie_translator_rtranslator_plamo_PlamoEngine_nativeComplete(JNIEnv *env, jc
             env->DeleteLocalRef(b);
         };
     }
-    if (!e->complete(slot, bytes(env, jprompt), maxTokens, stops, &out, on_text)) return nullptr;
+    if (!e->complete(slot, bytes(env, jprompt), maxTokens, stops, &out, on_text, should_stop)) return nullptr;
     jbyteArray res = env->NewByteArray((jsize) out.size());
     if (res && !out.empty()) env->SetByteArrayRegion(res, 0, (jsize) out.size(), reinterpret_cast<const jbyte *>(out.data()));
     return res;

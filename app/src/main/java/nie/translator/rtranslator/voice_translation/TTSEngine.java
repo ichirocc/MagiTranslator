@@ -160,6 +160,9 @@ public class TTSEngine {
             handler.removeCallbacksAndMessages(null);
             if(tts != null) tts.stop();
             executingMessage = null;
+            //nothing is being read now: the first message after resume() must count as the first (onUtteranceStarting
+            //first=true turns the mic off during TTS; it stayed false and the mic could hear the TTS)
+            speaking = false;
             pause = true;
         }
     }

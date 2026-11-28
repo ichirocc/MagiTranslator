@@ -290,6 +290,7 @@ public class Translator extends NeuralNetworkApi {
                 closePlamo();
                 if (!MemoryGuard.hasRoomFor(global, model.length())) return null;   //Madlad instead of the low-memory killer
                 plamoEngine = nie.translator.rtranslator.plamo.PlamoEngine.open(model, 0, PLAMO_CONTEXT_TOKENS);
+                plamoEngine.setCancelCheck(this::currentRequestCancelled);   //a cancelled request stops generating at the next token
                 plamoModelFile = model;
                 plamoTranslator = null;
                 plamoAdapterStamp = null;
@@ -1195,7 +1196,9 @@ public class Translator extends NeuralNetworkApi {
                     for (int i = 1; i < textSplit.size(); i++) {
                         int numTokens = tokenize(textSplit.get(i - 1), inputLanguage, outputLanguage, true).getInputIDs().length;
                         int numTokens2 = tokenize(textSplit.get(i), inputLanguage, outputLanguage, true).getInputIDs().length;
-                        if ((numTokens + numTokens2 < maxLength) || (numTokens2 < 5)) {
+                        //a tiny fragment (< 5 tokens) still joins its neighbour over the target size, but only by a bounded margin:
+                        //joining fragment after fragment had no ceiling at all
+                        if ((numTokens + numTokens2 < maxLength) || (numTokens2 < 5 && numTokens + numTokens2 < maxLength + 16)) {
                             textSplit.set(i - 1, textSplit.get(i - 1) + textSplit.get(i));
                             textSplit.remove(i);
                             i = i - 1;

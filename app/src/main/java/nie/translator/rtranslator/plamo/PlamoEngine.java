@@ -73,7 +73,10 @@ public final class PlamoEngine implements TextCompletion, Closeable {
         if (slot < 0 || slot >= SLOTS) throw new IllegalArgumentException("slot " + slot);
         byte[][] s = new byte[stops.length][];
         for (int i = 0; i < stops.length; i++) s[i] = stops[i].getBytes(StandardCharsets.UTF_8);
-        byte[] out = nativeComplete(handle, slot, prompt.getBytes(StandardCharsets.UTF_8), maxTokens, s, draft == null ? null : new DraftBridge(draft));
+        java.util.function.BooleanSupplier cancel = cancelCheck;
+        Object bridge = draft == null && cancel == null ? null : new DraftBridge(draft, cancel);
+        byte[] out = nativeComplete(handle, slot, prompt.getBytes(StandardCharsets.UTF_8), maxTokens, s, bridge);
+        if (out == null && cancel != null && cancel.getAsBoolean()) throw new IOException("PLaMo generation cancelled");
         if (out == null) throw new IOException("PLaMo generation failed (prompt too long or decode error)");
         return new String(out, StandardCharsets.UTF_8);
     }
@@ -104,14 +107,25 @@ public final class PlamoEngine implements TextCompletion, Closeable {
     /** Called from the native generation loop (plamo_engine.cpp looks up onPartial([B)V). */
     private static final class DraftBridge {
         private final java.util.function.Consumer<String> draft;
+        private final java.util.function.BooleanSupplier cancel;
 
-        DraftBridge(java.util.function.Consumer<String> draft) { this.draft = draft; }
+        DraftBridge(java.util.function.Consumer<String> draft, java.util.function.BooleanSupplier cancel) { this.draft = draft; this.cancel = cancel; }
 
         @SuppressWarnings("unused")
         void onPartial(byte[] utf8) {
-            draft.accept(new String(utf8, StandardCharsets.UTF_8));
+            if (draft != null) draft.accept(new String(utf8, StandardCharsets.UTF_8));
+        }
+
+        @SuppressWarnings("unused")
+        boolean isCancelled() {   //polled by the native loop before each token
+            return cancel != null && cancel.getAsBoolean();
         }
     }
+
+    private volatile java.util.function.BooleanSupplier cancelCheck;
+
+    /** A check the generation loop polls before each token; true stops it (complete() then throws). */
+    public void setCancelCheck(java.util.function.BooleanSupplier check) { cancelCheck = check; }
     private static native long[] nativeLastStats(long handle);
     private static native boolean nativeSetAdapter(long handle, String path, float scale);
     private static native void nativeFree(long handle);

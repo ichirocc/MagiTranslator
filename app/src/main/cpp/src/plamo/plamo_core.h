@@ -33,7 +33,8 @@ public:
     // on_text (optional): called during generation with the text so far, without an incomplete UTF-8
     // character or a possible start of a stop string at its end (for showing a draft while generating)
     bool complete(int slot, const std::string &prompt, int max_tokens, const std::vector<std::string> &stops, std::string *out,
-                  const std::function<void(const std::string &)> &on_text = nullptr);
+                  const std::function<void(const std::string &)> &on_text = nullptr,
+                  const std::function<bool()> &should_stop = nullptr);   // checked before each token: true = cancelled, returns false
 
     // Applies a LoRA adapter (GGUF, made for this model) with the given scale; an empty path removes it.
     // Both slots' caches are dropped (their keys/values were computed with the previous weights).
