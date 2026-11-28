@@ -141,7 +141,7 @@ public final class PlamoTranslator {
 
     private JaNeTranslator.Candidate candidate(String label, String src, String tgt, String text, List<PlamoPrompt.Turn> history,
                                                List<Glossary.Term> terms, List<String> required) throws Exception {
-        String out = "ne".equals(tgt) ? JaNeTranslator.finishNe(translatePieces(src, tgt, text, history, terms), text)
+        String out = "ne".equals(tgt) ? JaIdioms.neParticles(text, JaNeTranslator.finishNe(translatePieces(src, tgt, text, history, terms), text))
                 : JaNeTranslator.finishJa(translatePieces(src, tgt, text, history, terms));
         List<TranslationValidator.Issue> iss = JaNeTranslator.validate(text, out, required, tgt);
         return new JaNeTranslator.Candidate(label, text, out, null, Double.NaN, iss);

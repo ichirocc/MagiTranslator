@@ -137,6 +137,10 @@ public class JaNeLibraryTest {
         yes(JaIdioms.rewrite("今日から一人でやってみましょう。隣で見守っていますね。").equals("今日から一人でやってみましょう。隣で私が見守っていますね。"), "self subject added");
         yes(JaIdioms.rewrite("田中さんが見守っていますね。").equals("田中さんが見守っていますね。"), "subject present: unchanged");
         yes(JaIdioms.rewrite("そばで見ていてください。").equals("そばで見ていてください。"), "request: unchanged");
+        yes(JaIdioms.neParticles("段差があるので、足元に気をつけてね。", "खुड्किलो छ, ध्यान दिनुहोस्।").equals("खुड्किलो छ, ध्यान दिनुहोस् है।"), "ne -> hai");
+        yes(JaIdioms.neParticles("おやすみなさい。ゆっくり休んでくださいね。", "शुभ रात। आराम गर्नुहोस्।").equals("शुभ रात। आराम गर्नुहोस् है।"), "ne -> hai, second sentence");
+        yes(JaIdioms.neParticles("気をつけてね。", "ध्यान दिनुहोस् है।").equals("ध्यान दिनुहोस् है।"), "particle present: unchanged");
+        yes(JaIdioms.neParticles("気をつけてね。わかった？", "ध्यान दिनुहोस्।").equals("ध्यान दिनुहोस्।"), "sentence counts differ: unchanged");
         {
             JaNeTranslator.Candidate cOk = new JaNeTranslator.Candidate("a", "", "३ जना आउँछन्।", null, 0.50,
                     TranslationValidator.validateJaToNe("3人来ます。", "३ जना आउँछन्।", java.util.Collections.<String>emptyList()));

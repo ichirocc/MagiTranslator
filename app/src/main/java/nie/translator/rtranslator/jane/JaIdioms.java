@@ -1,5 +1,7 @@
 package nie.translator.rtranslator.jane;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,5 +46,39 @@ public final class JaIdioms {
         Matcher m = SELF_WATCH.matcher(s);
         if (!m.find() || HAS_SUBJECT.matcher(s).find() || NOT_SELF.matcher(s.substring(m.start())).find()) return s;
         return s.substring(0, m.start()) + "私が" + s.substring(m.start());
+    }
+
+    // ---- sentence-final ね -> है (the model drops it; measured 2026-11-28: A +0.9 chrF++, B neutral)
+    private static final Pattern JA_SENT = Pattern.compile("(?<=[。！!？?])");
+    private static final Pattern NE_SENT = Pattern.compile("(?<=[।!?])\\s*");
+    private static final Pattern JA_NE_PARTICLE = Pattern.compile("(ね|よね|ねー)[。！!]?\\s*$");
+    private static final Pattern NE_HAS_PARTICLE = Pattern.compile("(है|नि|न)\\s*[।!]?\\s*$");
+    private static final Pattern NE_QUESTION = Pattern.compile("[?？]\\s*$");
+    private static final Pattern NE_END = Pattern.compile("\\s*([।!])?\\s*$");
+
+    /** Adds है where a Japanese sentence ends in ね and its Nepali sentence has no particle; only when both
+     *  sides have the same number of sentences, otherwise the text is returned unchanged. */
+    public static String neParticles(String ja, String ne) {
+        if (ja == null || ne == null || ne.isEmpty()) return ne;
+        List<String> js = nonEmpty(JA_SENT.split(ja.trim())), ns = nonEmpty(NE_SENT.split(ne.trim()));
+        if (js.size() != ns.size() || js.isEmpty()) return ne;
+        StringBuilder out = new StringBuilder();
+        boolean changed = false;
+        for (int i = 0; i < js.size(); i++) {
+            String n = ns.get(i);
+            if (JA_NE_PARTICLE.matcher(js.get(i)).find() && !NE_HAS_PARTICLE.matcher(n).find() && !NE_QUESTION.matcher(n).find()) {
+                Matcher m = NE_END.matcher(n);
+                if (m.find()) { n = n.substring(0, m.start()) + " है" + (m.group(1) == null ? "।" : m.group(1)); changed = true; }
+            }
+            if (out.length() > 0) out.append(' ');
+            out.append(n);
+        }
+        return changed ? out.toString() : ne;
+    }
+
+    private static List<String> nonEmpty(String[] parts) {
+        List<String> out = new ArrayList<>();
+        for (String p : parts) if (!p.trim().isEmpty()) out.add(p.trim());
+        return out;
     }
 }
