@@ -147,7 +147,7 @@ public final class PlamoTranslator {
 
     private String translatePieces(String src, String tgt, String text, List<PlamoPrompt.Turn> history, List<Glossary.Term> terms) throws Exception {
         if (text.length() <= MAX_PIECE_CHARS) return complete(src, tgt, text, history, terms);
-        List<String> pieces = "ja".equals(src) ? JaSegmenter.split(text) : splitNepali(text);
+        List<String> pieces = capLength("ja".equals(src) ? JaSegmenter.split(text) : splitNepali(text));
         StringBuilder out = new StringBuilder();
         for (String piece : pieces) {
             String o = complete(src, tgt, piece, history, terms);
@@ -161,7 +161,32 @@ public final class PlamoTranslator {
 
     private static List<String> splitNepali(String text) {
         List<String> out = new ArrayList<>();
-        for (String s : text.split("(?<=[।?!])")) if (!s.trim().isEmpty()) out.add(s.trim());
+        for (String s : text.split("(?<=[।॥?!？！])")) if (!s.trim().isEmpty()) out.add(s.trim());
+        return out;
+    }
+
+    /**
+     * A sentence with no full stop can still be longer than MAX_PIECE_CHARS (a long spoken utterance): cut it
+     * at the last comma or space before the limit, else at the limit, so no piece exceeds the context budget.
+     */
+    static List<String> capLength(List<String> pieces) {
+        List<String> out = new ArrayList<>();
+        for (String p : pieces) {
+            String rest = p;
+            while (rest.length() > MAX_PIECE_CHARS) {
+                int cut = -1;
+                for (int i = MAX_PIECE_CHARS; i > MAX_PIECE_CHARS / 2; i--) {
+                    char c = rest.charAt(i - 1);
+                    if ("、，,;；".indexOf(c) >= 0) { cut = i; break; }
+                    if (cut < 0 && Character.isWhitespace(c)) cut = i;   //a space is the fallback; keep looking for a comma
+                }
+                if (cut < 0) cut = MAX_PIECE_CHARS;
+                String head = rest.substring(0, cut).trim();
+                if (!head.isEmpty()) out.add(head);
+                rest = rest.substring(cut).trim();
+            }
+            if (!rest.isEmpty()) out.add(rest);
+        }
         return out;
     }
 

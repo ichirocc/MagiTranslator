@@ -58,6 +58,16 @@ public class JaNeLibraryTest {
         eq("[雨が降っていますが 行きます。]", JaSegmenter.split("雨が降っていますが 行きます"), "no split before conjunctive が");
         eq("[ますます 暑くなります。]", JaSegmenter.split("ますます 暑くなります"), "ますます not split");
         eq("[彼は「行きます。来ます。」と言いました。]", JaSegmenter.split("彼は「行きます。来ます。」と言いました。"), "no split inside quotes");
+        eq("[「明日行きます。」, 「今日は帰ります。」]", JaSegmenter.split("「明日行きます。」「今日は帰ります。」"), "two quoted sentences split");
+        eq("New Yorkに住んでいます", JaNeTranslator.finishJa("New York に 住んでいます"), "finishJa keeps the space inside Latin words");
+        eq("तपाईं आउनुहुन्छ?", JaNeTranslator.finishNe("तपाईं आउनुहुन्छ", "来ますか？"), "finishNe keeps the question mark");
+        eq("[25]", nie.translator.rtranslator.jane.text.Numbers.numbers("पच्चीस जना").toString(), "Nepali 25 as a word");
+        eq("[100000]", nie.translator.rtranslator.jane.text.Numbers.numbers("एक लाख").toString(), "Nepali lakh");
+        eq("100000000円", nie.translator.rtranslator.jane.text.KanjiNumber.toDigits("一億円"), "kanji 億");
+        { StringBuilder sb = new StringBuilder(); for (int k = 0; k < 90; k++) sb.append("धेरै राम्रो "); 
+          java.util.List<String> cp = PlamoTranslator.capLength(java.util.Collections.singletonList(sb.toString().trim()));
+          boolean okLen = cp.size() > 1; for (String p : cp) okLen &= p.length() <= PlamoTranslator.MAX_PIECE_CHARS;
+          yes(okLen, "PLaMo pieces capped at MAX_PIECE_CHARS"); }
         eq("[行きます。, 明日ですね。, はい。]", JaSegmenter.split("行きます 明日ですね はい"), "split polite ends incl. ね");
         // transliteration
         eq("तानाका", KanaDevanagari.transliterate("タナカ"), "タナカ");

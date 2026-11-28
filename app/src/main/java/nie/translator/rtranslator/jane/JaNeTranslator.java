@@ -258,7 +258,7 @@ public final class JaNeTranslator {
         }
         inputs.put("whole", Collections.singletonList(t));
         List<String> sentences = new ArrayList<>();
-        for (String s : t.split("(?<=[।?!])")) if (!s.trim().isEmpty()) sentences.add(s.trim());
+        for (String s : t.split("(?<=[।॥?!？！])")) if (!s.trim().isEmpty()) sentences.add(s.trim());
         if (sentences.size() > 1) inputs.put("sentences", sentences);
         List<Candidate> cands = new ArrayList<>();
         // the names are in the source whatever the input variant: every candidate must render them
@@ -490,7 +490,9 @@ public final class JaNeTranslator {
     /** Japanese output clean-up: no spaces, no leading list dash the model sometimes emits ("- こんにちは"). */
     static String finishJa(String ja) {
         if (ja == null) return "";
-        String t = ja.replaceAll("\\s+", "").replaceFirst("^[-‐‑–—・*]+", "");
+        // spaces go, except one between two Latin letters / digits ("New York", "iPhone 15"): those words would merge
+        String t = ja.trim().replaceAll("(?<=[A-Za-z0-9])\\s+(?=[A-Za-z0-9])", "\u0000").replaceAll("\\s+", "").replace('\u0000', ' ')
+                .replaceFirst("^[-‐‑–—・*]+", "");
         return collapseJa(t);
     }
 
@@ -499,8 +501,12 @@ public final class JaNeTranslator {
         String t = NePostEditor.edit(ne);
         if (t.isEmpty()) return t;
         String src = sourceJa == null ? "" : sourceJa.trim();
-        boolean srcEnds = !src.isEmpty() && "。．.".indexOf(src.charAt(src.length() - 1)) >= 0;
-        if (srcEnds && "।?!॥".indexOf(t.charAt(t.length() - 1)) < 0) t = t + "।";
+        char end = src.isEmpty() ? 0 : src.charAt(src.length() - 1);
+        if ("।?!॥".indexOf(t.charAt(t.length() - 1)) < 0) {
+            if ("。．.".indexOf(end) >= 0) t = t + "।";
+            else if ("？?".indexOf(end) >= 0) t = t + "?";   //a question or exclamation keeps its mark too
+            else if ("！!".indexOf(end) >= 0) t = t + "!";
+        }
         return t;
     }
 

@@ -25,6 +25,7 @@ public class TTSEngine {
     @Nullable
     private final TTS tts;
     private boolean pause = false;
+    private boolean ready = false;   //set on the main thread once the TTS engine is initialized
     private Context context;
     @Nullable
     private TTSEngineListener listener;
@@ -36,6 +37,11 @@ public class TTSEngine {
         this.tts = new TTS(context, new TTS.InitListener() {  // tts initialization (to be improved, automatic package installation)
             @Override
             public void onInit() {
+                //messages queued before the engine was ready were kept: read them now
+                handler.post(() -> {
+                    ready = true;
+                    if (!pause && !speaking && !messageQueue.isEmpty()) speak();
+                });
                 if(TTSEngine.this.tts != null) {
                     TTSEngine.this.tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                         @Override
@@ -128,6 +134,7 @@ public class TTSEngine {
 
     private boolean speak(int queueMode){
         if (pause) return false;
+        if (!ready) return false;   //before onInit every message would fail to speak and be dropped: keep it queued
         boolean wasSpeaking = speaking;
         speaking = true;
         //a loop, not recursion: a long queue of messages in a language the TTS cannot speak is skipped one by one

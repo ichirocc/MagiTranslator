@@ -58,7 +58,7 @@ public final class JaAnalyzer {
 
     private static final Pattern RUPEE = Pattern.compile("ルピー");
     private static final Pattern YEN = Pattern.compile("[0-9０-９〇一二三四五六七八九十百千万億]\\s*円|円(?![滑満形熟周])");
-    private static final Pattern DOLLAR = Pattern.compile("ドル");
+    private static final Pattern DOLLAR = Pattern.compile("(?<![ァ-ヶー])ドル");   // not ハンドル / アイドル
     private static final Pattern DEMONYM = Pattern.compile("(ネパール|日本|インド|中国|アメリカ)(語|人)");
     // a katakana word of 2+ chars immediately repeated (ネパールネパール): degenerate output
     static final Pattern KATAKANA_REPEAT = Pattern.compile("([\\u30A1-\\u30FAー]{2,})\\1");

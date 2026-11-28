@@ -111,6 +111,8 @@ public final class TranslationValidator {
         if (src.currencies.contains(Currency.RUPEE) && !tgt.currencies.contains(Currency.RUPEE)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "रुपैयाँ"));
         if (!src.currencies.contains(Currency.RUPEE) && tgt.currencies.contains(Currency.RUPEE)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "रुपैयाँ"));
         if (!src.currencies.contains(Currency.DOLLAR) && tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "डलर"));
+        if (src.currencies.contains(Currency.DOLLAR) && !tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "डलर"));
+        if (!src.currencies.contains(Currency.YEN) && tgt.currencies.contains(Currency.YEN)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "येन"));
         if (NE_YUAN.matcher(tgt.originalText).find()) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "युआन"));
     }
 
@@ -141,6 +143,8 @@ public final class TranslationValidator {
         if (src.currencies.contains(Currency.RUPEE) && !tgt.currencies.contains(Currency.RUPEE)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "ルピー"));
         if (!src.currencies.contains(Currency.YEN) && tgt.currencies.contains(Currency.YEN)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "円"));
         if (!src.currencies.contains(Currency.DOLLAR) && tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "ドル"));
+        if (src.currencies.contains(Currency.YEN) && !tgt.currencies.contains(Currency.YEN)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "円"));
+        if (src.currencies.contains(Currency.DOLLAR) && !tgt.currencies.contains(Currency.DOLLAR)) issues.add(new Issue(Kind.CURRENCY_MISMATCH, true, "ドル"));
         for (String place : Places.keys()) {
             boolean inSrc = src.places.contains(place);
             if (inSrc && !tgt.places.contains(place)) issues.add(new Issue(Kind.PLACE_MISSING, true, place));

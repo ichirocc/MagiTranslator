@@ -180,6 +180,14 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(ne["cur"], {"RUPEE"})
 
 
+class NumberWordsTest(unittest.TestCase):
+    def test_words(self):
+        self.assertEqual(M.numbers("पच्चीस जना"), ["25"])
+        self.assertEqual(M.numbers("एक लाख रुपैयाँ"), ["100000"])
+        self.assertEqual(M.kanji_to_digits("一億二千万円"), "120000000円")
+        self.assertNotIn("CURRENCY_MISMATCH", [i[0] for i in M.validate("ह्यान्डल घुमाउँछु।", "ハンドルを回します。", "ne-ja")])
+
+
 class AnswerNoTest(unittest.TestCase):
     def test_leading_iie(self):
         self.assertIn("NEGATION_LOST", [i[0] for i in M.validate("अहँ, छैन।", "いいえ、あります。", "ne-ja")])

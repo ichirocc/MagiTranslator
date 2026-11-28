@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 public final class KanjiNumber {
     private static final String DIGITS = "〇一二三四五六七八九";
     private static final Pattern NUM_COUNTER = Pattern.compile(
-            "([〇一二三四五六七八九十百千万]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|週間|時間|ヶ月|か月|キロ|メートル)");
+            "([〇一二三四五六七八九十百千万億兆]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|週間|時間|ヶ月|か月|キロ|メートル)");
     private static final Pattern HALF_HOUR = Pattern.compile("(\\d+)時半");
 
     private KanjiNumber() {}
@@ -52,7 +52,7 @@ public final class KanjiNumber {
     private static boolean isQuantity(String text, Matcher m) {
         String k = m.group(1);
         // a bare 万 is not "10000" (万年筆, 万一): real amounts are written 一万
-        if (k.equals("万")) return false;
+        if (k.equals("万") || k.equals("億") || k.equals("兆")) return false;   //億万長者: a bare unit is not an amount
         if (k.equals("十") && text.startsWith("分", m.end())) {
             boolean afterHour = m.start() > 0 && text.charAt(m.start() - 1) == '時';
             return afterHour || JUPPUN_AFTER.matcher(text.substring(m.end())).lookingAt();
@@ -62,7 +62,7 @@ public final class KanjiNumber {
 
     /** Parses 二千三百十五 -> 2315, 二〇二六 -> 2026; -1 when malformed. */
     public static long parse(String k) {
-        boolean positional = k.indexOf('十') < 0 && k.indexOf('百') < 0 && k.indexOf('千') < 0 && k.indexOf('万') < 0;
+        boolean positional = k.indexOf('十') < 0 && k.indexOf('百') < 0 && k.indexOf('千') < 0 && k.indexOf('万') < 0 && k.indexOf('億') < 0 && k.indexOf('兆') < 0;
         if (positional) {
             long v = 0;
             for (char c : k.toCharArray()) {
@@ -72,7 +72,8 @@ public final class KanjiNumber {
             }
             return v;
         }
-        long total = 0, section = 0, num = 0;
+        //total: whole 億 / 兆 groups; man: the 万 part below the next 億 (一億二千万 = 1e8 + 2000e4)
+        long total = 0, man = 0, section = 0, num = 0;
         for (char c : k.toCharArray()) {
             int d = DIGITS.indexOf(c);
             if (d >= 0) { num = d; continue; }
@@ -80,10 +81,12 @@ public final class KanjiNumber {
                 case '十': section += (num == 0 ? 1 : num) * 10; num = 0; break;
                 case '百': section += (num == 0 ? 1 : num) * 100; num = 0; break;
                 case '千': section += (num == 0 ? 1 : num) * 1000; num = 0; break;
-                case '万': total += (section + num == 0 ? 1 : section + num) * 10000; section = 0; num = 0; break;
+                case '万': man += (section + num == 0 ? 1 : section + num) * 10000; section = 0; num = 0; break;
+                case '億': total += (man + section + num == 0 ? 1 : man + section + num) * 100000000L; man = 0; section = 0; num = 0; break;
+                case '兆': total += (man + section + num == 0 ? 1 : man + section + num) * 1000000000000L; man = 0; section = 0; num = 0; break;
                 default: return -1;
             }
         }
-        return total + section + num;
+        return total + man + section + num;
     }
 }

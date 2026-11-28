@@ -88,10 +88,11 @@ _NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?")  # Java \d is ASCII-only by default
 
 
 _NE_LETTER = "\u0900-\u0963\u0966-\u097F"
-# whole Nepali number words 1-10 (छ = 6 is left out: it is also the copula "is")
-_NE_NUMBER_VALUE = {"एक": "1", "दुई": "2", "तीन": "3", "चार": "4", "पाँच": "5", "सात": "7", "आठ": "8",
-                    "नौ": "9", "दश": "10", "दस": "10"}
-_NE_NUMBER_WORD = re.compile("(?<![" + _NE_LETTER + "])(" + "|".join(_NE_NUMBER_VALUE) + ")(?![" + _NE_LETTER + "])")
+# whole Nepali number words 1-20, the tens and 25 (छ = 6 is left out: it is also the copula "is"; सत्र = 17 also "session")
+_NE_NUMBER_VALUE = {"एक": "1", "दुई": "2", "तीन": "3", "चार": "4", "पाँच": "5", "सात": "7", "आठ": "8", "नौ": "9", "दश": "10", "दस": "10", "एघार": "11", "बाह्र": "12", "तेह्र": "13", "चौध": "14", "पन्ध्र": "15", "सोह्र": "16", "अठार": "18", "उन्नाइस": "19", "बीस": "20", "पच्चीस": "25", "तीस": "30", "चालीस": "40", "पचास": "50", "साठी": "60", "सत्तरी": "70", "असी": "80", "नब्बे": "90"}
+_NE_NUMBER_WORD = re.compile("(?<![" + _NE_LETTER + "])(" + "|".join(sorted(_NE_NUMBER_VALUE, key=len, reverse=True)) + ")(?![" + _NE_LETTER + "])")
+_NE_MULTIPLIED = re.compile("([0-9]+)\\s*(सय|हजार|लाख|करोड)(?![" + _NE_LETTER + "])")
+_NE_MULT = {"सय": 100, "हजार": 1000, "लाख": 100000, "करोड": 10000000}
 
 
 def numbers(s):
@@ -101,12 +102,13 @@ def numbers(s):
     t = "".join(chr(ord("0") + ord(c) - 0x0966) if 0x0966 <= ord(c) <= 0x096F else c for c in t)
     t = re.sub(r"(?<=[0-9]),(?=[0-9]{3})", "", t)
     t = _NE_NUMBER_WORD.sub(lambda m: _NE_NUMBER_VALUE[m.group(1)], t)
+    t = _NE_MULTIPLIED.sub(lambda m: str(int(m.group(1)) * _NE_MULT[m.group(2)]), t)
     return [re.sub(r"^0+(?=[0-9])", "", m.group()) for m in _NUMBER.finditer(t)]
 
 
 # ---------------------------------------------------------------- kanji numerals (KanjiNumber.toDigits)
 _DIGITS = "〇一二三四五六七八九"
-_NUM_COUNTER = re.compile("([〇一二三四五六七八九十百千万]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|週間|時間|ヶ月|か月|キロ|メートル)")
+_NUM_COUNTER = re.compile("([〇一二三四五六七八九十百千万億兆]+)(?=時|分|秒|円|人|名|日|月|年|歳|才|個|回|本|枚|階|週間|時間|ヶ月|か月|キロ|メートル)")
 _HALF_HOUR = re.compile(r"([0-9]+)時半")
 _IDIOMS = ("一人前", "一人っ子", "一人ひとり", "一日中", "一時的", "一回り", "二人三脚", "一枚岩", "十人十色", "一年中",
            "三日月", "三日坊主", "万年筆", "万年床", "一時停止", "一時期", "一時帰国", "一時保存", "二日酔い", "百人一首", "五月雨", "五月蝿")
@@ -114,7 +116,7 @@ _JUPPUN_AFTER = re.compile("分(?:間|後|前|以内|ほど|くらい|ぐらい|
 
 
 def _parse_kanji(k):
-    if not any(c in k for c in "十百千万"):
+    if not any(c in k for c in "十百千万億兆"):
         v = 0
         for c in k:
             d = _DIGITS.find(c)
@@ -122,7 +124,7 @@ def _parse_kanji(k):
                 return -1
             v = v * 10 + d
         return v
-    total = section = num = 0
+    total = man = section = num = 0
     for c in k:
         d = _DIGITS.find(c)
         if d >= 0:
@@ -133,11 +135,14 @@ def _parse_kanji(k):
             section += (num or 1) * unit
             num = 0
         elif c == "万":
-            total += (section + num or 1) * 10000
+            man += (section + num or 1) * 10000
             section = num = 0
+        elif c in "億兆":
+            total += (man + section + num or 1) * (100000000 if c == "億" else 1000000000000)
+            man = section = num = 0
         else:
             return -1
-    return total + section + num
+    return total + man + section + num
 
 
 def kanji_to_digits(text):
@@ -150,7 +155,7 @@ def kanji_to_digits(text):
 
     def repl(m):
         k = m.group(1)
-        if k == "万":
+        if k in ("万", "億", "兆"):
             return k
         if k == "十" and text.startswith("分", m.end()):
             after_hour = m.start() > 0 and text[m.start() - 1] == "時"
@@ -350,7 +355,7 @@ NE_PAST = _ne_word(r"\S*(?:थियो|थिए|थिइन्|थिएँ|�
                    "‍यो)")
 NE_PAST_NOT = {"यो", "त्यो", "जो", "उनको"}
 _JA_CUR = [("RUPEE", re.compile("ルピー")), ("YEN", re.compile(r"[0-9０-９〇一二三四五六七八九十百千万億]\s*円|円(?![滑満形熟周])")),
-           ("DOLLAR", re.compile("ドル"))]
+           ("DOLLAR", re.compile("(?<![ァ-ヶー])ドル"))]  # not ハンドル / アイドル
 _NE_CUR = [("RUPEE", re.compile("रुपैयाँ|रुपैयां|रुपियाँ|रुपियां|" + _NE_L + r"(रु|रू)\.?\s*[0-9०-९]|NPR|Rs\.?\s*[0-9]")),
            ("YEN", re.compile(_NE_L + "(येन|जापानी येन)" + _NE_R)), ("DOLLAR", re.compile(_NE_L + "डलर"))]
 _DEMONYM = re.compile("(ネパール|日本|インド|中国|アメリカ)(語|人)")
@@ -530,6 +535,10 @@ def validate(src, hyp, direction, required_targets=None):
             issues.append(("CURRENCY_MISMATCH", True, "रुपैयाँ"))
         if "DOLLAR" not in s["cur"] and "DOLLAR" in t["cur"]:
             issues.append(("CURRENCY_MISMATCH", True, "डलर"))
+        if "DOLLAR" in s["cur"] and "DOLLAR" not in t["cur"]:
+            issues.append(("CURRENCY_MISMATCH", True, "डलर"))
+        if "YEN" not in s["cur"] and "YEN" in t["cur"]:
+            issues.append(("CURRENCY_MISMATCH", True, "येन"))
         if re.search(r"युआन|युवान|चिनियाँ\s*युआन", hyp):
             issues.append(("CURRENCY_MISMATCH", True, "युआन"))
         return issues
@@ -549,6 +558,10 @@ def validate(src, hyp, direction, required_targets=None):
     if "YEN" not in s["cur"] and "YEN" in t["cur"]:
         issues.append(("CURRENCY_MISMATCH", True, "円"))
     if "DOLLAR" not in s["cur"] and "DOLLAR" in t["cur"]:
+        issues.append(("CURRENCY_MISMATCH", True, "ドル"))
+    if "YEN" in s["cur"] and "YEN" not in t["cur"]:
+        issues.append(("CURRENCY_MISMATCH", True, "円"))
+    if "DOLLAR" in s["cur"] and "DOLLAR" not in t["cur"]:
         issues.append(("CURRENCY_MISMATCH", True, "ドル"))
     for p in PLACES:
         if p[0] in s["places"] and p[0] not in t["places"]:
