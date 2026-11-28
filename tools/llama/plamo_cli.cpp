@@ -1,5 +1,7 @@
 // Command-line check of the app's PLaMo engine (plamo_core.cpp), e.g. on a phone in Termux or under QEMU.
 //   plamo_cli model.gguf [threads] [lora.gguf] < input.tsv      input: lang<TAB>text per line (ja or ne)
+//   a third column, when present, is the whole PFML3 prompt to send instead (e.g. with the app's glossary,
+//   built by tools/llama/PromptDump.java); the second column is then only echoed
 // Prints the translation, the prompt/generated token counts and the speed. The prompt is the same PFML3
 // prompt the app sends without glossary or history (see PlamoPrompt.java).
 #include <chrono>
@@ -27,7 +29,10 @@ int main(int argc, char **argv) {
         size_t tab = line.find('\t');
         if (tab == std::string::npos) continue;
         std::string src = line.substr(0, tab), text = line.substr(tab + 1), tgt = src == "ja" ? "ne" : "ja";
-        std::string p = "<|plamo:tag|>dataset<|plamo:msg|>translation<|plamo:tag|>input<|plamo:key|>lang<|plamo:val|>" + src +
+        std::string full;
+        size_t tab2 = text.find('\t');
+        if (tab2 != std::string::npos) { full = text.substr(tab2 + 1); text = text.substr(0, tab2); }
+        std::string p = !full.empty() ? full : "<|plamo:tag|>dataset<|plamo:msg|>translation<|plamo:tag|>input<|plamo:key|>lang<|plamo:val|>" + src +
                         "<|plamo:msg|>" + text + "<|plamo:tag|>output<|plamo:key|>lang<|plamo:val|>" + tgt +
                         (tgt == "ja" ? "<|plamo:key|>form<|plamo:val|>polite" : "") + "<|plamo:msg|>";
         std::string out;
