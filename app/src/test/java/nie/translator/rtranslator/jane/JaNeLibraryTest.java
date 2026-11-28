@@ -555,6 +555,38 @@ public class JaNeLibraryTest {
             eq("कृपया एकछिन पर्खनुहोस्।", upb.lookupJaNe("少々お待ちください"), "phrase lookup ignores final punctuation");
             yes(upb.lookupNeJa("पहिले जानुहोस्") == null, "ja>ne-only phrase not used for ne->ja");
             eq("少々お待ちください。", upb.lookupNeJa("कृपया एकछिन पर्खनुहोस् ।"), "ne->ja phrase lookup ignores danda spacing");
+            // ne>ja lines: another Nepali wording of a Japanese phrase, keyed by the Nepali (not a duplicate)
+            UserDictionary.Parsed nj = UserDictionary.parse(new java.io.StringReader("#!jane phrases\nおたふくかぜ\tमम्प्स\nおたふくかぜ\tहाँडे रोग\tne>ja\n"));
+            eq(2, nj.accepted(), "phrases: ne>ja line sharing the Japanese is not a duplicate");
+            PhraseBook njb = new PhraseBook();
+            UserDictionary.apply(nj, null, njb);
+            eq("मम्प्स", njb.lookupJaNe("おたふくかぜ"), "ne>ja line not used for ja->ne");
+            eq("おたふくかぜ", njb.lookupNeJa("हाँडे रोग"), "ne>ja line used for ne->ja");
+            eq("おたふくかぜ", njb.lookupNeJa("मम्प्स"), "two-way line still read back");
+            // fallback: asked only for sentences the user's book does not know
+            PhraseBook fbk = new PhraseBook(); fbk.add("頭囲", "टाउको परिधि", false); fbk.add("胸囲", "छाती परिधि", false);
+            PhraseBook mine = new PhraseBook().withFallback(fbk);
+            mine.add("頭囲", "टाउकोको नाप", false); mine.add("やあ", "छाती परिधि", true); mine.add("どうも", "छाती परिधि", false);
+            eq("टाउकोको नाप", mine.lookupJaNe("頭囲"), "fallback: the user's phrase wins");
+            eq("छाती परिधि", mine.lookupJaNe("胸囲"), "fallback: used for an unknown sentence");
+            eq("頭囲", mine.lookupNeJa("टाउको परिधि"), "fallback: ne->ja for an unknown Nepali");
+            yes(mine.lookupNeJa("छाती परिधि") == null, "fallback: not asked for a Nepali the user made ambiguous");
+            // the bundled asset parses cleanly and every line is reachable
+            java.io.File asset = new java.io.File("app/src/main/assets/jane/phrases_builtin.tsv");
+            if (!asset.exists()) asset = new java.io.File("src/main/assets/jane/phrases_builtin.tsv");
+            if (asset.exists()) {
+                UserDictionary.Parsed bp;
+                try (java.io.Reader ar = new java.io.InputStreamReader(new java.io.FileInputStream(asset), java.nio.charset.StandardCharsets.UTF_8)) { bp = UserDictionary.parse(ar); }
+                eq(0, bp.rejected + bp.duplicates, "built-in phrases: no rejected or duplicate lines");
+                PhraseBook bb = new PhraseBook();
+                UserDictionary.apply(bp, null, bb);
+                int unreachable = 0;
+                for (UserDictionary.Entry e : bp.entries) {
+                    if (!e.neToJaOnly && !e.target.equals(bb.lookupJaNe(e.source))) { unreachable++; System.out.println("  ja->ne unreachable: " + e.source); }
+                    if (!e.jaToNeOnly && !e.source.equals(bb.lookupNeJa(e.target))) { unreachable++; System.out.println("  ne->ja unreachable: " + e.target); }
+                }
+                eq(0, unreachable, "built-in phrases: every line is used in its direction(s)");
+            } else System.out.println("skip built-in phrases asset check (not run from the project root)");
             // a phrase hit is a candidate that is still validated: a phrase that drops the number loses
             PhraseBook numPb = new PhraseBook();
             numPb.add("3時に来てください。", "कृपया आउनुहोस्।", false);

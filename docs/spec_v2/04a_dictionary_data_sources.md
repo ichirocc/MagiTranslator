@@ -127,7 +127,8 @@
 - 在日ネパール大使館: https://jp.nepalembassy.gov.np/services-list/ ／ 査証: https://jp.nepalembassy.gov.np/pages/visa-1/ ／ 告知: https://jp.nepalembassy.gov.np/category/notices
 
 ## 9. 実装状況：ユーザー辞書の取り込み（2026-11-25）
-- **実装済**：`jane/UserDictionary`（先頭行 `#!jane ja-ne-terms|ne-ja-terms|phrases` を厳密検査、NFC、不正行・重複の件数集計、8MB/5万件/1項目400字の上限、列の言語取り違え検出）と `jane/PhraseBook`（文全体の正規化一致。`ja>ne` 行は ne→ja に使わない。同じネ語文が別の日本語に対応する場合も ne→ja に使わない）。
+- **実装済**：`jane/UserDictionary`（先頭行 `#!jane ja-ne-terms|ne-ja-terms|phrases` を厳密検査、NFC、不正行・重複の件数集計、8MB/5万件/1項目400字の上限、列の言語取り違え検出）と `jane/PhraseBook`（文全体の正規化一致。`ja>ne` 行は ne→ja に使わない。`ne>ja` 行は ne→ja だけに使う（同じ日本語の別のネ語表現）。同じネ語文が別の日本語に対応する場合も ne→ja に使わない）。
+- **内蔵定型文**：`app/src/main/assets/jane/phrases_builtin.tsv`（同じ形式）。評価セットで同梱モデルが誤訳した文（厚生労働省「外国人向け多言語説明資料」、出典記載）を収録。ユーザー辞書の後に引かれ（`PhraseBook.withFallback`）、ユーザー辞書が知っている文には使わない。
 - **強さ**：ユーザー用語は **PREFERRED**（候補の点数を上げるだけで、欠けても重大判定にしない）。ja→ne は原文に差し込まない。ne→ja は別候補「userterms」として注記する。フレーズ一致は「phrase」候補を1つ足すだけで、他の候補と同じ検査・順位付けを通る（無条件には出さない）。
 - **端末側**：設定「辞書ファイルを読み込む」（システムのファイル選択）→ 検査 → `files/user_dict/` に種類ごとに保存（既存のバックアップ除外ルールの対象）。「読み込んだ辞書を削除する」あり。読み込み結果は件数だけ表示し、ログにも件数だけ残す。通信なし。
 - **公開辞書**：オーナー作成の `dictionaries/`（ja_ne_terms 1989件、ne_ja_terms 1349件、phrases 3788件）は 0 件の不正行で読み込めることをテストで確認。APK には同梱せず、ファイルから読み込む。

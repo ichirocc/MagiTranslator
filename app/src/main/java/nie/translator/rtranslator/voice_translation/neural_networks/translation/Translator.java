@@ -265,6 +265,23 @@ public class Translator extends NeuralNetworkApi {
     private nie.translator.rtranslator.jane.Glossary janeGlossary;
     @Nullable
     private nie.translator.rtranslator.jane.PhraseBook janePhraseBook;
+    private nie.translator.rtranslator.jane.PhraseBook builtinPhraseBook;   //assets/jane/phrases_builtin.tsv, read once
+
+    /** Built-in phrases (sentences the models are known to get wrong); the user's dictionary is asked first. */
+    private nie.translator.rtranslator.jane.PhraseBook builtinPhrases() {
+        if (builtinPhraseBook != null) return builtinPhraseBook;
+        nie.translator.rtranslator.jane.PhraseBook book = new nie.translator.rtranslator.jane.PhraseBook();
+        try (java.io.Reader r = new java.io.InputStreamReader(global.getAssets().open(BUILTIN_PHRASES_ASSET), java.nio.charset.StandardCharsets.UTF_8)) {
+            nie.translator.rtranslator.jane.UserDictionary.Parsed p = nie.translator.rtranslator.jane.UserDictionary.parse(r);
+            nie.translator.rtranslator.jane.UserDictionary.apply(p, null, book);
+            android.util.Log.i("jane", "built-in phrases loaded: " + p);
+        } catch (Exception e) {
+            android.util.Log.w("jane", "built-in phrases not loaded", e);   //translation works without them
+        }
+        builtinPhraseBook = book;
+        return book;
+    }
+    static final String BUILTIN_PHRASES_ASSET = "jane/phrases_builtin.tsv";
     @Nullable
     private volatile nie.translator.rtranslator.jane.PlamoTranslator plamoTranslator;
     @Nullable
@@ -380,7 +397,7 @@ public class Translator extends NeuralNetworkApi {
                         glossary.load(r);
                     }
                 }
-                nie.translator.rtranslator.jane.PhraseBook phraseBook = new nie.translator.rtranslator.jane.PhraseBook();
+                nie.translator.rtranslator.jane.PhraseBook phraseBook = new nie.translator.rtranslator.jane.PhraseBook().withFallback(builtinPhrases());
                 //counts only: dictionary contents are never logged
                 for (nie.translator.rtranslator.jane.UserDictionary.Parsed p : nie.translator.rtranslator.jane.UserDictionary.loadDirectory(userDictDir, glossary, phraseBook))
                     android.util.Log.i("jane", "user dictionary loaded: " + p);
