@@ -504,11 +504,16 @@ public final class JaNeTranslator {
      */
     static String finishJa(String ja, String sourceNe) {
         String t = finishJa(ja);
+        // दिदी, / दाइ, at the start calls a colleague, not a sister or a father (it came out as お父さん、)
+        if (sourceNe != null && NE_KIN_VOCATIVE.matcher(sourceNe).find()) t = JA_KIN_VOCATIVE.matcher(t).replaceFirst("すみません、");
         if (sourceNe == null || !NE_HONORIFIC_THIRD.matcher(sourceNe).find() || NE_GENDERED_PERSON.matcher(sourceNe).find()) return t;
         String d = JA_GUESSED_PRONOUN.matcher(t).replaceAll("").replaceFirst("^[、,]+", "").replace("。、", "。");
         return d.replaceAll("[。！？]", "").isEmpty() ? t : d;
     }
 
+    private static final java.util.regex.Pattern NE_KIN_VOCATIVE = java.util.regex.Pattern.compile("^\\s*(दिदी|दाइ|दाजु|भाइ|बहिनी)\\s*[,،]");
+    private static final java.util.regex.Pattern JA_KIN_VOCATIVE = java.util.regex.Pattern.compile(
+            "^(お姉さん|姉さん|お姉ちゃん|お兄さん|兄さん|お兄ちゃん|お父さん|父さん|弟|妹|弟さん|妹さん)[、,]");
     private static final java.util.regex.Pattern NE_HONORIFIC_THIRD = java.util.regex.Pattern.compile("उहा[ँं]");
     private static final java.util.regex.Pattern NE_GENDERED_PERSON = java.util.regex.Pattern.compile(
             "केटा|केटी|श्रीमान|श्रीमती|दाइ|दिदी|बहिनी|भाइ|आमा|बुबा|बाबा|हजुरबा|हजुरआमा|महिला|पुरुष|छोरा|छोरी|अंकल|आन्टी|म्याडम|दाजु");

@@ -98,9 +98,10 @@ public final class PlamoTranslator {
             String out = JaNeTranslator.finishJa(phrase);
             if (!out.isEmpty()) return remember(out, t, phraseResult(t, out, "ja"));
         }
-        List<Glossary.Term> terms = glossary.termsNeJa(t, MAX_TERMS);
-        JaNeTranslator.Candidate best = run("ne", "ja", t, terms);
-        if (firstPersonPastWithoutSubject(t) && tenseLost(t, best.output)) best = withSubject(t, terms, best);
+        String q = deliberative(t);   // what the model reads; the history keeps what was said
+        List<Glossary.Term> terms = glossary.termsNeJa(q, MAX_TERMS);
+        JaNeTranslator.Candidate best = run("ne", "ja", q, terms);
+        if (firstPersonPastWithoutSubject(q) && tenseLost(q, best.output)) best = withSubject(q, terms, best);
         return remember(best.output, t, new JaNeTranslator.Result(best.output, Collections.singletonList(best), best.issues));
     }
 
@@ -142,6 +143,23 @@ public final class PlamoTranslator {
         if (requestOrVolitional(ja)) return true;
         return ja != null && NE_POSITIVE_PAST.matcher(ne).find() && !JA_PAST_END.matcher(ja.trim()).find();
     }
+
+    /**
+     * "What should I ...?" asked with the bare -ने form (के हेर्ने? कहाँ लेख्ने?) was read as a plain question
+     * about someone else (何を見るのですか); with -नुपर्छ ("must") the model asks what to do (何を見ればいいですか).
+     * Only a short question with a question word and no second person (तपाईं जाने? is "are you going?").
+     */
+    static String deliberative(String ne) {
+        if (ne == null || ne.length() > 80) return ne;
+        java.util.regex.Matcher m = NE_DELIBERATIVE.matcher(ne);
+        if (!m.find() || !NE_QUESTION_WORD.matcher(ne).find() || NE_SECOND_PERSON.matcher(ne).find()) return ne;
+        return ne.substring(0, m.start(1)) + "नुपर्छ" + ne.substring(m.end(1));
+    }
+
+    private static final java.util.regex.Pattern NE_DELIBERATIVE = java.util.regex.Pattern.compile("[\\u0915-\\u0939\\u094D\\u093E-\\u094C](ने)\\s*\\?\\s*$");
+    private static final java.util.regex.Pattern NE_QUESTION_WORD = java.util.regex.Pattern.compile(
+            "(?<![\\u0900-\\u097F])(के|कहाँ|कहां|कति|कसरी|कुन|कहिले|किन|कसलाई|कसले)(?![\\u0900-\\u097F])");
+    private static final java.util.regex.Pattern NE_SECOND_PERSON = java.util.regex.Pattern.compile("तपाई|तपाइ|तिमी|तँ|हजुर");
 
     static boolean requestOrVolitional(String ja) {
         return ja != null && JA_REQUEST_END.matcher(ja.trim()).find();

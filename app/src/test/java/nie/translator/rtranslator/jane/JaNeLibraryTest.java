@@ -617,6 +617,13 @@ public class JaNeLibraryTest {
             yes(PlamoTranslator.tenseLost("ब्रेक लगाउन बिर्सें।", "ブレーキをかけるのを忘れます。"), "positive past read as present");
             yes(!PlamoTranslator.tenseLost("ब्रेक लगाउन बिर्सें।", "ブレーキをかけ忘れました。"), "past kept");
             yes(!PlamoTranslator.tenseLost("राम्ररी बुझिनँ।", "よくわかりません。"), "negative past as わかりません is right");
+            eq("के हेर्नुपर्छ?", PlamoTranslator.deliberative("के हेर्ने?"), "deliberative -ने? asks what to do");
+            eq("पानी कति पिउनुभयो भनेर कहाँ लेख्नुपर्छ?", PlamoTranslator.deliberative("पानी कति पिउनुभयो भनेर कहाँ लेख्ने?"), "deliberative in a longer question");
+            eq("तपाईं कहिले जाने?", PlamoTranslator.deliberative("तपाईं कहिले जाने?"), "second person: a question about you, unchanged");
+            eq("भोलि जाने?", PlamoTranslator.deliberative("भोलि जाने?"), "no question word: unchanged");
+            eq("राम्रो काम गर्ने।", PlamoTranslator.deliberative("राम्रो काम गर्ने।"), "not a question: unchanged");
+            eq("すみません、これどこに置くの？", JaNeTranslator.finishJa("お父さん、これどこに置くの？", "दाइ, यो कहाँ राख्ने?"), "vocative दाइ is not a father");
+            eq("お姉さんは来ました。", JaNeTranslator.finishJa("お姉さんは来ました。", "दिदी आउनुभयो।"), "दिदी as a subject is kept");
             {
                 final java.util.List<String> prompts = new java.util.ArrayList<>();
                 TextCompletion subjFake = (prompt, max, stops) -> {
