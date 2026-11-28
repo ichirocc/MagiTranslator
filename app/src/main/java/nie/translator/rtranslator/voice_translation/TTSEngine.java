@@ -127,32 +127,30 @@ public class TTSEngine {
     }
 
     private boolean speak(int queueMode){
-        if(!pause) {
-            boolean wasSpeaking = speaking;
-            speaking = true;
-            Pair<GuiMessage, CustomLocale> pair = messageQueue.pollFirst();
-            if (pair != null && tts != null) {
-                if(listener != null) listener.onUtteranceStarting(pair.first, !wasSpeaking);
-                executingMessage = pair;
-                boolean ok = true;
-                if (tts.getVoice() == null || !pair.second.equals(new CustomLocale(tts.getVoice().getLocale()))) {
-                    //LANG_MISSING_DATA / LANG_NOT_SUPPORTED: do not read the text in the previous voice
-                    ok = tts.setLanguage(pair.second, context) >= TextToSpeech.LANG_AVAILABLE;
-                }
-                if (ok) ok = tts.speak(pair.first.getMessage().getText(), queueMode, null, String.valueOf(pair.first.getMessageID())) == TextToSpeech.SUCCESS;
-                if (!ok) {
-                    //skip this message as if it had been read, so the queue and the mic restart go on
-                    Log.w("tts_engine", "cannot speak in " + pair.second.getCode());
-                    executingMessage = null;
-                    if (listener != null) listener.onUtteranceFinished(pair.first, messageQueue.isEmpty());
-                    return speak(queueMode);
-                }
-                return true;
-            }else{
-                speaking = false;
-                executingMessage = null;
+        if (pause) return false;
+        boolean wasSpeaking = speaking;
+        speaking = true;
+        //a loop, not recursion: a long queue of messages in a language the TTS cannot speak is skipped one by one
+        //without growing the stack
+        Pair<GuiMessage, CustomLocale> pair;
+        while ((pair = messageQueue.pollFirst()) != null && tts != null) {
+            if(listener != null) listener.onUtteranceStarting(pair.first, !wasSpeaking);
+            executingMessage = pair;
+            boolean ok = true;
+            if (tts.getVoice() == null || !pair.second.equals(new CustomLocale(tts.getVoice().getLocale()))) {
+                //LANG_MISSING_DATA / LANG_NOT_SUPPORTED: do not read the text in the previous voice
+                ok = tts.setLanguage(pair.second, context) >= TextToSpeech.LANG_AVAILABLE;
             }
+            if (ok) ok = tts.speak(pair.first.getMessage().getText(), queueMode, null, String.valueOf(pair.first.getMessageID())) == TextToSpeech.SUCCESS;
+            if (ok) return true;
+            //skip this message as if it had been read, so the queue and the mic restart go on
+            Log.w("tts_engine", "cannot speak in " + pair.second.getCode());
+            executingMessage = null;
+            if (listener != null) listener.onUtteranceFinished(pair.first, messageQueue.isEmpty());
+            if (pause) return false;   //the listener may have paused the engine
         }
+        speaking = false;
+        executingMessage = null;
         return false;
     }
 
