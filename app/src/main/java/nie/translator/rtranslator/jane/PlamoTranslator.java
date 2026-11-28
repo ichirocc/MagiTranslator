@@ -85,8 +85,11 @@ public final class PlamoTranslator {
             String out = JaNeTranslator.finishNe(phrase, norm);
             if (!out.isEmpty()) return remember(norm, out, phraseResult(norm, out, "ne"));
         }
-        List<Glossary.Term> terms = glossary.termsJaNe(norm, null, MAX_TERMS);
-        JaNeTranslator.Candidate best = run("ja", "ne", norm, terms);
+        String m = JaNormalizer.modernize(norm);   // what the model reads; the history keeps what was said
+        List<Glossary.Term> terms = glossary.termsJaNe(m, null, MAX_TERMS);
+        JaNeTranslator.Candidate best = run("ja", "ne", m, terms);
+        JaPerson.Person who = JaPerson.of(m);
+        if (JaPerson.contradicts(who, best.output)) best = withJaSubject(m, who, terms, best);
         return remember(norm, best.output, new JaNeTranslator.Result(best.output, Collections.singletonList(best), best.issues));
     }
 
@@ -131,6 +134,23 @@ public final class PlamoTranslator {
         if (out.isEmpty() || tenseLost(t, out)) return first;
         JaNeTranslator.Candidate fixed = new JaNeTranslator.Candidate("plamo+subject", t, out, null, Double.NaN,
                 JaNeTranslator.validate(t, out, required, "ja"));
+        return JaNeTranslator.better(first, fixed) ? first : fixed;
+    }
+
+    /**
+     * The Japanese ending fixes who acts (お薬を飲んでいただけますか: the listener) but the Nepali says someone else
+     * (के म औषधि सेवन गर्न सक्छु? "may I take the medicine?"). Translated once more with the subject written out
+     * (あなたが / 私が), which Japanese leaves unsaid but a translation needs; kept only when it then agrees.
+     */
+    private JaNeTranslator.Candidate withJaSubject(String ja, JaPerson.Person who, List<Glossary.Term> terms, JaNeTranslator.Candidate first) throws Exception {
+        String explicit = JaPerson.withSubject(ja, who);
+        if (explicit.equals(ja)) return first;
+        List<String> required = new ArrayList<>();
+        for (Glossary.Term g : terms) if (g.required && !required.contains(g.target)) required.add(g.target);
+        JaNeTranslator.Candidate c = candidate("plamo+subject", "ja", "ne", explicit, Collections.emptyList(), terms, required);
+        if (c.output.isEmpty() || JaPerson.contradicts(who, c.output)) return first;
+        JaNeTranslator.Candidate fixed = new JaNeTranslator.Candidate("plamo+subject", ja, c.output, null, Double.NaN,
+                JaNeTranslator.validate(ja, c.output, required, "ne"));
         return JaNeTranslator.better(first, fixed) ? first : fixed;
     }
 

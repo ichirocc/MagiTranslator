@@ -16,6 +16,16 @@ public class JaNeLibraryTest {
     public static void main(String[] args) throws Exception {
         // normaliser
         eq("駅はどこですか？", JaNormalizer.normalize("えーと、駅はどこですか?"), "filler + ascii ?");
+        // literary forms rewritten for the model
+        eq("今よく寝ていらっしゃるよ", JaNormalizer.modernize("今よく寝てお出でだよ"), "お出でだ -> いらっしゃる");
+        eq("今よく寝ていらっしゃるよ", JaNormalizer.modernize("今よく寝てお出だよ"), "お出だ (no で) -> いらっしゃる");
+        eq("看護婦さんを、やとってください", JaNormalizer.modernize("看護婦さんを、やとって頂戴"), "頂戴 -> ください");
+        eq("病人には言わないようにしなさい。", JaNormalizer.modernize("病人には言わぬようにしたまえ。"), "ぬ / たまえ");
+        eq("どうせ死ぬんだから", JaNormalizer.modernize("どうせ死ぬんだから"), "死ぬ is not a negative");
+        eq("病人にばかり構っていないで", JaNormalizer.modernize("病人にばかり構って居らずに"), "居らず");
+        eq("ところでお父さんの病気はどうなんです", JaNormalizer.modernize("時にお父さんの病気はどうなんです"), "時に = by the way");
+        eq("時には休みます", JaNormalizer.modernize("時には休みます"), "時には (sometimes) kept");
+        eq("居間にいます", JaNormalizer.modernize("居間に居ます"), "居間 kept, 居ます -> います");
         eq("あの人は先生です", JaNormalizer.normalize("あの人は先生です"), "keep あの人");
         eq("すみません。いいです", JaNormalizer.normalize("あの、すみません。まあ、いいです"), "multiple fillers");
         eq("ABC123", JaNormalizer.normalize("ＡＢＣ１２３"), "NFKC width");
@@ -651,6 +661,33 @@ public class JaNeLibraryTest {
                 vp.clear();
                 eq("ご飯食べた？", vt.translate("ए, खाना खानुभयो?", "ne", "ja").text, "a bare ए, is an exclamation, left to the model");
                 yes(vp.get(0).contains("ए,"), "... and given to it");
+            }
+            {
+                // who acts, from the Japanese ending (the subject left out)
+                eq(JaPerson.Person.YOU, JaPerson.of("お薬を飲んでいただけますか。"), "ていただけますか: the listener");
+                eq(JaPerson.Person.YOU, JaPerson.of("寒くない？"), "a sensation asked: the listener");
+                eq(JaPerson.Person.ME, JaPerson.of("腰が痛い。"), "a sensation stated: the speaker");
+                eq(JaPerson.Person.ME, JaPerson.of("早く帰りたい。"), "a wish stated: the speaker");
+                eq(JaPerson.Person.ME, JaPerson.of("お茶をお持ちします。"), "humble お〜します: the speaker");
+                eq(null, JaPerson.of("おむつ交換をお願いします。"), "お願いします is a request, not humble speech of the speaker");
+                eq(JaPerson.Person.NOT_ME, JaPerson.of("息子さんがいらっしゃいました。".replace("息子さんが", "")), "respect speech: not the speaker");
+                eq(null, JaPerson.of("昨日、資料を送りました。"), "plain ます fixes nobody");
+                eq(null, JaPerson.of("嬉しそうだね。"), "observed (そう): not the speaker, left alone");
+                eq(null, JaPerson.of("田中さんは休みたがっている。"), "subject named");
+                yes(JaPerson.contradicts(JaPerson.Person.YOU, "के म औषधि सेवन गर्न सक्छु?"), "Nepali first person for a request");
+                yes(!JaPerson.contradicts(JaPerson.Person.YOU, "के तपाईं औषधि खान सक्नुहुन्छ?"), "Nepali second person agrees");
+                yes(!JaPerson.contradicts(JaPerson.Person.ME, "म तपाईंको ढाड पुछिदिनेछु।"), "तपाईंको is an owner, not the subject");
+                yes(!JaPerson.contradicts(JaPerson.Person.NOT_ME, "मलाई मद्दत गर्नुभएकोमा धन्यवाद।"), "मलाई is an object");
+                eq("あなたがお薬を飲んでいただけますか。", JaPerson.withSubject("お薬を飲んでいただけますか。", JaPerson.Person.YOU), "subject written for the model");
+                final java.util.List<String> jp = new java.util.ArrayList<>();
+                TextCompletion personFake = (prompt, max, stops) -> {
+                    jp.add(prompt);
+                    return prompt.contains("あなたがお薬") ? "के तपाईं औषधि खान सक्नुहुन्छ?" : "के म औषधि सेवन गर्न सक्छु?";
+                };
+                PlamoTranslator ptp = new PlamoTranslator(personFake, Glossary.withDefaults());
+                ptp.setHistory(0, 0);
+                eq("के तपाईं औषधि खान सक्नुहुन्छ?", ptp.translate("お薬を飲んでいただけますか。", "ja", "ne").text, "retried with あなたが when the person is wrong");
+                eq(2, jp.size(), "one retry");
             }
             {
                 final java.util.List<String> prompts = new java.util.ArrayList<>();

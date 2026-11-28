@@ -30,6 +30,31 @@ public final class JaNormalizer {
         return ONLY_PUNCT.matcher(t).replaceAll("").isEmpty() ? "" : t;
     }
 
+    /**
+     * Older and literary forms rewritten in today's Japanese, for the text the model reads (the model was
+     * trained on modern text): お出でだ read as "came" (the sick father "is sleeping" became "I slept and
+     * came"), 頂戴 / なすって / 〜たまえ / 〜ぬ / 居る were misread too. Only forms with one modern reading.
+     */
+    public static String modernize(String ja) {
+        if (ja == null || ja.isEmpty()) return ja == null ? "" : ja;
+        String t = ja;
+        for (String[] r : MODERN) t = t.replaceAll(r[0], r[1]);
+        return t;
+    }
+
+    private static final String[][] MODERN = {
+            {"てお出で?です", "ていらっしゃいます"}, {"てお出で?だ", "ていらっしゃる"},   // also written お出だ
+            {"お出でです", "いらっしゃいます"}, {"お出でだ", "いらっしゃる"},
+            {"て頂戴(?=[。！？、]|$)", "てください"},
+            {"なすっ(?=[てた])", "なさっ"},
+            {"(?<=[しせ])たまえ(?=[。！？、]|$)", "なさい"},
+            // negative ぬ after an a-row kana (言わぬ, 行かぬ); 死ぬ (to die) is not negative
+            {"(?<=[わらかさたまばがなや])ぬ(?=よう|[。！？、]|$|と|が|の|か|ので)", "ない"},
+            {"居(?=[るたてれまな])", "い"}, {"居らずに", "いないで"}, {"居らず", "いないで"}, {"居らない", "いない"},
+            {"^時に(?=[、]?[^間はも])", "ところで"},   // 時に、 = "by the way"; not 時には / 時にも (sometimes)
+            {"仰山", "大げさ"},
+    };
+
     /** Adds an explicit sentence end; Madlad translates complete sentences more faithfully. */
     public static String ensureSentenceEnd(String s) {
         String t = s.trim();
