@@ -102,7 +102,8 @@ def numbers(s):
     t = "".join(chr(ord("0") + ord(c) - 0x0966) if 0x0966 <= ord(c) <= 0x096F else c for c in t)
     t = re.sub(r"(?<=[0-9]),(?=[0-9]{3})", "", t)
     t = _NE_NUMBER_WORD.sub(lambda m: _NE_NUMBER_VALUE[m.group(1)], t)
-    t = _NE_MULTIPLIED.sub(lambda m: str(int(m.group(1)) * _NE_MULT[m.group(2)]), t)
+    # up to 12 digits are multiplied (a longer digit run is left as written: no overflow, same as Java)
+    t = _NE_MULTIPLIED.sub(lambda m: str(int(m.group(1)) * _NE_MULT[m.group(2)]) if len(m.group(1)) <= 12 else m.group(0), t)
     return [re.sub(r"^0+(?=[0-9])", "", m.group()) for m in _NUMBER.finditer(t)]
 
 
@@ -423,6 +424,9 @@ def _check_numbers(a, b, issues):
             issues.append(("NUMBER_LOST", True, n))
     for n in rest:
         issues.append(("NUMBER_ADDED", False, n))
+    # the same numbers in another order (3月5日 -> 5月3日, 10人と20人 -> 20人と10人): soft, a word order change can be right
+    if len(a) >= 2 and sorted(a) == sorted(b) and list(a) != list(b):
+        issues.append(("NUMBER_ORDER_CHANGED", False, None))
 
 
 # --- speaker/listener reversal (ir/Person.java)

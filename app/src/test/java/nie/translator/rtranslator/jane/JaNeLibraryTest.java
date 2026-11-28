@@ -64,6 +64,8 @@ public class JaNeLibraryTest {
         eq("[25]", nie.translator.rtranslator.jane.text.Numbers.numbers("पच्चीस जना").toString(), "Nepali 25 as a word");
         eq("[100000]", nie.translator.rtranslator.jane.text.Numbers.numbers("एक लाख").toString(), "Nepali lakh");
         eq("100000000円", nie.translator.rtranslator.jane.text.KanjiNumber.toDigits("一億円"), "kanji 億");
+        eq("[999999999999999999999999]", nie.translator.rtranslator.jane.text.Numbers.numbers("999999999999999999999999 लाख").toString(), "huge number before लाख: no overflow");
+        yes(TranslationValidator.validateJaToNe("3月5日に来ます。", "५ मार्च ३ मा आउँछु।", java.util.Collections.emptyList()).toString().contains("NUMBER_ORDER_CHANGED"), "numbers in another order");
         { StringBuilder sb = new StringBuilder(); for (int k = 0; k < 90; k++) sb.append("धेरै राम्रो "); 
           java.util.List<String> cp = PlamoTranslator.capLength(java.util.Collections.singletonList(sb.toString().trim()));
           boolean okLen = cp.size() > 1; for (String p : cp) okLen &= p.length() <= PlamoTranslator.MAX_PIECE_CHARS;

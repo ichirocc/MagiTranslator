@@ -136,6 +136,8 @@ public final class QualityScorer {
         // numbers in the source must survive
         List<String> srcNums = numbers(sourceJa), candNums = numbers(candidateNe);
         for (String n : srcNums) if (!candNums.remove(n)) s -= 0.15;
+        // ... and none may be invented (明日来て -> 明日3時に来て); "1" is left alone: एक is also the article "a"
+        for (String n : candNums) if (!n.equals("1")) s -= 0.15;
         // required terminology
         for (String t : requiredTargets) if (!TranslationValidator.containsTerm(candidateNe, t)) s -= 0.10;
         // script purity

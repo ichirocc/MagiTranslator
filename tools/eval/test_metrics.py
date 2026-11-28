@@ -180,6 +180,12 @@ class ValidatorPortTest(unittest.TestCase):
         self.assertEqual(ne["cur"], {"RUPEE"})
 
 
+class NumberOrderTest(unittest.TestCase):
+    def test_order_and_overflow(self):
+        self.assertIn("NUMBER_ORDER_CHANGED", [i[0] for i in M.validate("3月5日に来ます。", "५ मार्च ३ मा आउँछु।", "ja-ne")])
+        self.assertEqual(M.numbers("999999999999999999999999 लाख"), ["999999999999999999999999"])
+
+
 class WhoWhichTest(unittest.TestCase):
     def test_who_which(self):
         k = lambda s, h, d: [i[0] for i in M.validate(s, h, d)]

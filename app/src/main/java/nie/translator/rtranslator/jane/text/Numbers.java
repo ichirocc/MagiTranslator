@@ -45,6 +45,8 @@ public final class Numbers {
         Matcher mu = NE_MULTIPLIED.matcher(a);
         StringBuffer mb = new StringBuffer();
         while (mu.find()) {
+            //up to 12 digits are multiplied: a longer digit run is left as written (parseLong / the product would overflow)
+            if (mu.group(1).length() > 12) { mu.appendReplacement(mb, Matcher.quoteReplacement(mu.group(0))); continue; }
             long base = Long.parseLong(mu.group(1));
             String u = mu.group(2);
             long mult = u.equals("सय") ? 100 : u.equals("हजार") ? 1000 : u.equals("लाख") ? 100000 : 10000000;

@@ -32,7 +32,7 @@ public final class TranslationMemory {
     }
 
     /** Rendering chosen earlier, or null. Counts as a use for LRU. */
-    public synchronized String lookup(String ja) { return ja == null ? null : map.get(ja); }
+    public synchronized String lookup(String ja) { return ja == null ? null : map.get(ja.trim()); }   //same key as remember()
 
     public synchronized int size() { return map.size(); }
 

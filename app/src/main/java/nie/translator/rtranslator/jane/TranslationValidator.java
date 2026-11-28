@@ -63,7 +63,7 @@ public final class TranslationValidator {
         return ir;
     }
 
-    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
+    public enum Kind { NUMBER_LOST, NUMBER_ADDED, NUMBER_ORDER_CHANGED, NEGATION_LOST, NEGATION_ADDED, TERM_MISSING, UNTRANSLATED_SOURCE_SCRIPT, EMPTY, QUESTION_LOST, REPETITION,
         // ne->ja meaning checks (checkNeToJaMeaning)
         QUESTION_WORD_LOST, CURRENCY_MISMATCH, PLACE_MISSING, PLACE_ADDED,
         /** ja->ne agreement (IR-lite, SPEC v2 part 2): the candidate dropped what the Japanese predicate states */
@@ -213,6 +213,12 @@ public final class TranslationValidator {
             if (!rest.remove(n)) issues.add(new Issue(Kind.NUMBER_LOST, true, n));
         }
         for (String n : rest) issues.add(new Issue(Kind.NUMBER_ADDED, false, n));
+        // the same numbers in another order (3月5日 -> 5月3日): soft, a word order change can be right
+        if (a.size() >= 2 && rest.isEmpty() && a.size() == b.size()) {
+            List<String> sa = new ArrayList<>(a), sb = new ArrayList<>(b);
+            java.util.Collections.sort(sa); java.util.Collections.sort(sb);
+            if (sa.equals(sb) && !a.equals(b)) issues.add(new Issue(Kind.NUMBER_ORDER_CHANGED, false, null));
+        }
     }
 
     /**
