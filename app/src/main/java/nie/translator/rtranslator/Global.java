@@ -1008,7 +1008,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
                 @Override
                 public void run() {
                     try {
-                        if(speechRecognizer != null) speechRecognizer.initializeEncoderSession();
+                        if(speechRecognizer != null) {
+                            speechRecognizer.initializeEncoderSession();
+                            speechRecognizer.releaseIdleNeModel();   //the Nepali encoder is reloaded with the new setting when next needed
+                        }
                         mainHandler.post(() -> {
                             if(listener != null) listener.onSuccess();
                         });

@@ -794,8 +794,10 @@ detokenizer = WhisperDetokenizer.load(new java.io.File(detokenizerPath));   //vo
         OrtSession e = null, c = null, cb = null;
         try (OrtSession.SessionOptions enc = new OrtSession.SessionOptions();
              OrtSession.SessionOptions other = new OrtSession.SessionOptions()) {   //options are copied into the sessions
-            enc.setCPUArenaAllocator(true);
-            enc.setMemoryPatternOptimization(true);
+            //the same memory setting as the base encoder (initializeEncoderSession): reduced RAM = no arena, no pattern
+            boolean fast = !global.isWhisperReducedRam();
+            enc.setCPUArenaAllocator(fast);
+            enc.setMemoryPatternOptimization(fast);
             enc.setSymbolicDimensionValue("batch_size", 1);
             enc.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
             other.setCPUArenaAllocator(false);
