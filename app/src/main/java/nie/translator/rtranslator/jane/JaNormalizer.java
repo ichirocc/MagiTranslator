@@ -32,7 +32,7 @@ public final class JaNormalizer {
 
     /**
      * Older and literary forms rewritten in today's Japanese, for the text the model reads (the model was
-     * trained on modern text): お出でだ read as "came" (the sick father "is sleeping" became "I slept and
+     * trained on modern written text): お出でだ read as "came" (the sick father "is sleeping" became "I slept and
      * came"), 頂戴 / なすって / 〜たまえ / 〜ぬ / 居る were misread too. Only forms with one modern reading.
      */
     public static String modernize(String ja) {
@@ -53,6 +53,13 @@ public final class JaNormalizer {
             {"居(?=[るたてれまな])", "い"}, {"居らずに", "いないで"}, {"居らず", "いないで"}, {"居らない", "いない"},
             {"^時に(?=[、]?[^間はも])", "ところで"},   // 時に、 = "by the way"; not 時には / 時にも (sometimes)
             {"仰山", "大げさ"},
+            // spoken contractions, at the end of a clause only (きっとくる, ちょっとくらい are not contractions):
+            // こっちでやっとくよ came out as "here alone is enough"
+            {"(?<=[っい])と(く|いた|いて|きます|きました)(?=よ|ね|わ|から|けど|[。！？!?、…]|$)", "てお$1"},
+            {"(?<=ん)ど(く|いた|いて|きます|きました)(?=よ|ね|わ|から|けど|[。！？!?、…]|$)", "でお$1"},
+            {"ちゃった", "てしまった"}, {"じゃった", "でしまった"},
+            {"(?:なきゃ|なくちゃ)(?=いけない|ならない)", "なければ"},
+            {"(?:なきゃ|なくちゃ)(?=よ|ね|[。！？!?、…]|$)", "なければならない"},
     };
 
     /** Adds an explicit sentence end; Madlad translates complete sentences more faithfully. */

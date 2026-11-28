@@ -26,6 +26,15 @@ public class JaNeLibraryTest {
         eq("ところでお父さんの病気はどうなんです", JaNormalizer.modernize("時にお父さんの病気はどうなんです"), "時に = by the way");
         eq("時には休みます", JaNormalizer.modernize("時には休みます"), "時には (sometimes) kept");
         eq("居間にいます", JaNormalizer.modernize("居間に居ます"), "居間 kept, 居ます -> います");
+        eq("こっちでやっておくよ！", JaNormalizer.modernize("こっちでやっとくよ！"), "やっとく -> やっておく");
+        eq("さっき送っておいたよ。", JaNormalizer.modernize("さっき送っといたよ。"), "送っといた -> 送っておいた");
+        eq("読んでおきます。", JaNormalizer.modernize("読んどきます。"), "読んどく -> 読んでおく");
+        eq("きっとくるよ。", JaNormalizer.modernize("きっとくるよ。"), "きっとくる is not a contraction");
+        eq("ちょっとくらい休もう。", JaNormalizer.modernize("ちょっとくらい休もう。"), "ちょっとくらい kept");
+        eq("忘れてしまった。", JaNormalizer.modernize("忘れちゃった。"), "ちゃった -> てしまった");
+        eq("薬を飲まなければならないよ。", JaNormalizer.modernize("薬を飲まなきゃよ。").replace("ならないよ", "ならないよ"), "なきゃ at the end");
+        eq("कृपया जाँच गरिदिनुहोला कि?", NePostEditor.edit("कृपया कृपया जाँच गरिदिनुहोला कि?"), "कृपया कृपया -> कृपया");
+        eq("बिस्तारै बिस्तारै हिँड्नुहोस्।", NePostEditor.edit("बिस्तारै बिस्तारै हिँड्नुहोस्।"), "reduplication kept");
         eq("あの人は先生です", JaNormalizer.normalize("あの人は先生です"), "keep あの人");
         eq("すみません。いいです", JaNormalizer.normalize("あの、すみません。まあ、いいです"), "multiple fillers");
         eq("ABC123", JaNormalizer.normalize("ＡＢＣ１２３"), "NFKC width");

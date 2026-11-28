@@ -16,9 +16,13 @@ public final class NePostEditor {
         t = SPACE_BEFORE_PUNCT.matcher(t).replaceAll("$1");             // no space before punctuation
         t = DANDAS.matcher(t).replaceAll("।");
         t = collapseRepeats(SPACES.split(t.trim()));
+        t = NEVER_DOUBLED.matcher(t).replaceAll("$1");   // कृपया कृपया जाँच गरिदिनुहोला
         return t.trim();
     }
 
+    // words Nepali never says twice in a row (unlike धेरै धेरै, बिस्तारै बिस्तारै, which are kept)
+    private static final java.util.regex.Pattern NEVER_DOUBLED = java.util.regex.Pattern.compile(
+            "(?<![\\u0900-\\u097F])(कृपया|पनि|तर|तपाईं|तपाईंले|तपाईंलाई)(?:\\s+\\1)+(?![\\u0900-\\u097F])");
     private static final java.util.regex.Pattern SPACE_BEFORE_PUNCT = java.util.regex.Pattern.compile("\\s+([।?!,])");
     private static final java.util.regex.Pattern DANDAS = java.util.regex.Pattern.compile("।{2,}");
     private static final java.util.regex.Pattern SPACES = java.util.regex.Pattern.compile("\\s+");
