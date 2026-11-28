@@ -53,6 +53,11 @@ public final class JaNormalizer {
             {"居(?=[るたてれまな])", "い"}, {"居らずに", "いないで"}, {"居らず", "いないで"}, {"居らない", "いない"},
             {"^時に(?=[、]?[^間はも])", "ところで"},   // 時に、 = "by the way"; not 時には / 時にも (sometimes)
             {"仰山", "大げさ"},
+            // care words often written in hiragana (forms, plain Japanese): ねつがあります came out as "it has a
+            // feeling", うごかない as "not shaken"; only spellings with no other reading
+            {"(?<![ぁ-ん])(お)?ねつ(?=[がはもをの]|$)", "$1熱"},
+            {"うご(か(?=な|せ|さ)|き(?=ま|た|が)|く(?=[。、]|$|と|の)|け(?=な|ま|る))", "動$1"},
+            {"さん歩", "散歩"},
             // spoken contractions, at the end of a clause only (きっとくる, ちょっとくらい are not contractions):
             // こっちでやっとくよ came out as "here alone is enough"
             {"(?<=[っい])と(く|いた|いて|きます|きました)(?=よ|ね|わ|から|けど|[。！？!?、…]|$)", "てお$1"},

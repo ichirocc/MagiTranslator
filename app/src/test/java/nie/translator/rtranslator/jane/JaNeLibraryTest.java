@@ -27,6 +27,11 @@ public class JaNeLibraryTest {
         eq("時には休みます", JaNormalizer.modernize("時には休みます"), "時には (sometimes) kept");
         eq("居間にいます", JaNormalizer.modernize("居間に居ます"), "居間 kept, 居ます -> います");
         eq("こっちでやっておくよ！", JaNormalizer.modernize("こっちでやっとくよ！"), "やっとく -> やっておく");
+        eq("熱があります", JaNormalizer.modernize("ねつがあります"), "ねつ -> 熱");
+        eq("お熱は？", JaNormalizer.modernize("おねつは？"), "おねつ -> お熱");
+        eq("こねつける", JaNormalizer.modernize("こねつける"), "ねつ inside another word is kept");
+        eq("身体が動かない", JaNormalizer.modernize("身体がうごかない"), "うごかない -> 動かない");
+        eq("今日は散歩に行きたい", JaNormalizer.modernize("今日はさん歩に行きたい"), "さん歩 -> 散歩");
         eq("さっき送っておいたよ。", JaNormalizer.modernize("さっき送っといたよ。"), "送っといた -> 送っておいた");
         eq("読んでおきます。", JaNormalizer.modernize("読んどきます。"), "読んどく -> 読んでおく");
         eq("きっとくるよ。", JaNormalizer.modernize("きっとくるよ。"), "きっとくる is not a contraction");
@@ -44,6 +49,8 @@ public class JaNeLibraryTest {
             yes(!ex.isEmpty() && ex.get(0)[0].startsWith("車椅子のブレーキ"), "the closest example comes first");
             yes(eb.similar("車椅子のブレーキをかけてください", "ja", 2, 0.4).isEmpty(), "the input itself is not an example");
             yes(eb.similar("今日はいい天気ですね。", "ja", 2, 0.4).isEmpty(), "nothing similar: no example");
+            eb.add("どうぞお入りください。", "कृपया भित्र आउनुहोस्।", false, false);
+            yes(eb.similar("どうぞ。", "ja", 2, 0.1).isEmpty(), "a very short input gets no example");
             yes(eb.similar("ओछ्यानको रेलिङ माथि उठाउनुहोस् है।", "ne", 2, 0.4).isEmpty(), "a ja>ne line is not an ne -> ja example");
             PhraseBook epb = new PhraseBook().withFallback(new PhraseBook());
             epb.add("お茶をどうぞ。", "चिया लिनुहोस्।", false);

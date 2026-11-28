@@ -25,6 +25,9 @@ public final class ExampleBank {
 
     public int size() { return jaNe.size(); }
 
+    /** inputs shorter than this (normalised, punctuation removed) get no examples */
+    static final int MIN_KEY_CHARS = 8;
+
     /** Adds a pair for both directions, or for one (ja>ne / ne>ja lines of a phrase book). */
     public void add(String ja, String ne, boolean jaToNeOnly, boolean neToJaOnly) {
         if (ja == null || ne == null || ja.trim().isEmpty() || ne.trim().isEmpty()) return;
@@ -56,7 +59,9 @@ public final class ExampleBank {
         boolean ja = "ja".equals(src);
         String key = ja ? PhraseBook.keyJa(text) : PhraseBook.keyNe(text);
         Set<String> q = grams(key);
-        if (q.isEmpty() || k <= 0) return Collections.emptyList();
+        // a very short utterance (えっ, どうぞ, はい、そうですよ) shares a bigram or two with unrelated examples, and
+        // they led the model astray (えっ came out as अँ, どうぞ as "all right"); the model gets those right alone
+        if (key.length() < MIN_KEY_CHARS || k <= 0) return Collections.emptyList();
         List<String[]> list = ja ? jaNe : neJa;
         Map<String, List<Integer>> idx = ja ? jaIndex : neIndex;
         List<Integer> sizes = ja ? jaSize : neSize;
