@@ -606,6 +606,33 @@ public class JaNeLibraryTest {
             eq("彼らは来ました。", JaNeTranslator.finishJa("彼らは来ました。", "उहाँहरू आउनुभयो।"), "plural 彼ら kept");
             eq("彼は医者です。", JaNeTranslator.finishJa("彼は医者です。", "ऊ डाक्टर हो।"), "no उहाँ in the source: kept");
             eq("彼です。", JaNeTranslator.finishJa("彼です。", "उहाँ हो।"), "no particle: kept");
+            // ne -> ja: a first person past report with no subject is retried with मैले when read as a request
+            yes(PlamoTranslator.firstPersonPastWithoutSubject("ब्रेक लगाउन बिर्सें।"), "1sg past without subject");
+            yes(!PlamoTranslator.firstPersonPastWithoutSubject("मैले राम्ररी बुझिनँ"), "subject written: no retry");
+            yes(PlamoTranslator.firstPersonPastWithoutSubject("राम्ररी बुझिनँ।"), "negative 1sg past");
+            yes(!PlamoTranslator.firstPersonPastWithoutSubject("मैले गल्ती गरें, माफ गर्नुहोस्।"), "ends in a request: no retry");
+            yes(!PlamoTranslator.firstPersonPastWithoutSubject("उहाँ लड्नुभयो।"), "third person: no retry");
+            yes(PlamoTranslator.requestOrVolitional("書きましょう。") && PlamoTranslator.requestOrVolitional("忘れないでください。")
+                    && !PlamoTranslator.requestOrVolitional("忘れました。"), "request / invitation endings");
+            yes(PlamoTranslator.tenseLost("ब्रेक लगाउन बिर्सें।", "ブレーキをかけるのを忘れます。"), "positive past read as present");
+            yes(!PlamoTranslator.tenseLost("ब्रेक लगाउन बिर्सें।", "ブレーキをかけ忘れました。"), "past kept");
+            yes(!PlamoTranslator.tenseLost("राम्ररी बुझिनँ।", "よくわかりません。"), "negative past as わかりません is right");
+            {
+                final java.util.List<String> prompts = new java.util.ArrayList<>();
+                TextCompletion subjFake = (prompt, max, stops) -> {
+                    prompts.add(prompt);
+                    if (prompt.contains("मैले ब्रेक")) return "私はブレーキをかけ忘れました。";
+                    if (prompt.contains("ब्रेक")) return "休憩するのを忘れないでください。";
+                    return "わかりました。";
+                };
+                PlamoTranslator pt = new PlamoTranslator(subjFake, Glossary.withDefaults());
+                pt.setHistory(0, 0);
+                eq("ブレーキをかけ忘れました。", pt.translate("ब्रेक लगाउन बिर्सें।", "ne", "ja").text, "subject retry fixes the request reading, 私は dropped");
+                eq(2, prompts.size(), "one retry only");
+                prompts.clear();
+                pt.translate("मैले बुझें।", "ne", "ja");
+                eq(1, prompts.size(), "no retry when the output is not a request");
+            }
             // a phrase hit is a candidate that is still validated: a phrase that drops the number loses
             PhraseBook numPb = new PhraseBook();
             numPb.add("3時に来てください。", "कृपया आउनुहोस्।", false);

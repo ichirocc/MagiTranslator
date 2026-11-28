@@ -100,7 +100,51 @@ public final class PlamoTranslator {
         }
         List<Glossary.Term> terms = glossary.termsNeJa(t, MAX_TERMS);
         JaNeTranslator.Candidate best = run("ne", "ja", t, terms);
+        if (firstPersonPastWithoutSubject(t) && tenseLost(t, best.output)) best = withSubject(t, terms, best);
         return remember(best.output, t, new JaNeTranslator.Result(best.output, Collections.singletonList(best), best.issues));
+    }
+
+    /**
+     * A report in the first person past with the subject left out (ब्रेक लगाउन बिर्सें "I forgot the brake",
+     * दिसा जाँच तालिकामा लेखें "I wrote it in the bowel chart") was read by the model as a request or an
+     * invitation (忘れないでください, 書きましょう) or in the present (忘れます). With the subject written out (मैले ...)
+     * it gets the tense right; the 私は it then adds is dropped, as Japanese leaves it out. Kept only when the
+     * tense is then right.
+     */
+    private JaNeTranslator.Candidate withSubject(String t, List<Glossary.Term> terms, JaNeTranslator.Candidate first) throws Exception {
+        List<String> required = new ArrayList<>();
+        for (Glossary.Term g : terms) if (g.required && !required.contains(g.target)) required.add(g.target);
+        JaNeTranslator.Candidate c = candidate("plamo+subject", "ne", "ja", "मैले " + t, Collections.emptyList(), terms, required);
+        String out = JaNeTranslator.finishJa(LEADING_WATASHI.matcher(c.output).replaceFirst(""));
+        if (out.isEmpty() || tenseLost(t, out)) return first;
+        JaNeTranslator.Candidate fixed = new JaNeTranslator.Candidate("plamo+subject", t, out, null, Double.NaN,
+                JaNeTranslator.validate(t, out, required, "ja"));
+        return JaNeTranslator.better(first, fixed) ? first : fixed;
+    }
+
+    private static final java.util.regex.Pattern LEADING_WATASHI = java.util.regex.Pattern.compile("^(私|わたし)(は|が)、?");
+    // last word of the text: a first person past (बिर्सें, लेखिसकें, भएँ) or its negative (बुझिनँ, गरिनँ)
+    private static final java.util.regex.Pattern NE_FIRST_PERSON_PAST = java.util.regex.Pattern.compile("(ें|ेँ|एँ|िनँ|इनँ)[।?!\\s]*$");
+    private static final java.util.regex.Pattern NE_SUBJECT = java.util.regex.Pattern.compile("(?<![\\u0900-\\u097F])(म|मैले|हामी|हामीले)(?![\\u0900-\\u097F])");
+    // Japanese ending in a request or an invitation, with no past tense
+    private static final java.util.regex.Pattern JA_REQUEST_END = java.util.regex.Pattern.compile("(ください|下さい|ましょう|ましょうか|なさい|しよう)[。！？!?]*$");
+
+    static boolean firstPersonPastWithoutSubject(String ne) {
+        return ne != null && NE_FIRST_PERSON_PAST.matcher(ne).find() && !NE_SUBJECT.matcher(ne).find();
+    }
+
+    // a positive first person past (not बुझिनँ: わかりません is a right reading of "I did not understand")
+    private static final java.util.regex.Pattern NE_POSITIVE_PAST = java.util.regex.Pattern.compile("(ें|ेँ|एँ)[।?!\\s]*$");
+    private static final java.util.regex.Pattern JA_PAST_END = java.util.regex.Pattern.compile("(た|だ|ました|でした|ませんでした|かった)(よ|ね|けど)?[。！？!?]*$");
+
+    /** The Japanese of a first person past report reads as a request, or (for a positive past) not as past. */
+    static boolean tenseLost(String ne, String ja) {
+        if (requestOrVolitional(ja)) return true;
+        return ja != null && NE_POSITIVE_PAST.matcher(ne).find() && !JA_PAST_END.matcher(ja.trim()).find();
+    }
+
+    static boolean requestOrVolitional(String ja) {
+        return ja != null && JA_REQUEST_END.matcher(ja.trim()).find();
     }
 
     private static JaNeTranslator.Result phraseResult(String source, String out, String outLang) {
