@@ -48,6 +48,12 @@ import nie.translator.rtranslator.voice_translation.neural_networks.translation.
 
 
 public class LoadingActivity extends GeneralActivity {
+    private android.app.ActivityOptions FADE_OPTIONS;
+    private android.app.ActivityOptions fade() {
+        if (FADE_OPTIONS == null) FADE_OPTIONS = android.app.ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out);
+        return FADE_OPTIONS;
+    }
+
     private final boolean START_IMAGE = false;
     private Handler mainHandler;
     private boolean isVisible = false;
@@ -211,8 +217,7 @@ public class LoadingActivity extends GeneralActivity {
     private void startAccessActivity(){
         Intent intent = new Intent(this, AccessActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        startActivity(intent, fade().toBundle());   //fade for this launch only (overridePendingTransition is deprecated)
         finish();
     }
 
@@ -234,8 +239,7 @@ public class LoadingActivity extends GeneralActivity {
                 mainIntent.removeExtra("start_mode");
             }
 
-            startActivity(intent);
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            startActivity(intent, fade().toBundle());   //fade for this launch only (overridePendingTransition is deprecated)
             finish();
         }else{
             startImageActivity();
@@ -246,8 +250,7 @@ public class LoadingActivity extends GeneralActivity {
         Intent intent = new Intent(this, SettingsActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra("startWithModelManager", true);
-        startActivity(intent);
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        startActivity(intent, fade().toBundle());   //fade for this launch only (overridePendingTransition is deprecated)
         finish();
     }
 
@@ -255,8 +258,7 @@ public class LoadingActivity extends GeneralActivity {
         startingActivity = true;
         Intent intent = new Intent(LoadingActivity.this, ImageActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        startActivity(intent, fade().toBundle());   //fade for this launch only (overridePendingTransition is deprecated)
         finish();
     }
 
@@ -464,8 +466,7 @@ public class LoadingActivity extends GeneralActivity {
         global.setFirstStart(true);
         Intent intent = new Intent(LoadingActivity.this, AccessActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        startActivity(intent, fade().toBundle());   //fade for this launch only (overridePendingTransition is deprecated)
         finish();
     }
 

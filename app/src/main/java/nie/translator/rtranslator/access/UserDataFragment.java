@@ -92,6 +92,7 @@ public class UserDataFragment extends Fragment {
         activity = (AccessActivity) requireActivity();
         global = (Global) activity.getApplication();
         userImageContainer = new GalleryImageSelector(imageView, activity, this, R.drawable.user_icon, "com.magi.translator.gallery.provider");
+        userImageContainer.setLauncher((intent, code) -> (code == GalleryImageSelector.PICK_IMAGE ? pickImage : cropImage).launch(intent));
 
         buttonSelectTTS.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -169,9 +170,11 @@ public class UserDataFragment extends Fragment {
         builder.create().show();
     }
 
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        userImageContainer.onActivityResult(requestCode, resultCode, data, false);
-    }
+    //Activity Result API (startActivityForResult / onActivityResult are deprecated); registered at construction
+    private final androidx.activity.result.ActivityResultLauncher<Intent> pickImage = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            r -> { if (userImageContainer != null) userImageContainer.onActivityResult(GalleryImageSelector.PICK_IMAGE, r.getResultCode(), r.getData(), false); });
+    private final androidx.activity.result.ActivityResultLauncher<Intent> cropImage = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            r -> { if (userImageContainer != null) userImageContainer.onActivityResult(GalleryImageSelector.CROP_IMAGE, r.getResultCode(), r.getData(), false); });
 }

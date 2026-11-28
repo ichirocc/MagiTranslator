@@ -240,26 +240,6 @@ public class Tools {
         return file.delete();
     }
 
-    public static ArrayList<String> getRunningServices(Context context) {
-        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-        ArrayList<String> runningServicesNames = new ArrayList<>();
-
-        if (am != null) {
-            List<ActivityManager.RunningServiceInfo> l;
-            l = am.getRunningServices(50);  //il problema è qui, non è afffidabile perchè fa vedere un numero finito di services
-            for (ActivityManager.RunningServiceInfo runningServiceInfo : l) {
-                runningServicesNames.add(runningServiceInfo.service.getClassName());
-                /*if (runningServiceInfo.service.getClassName().equals(WalkieTalkieService.class.getName())) {
-                    service= WALKIE_TALKIE_SERVICE;
-                }else if(runningServiceInfo.service.getClassName().equals(ConversationService.class.getName())){
-                    service= CONVERSATION_SERVICE;
-                }*/
-            }
-        }
-        // only one service returns because we cannot have both multi and single device services active at the same time
-        return runningServicesNames;
-    }
-
     public static Bitmap getBitmapFromVectorDrawable(Context context, Drawable drawable) {
         Bitmap bitmap;
         Bitmap bitmap1;

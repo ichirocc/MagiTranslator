@@ -25,13 +25,17 @@ import androidx.fragment.app.FragmentPagerAdapter;
 
 import java.util.List;
 
+//FragmentPagerAdapter is deprecated in favour of ViewPager2 + FragmentStateAdapter. That move changes the tab lifecycle
+//(the second tab is created lazily and only the shown one is resumed; the conversation screen calls the peers tab
+//before it is shown), so it waits for a device check. The constructor below keeps today's behaviour explicitly.
+@SuppressWarnings("deprecation")
 public class CustomFragmentPagerAdapter extends FragmentPagerAdapter {
     private Context context;
     private List<String> titles;
     private Fragment[] fragments;
 
     public CustomFragmentPagerAdapter(Context context, FragmentManager fragmentManager, List<String> titles, Fragment[] fragments) {
-        super(fragmentManager);
+        super(fragmentManager, BEHAVIOR_SET_USER_VISIBLE_HINT);   //what the one-argument constructor did
         this.context = context;
         this.titles = titles;
         this.fragments = fragments;

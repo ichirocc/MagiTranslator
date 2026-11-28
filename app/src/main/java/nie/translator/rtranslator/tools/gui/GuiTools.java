@@ -205,6 +205,9 @@ public class GuiTools {
                 info.addAction(readAction);
             }
 
+            //announceForAccessibility is deprecated in Android 16 with no one-call successor: a live region or a state
+            //description reads on change, not on this double-tap. Kept until it is checked with TalkBack.
+            @SuppressWarnings("deprecation")
             @Override
             public boolean performAccessibilityAction(@NonNull View host, int action, Bundle args) {
                 // 3. Handle the double-tap to read the text
