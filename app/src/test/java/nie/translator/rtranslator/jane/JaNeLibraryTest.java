@@ -131,6 +131,12 @@ public class JaNeLibraryTest {
         JaNeTranslator.Candidate bad = new JaNeTranslator.Candidate("b", "", "म भोलि जान्छु।", null, 0.9,
                 TranslationValidator.validateJaToNe("明日は行きません。", "म भोलि जान्छु।", java.util.Collections.emptyList()));
         yes(JaNeTranslator.better(good, bad), "hard issues beat score");
+        yes(JaIdioms.rewrite("今、手が離せないので少し待ってください。").equals("今、私は他の仕事をしているので少し待ってください。"), "idiom: busy");
+        yes(JaIdioms.rewrite("ごめん、今手が離せない！ちょっと待ってて！").equals("ごめん、今私は他の仕事中！ちょっと待ってて！"), "idiom: busy, two sentences");
+        yes(JaIdioms.rewrite("お待たせしました。").equals("待たせてごめんなさい。"), "idiom: kept you waiting");
+        yes(JaIdioms.rewrite("今日から一人でやってみましょう。隣で見守っていますね。").equals("今日から一人でやってみましょう。隣で私が見守っていますね。"), "self subject added");
+        yes(JaIdioms.rewrite("田中さんが見守っていますね。").equals("田中さんが見守っていますね。"), "subject present: unchanged");
+        yes(JaIdioms.rewrite("そばで見ていてください。").equals("そばで見ていてください。"), "request: unchanged");
         {
             JaNeTranslator.Candidate cOk = new JaNeTranslator.Candidate("a", "", "३ जना आउँछन्।", null, 0.50,
                     TranslationValidator.validateJaToNe("3人来ます。", "३ जना आउँछन्।", java.util.Collections.<String>emptyList()));

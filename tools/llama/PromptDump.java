@@ -22,7 +22,7 @@ public class PromptDump {
             if (p.length < 2) continue;
             String text, prompt;
             if (p[0].equals("ja")) {
-                text = JaNormalizer.normalize(p[1]);
+                text = JaIdioms.rewrite(JaNormalizer.normalize(p[1]));
                 prompt = PlamoPrompt.build("ja", "ne", text, null, g.termsJaNe(text, null, 24), false);
             } else {
                 text = Normalizer.normalize(p[1], Normalizer.Form.NFC).replace('|', '।').trim();

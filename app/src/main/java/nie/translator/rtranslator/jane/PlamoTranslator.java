@@ -85,8 +85,10 @@ public final class PlamoTranslator {
             String out = JaNeTranslator.finishNe(phrase, norm);
             if (!out.isEmpty()) return remember(norm, out, phraseResult(norm, out, "ne"));
         }
-        List<Glossary.Term> terms = glossary.termsJaNe(norm, null, MAX_TERMS);
-        JaNeTranslator.Candidate best = run("ja", "ne", norm, terms);
+        // subjectless set phrases (手が離せない, お待たせしました, 見守っていますね) with the subject stated
+        String model = JaIdioms.rewrite(norm);
+        List<Glossary.Term> terms = glossary.termsJaNe(model, null, MAX_TERMS);
+        JaNeTranslator.Candidate best = run("ja", "ne", model, terms);
         return remember(norm, best.output, new JaNeTranslator.Result(best.output, Collections.singletonList(best), best.issues));
     }
 
