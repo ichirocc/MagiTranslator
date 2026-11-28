@@ -25,7 +25,7 @@ public class TTSEngine {
     @Nullable
     private final TTS tts;
     private boolean pause = false;
-    private boolean ready = false;   //set on the main thread once the TTS engine is initialized
+    private volatile boolean ready = false;   //set once the TTS engine is initialized (onInit thread)
     private Context context;
     @Nullable
     private TTSEngineListener listener;
@@ -37,9 +37,10 @@ public class TTSEngine {
         this.tts = new TTS(context, new TTS.InitListener() {  // tts initialization (to be improved, automatic package installation)
             @Override
             public void onInit() {
-                //messages queued before the engine was ready were kept: read them now
+                //set here, not in the posted runnable: pause() clears the handler, and a lost "ready" would keep the
+                //engine silent for good. Messages queued before the engine was ready are read now (or by resume())
+                ready = true;
                 handler.post(() -> {
-                    ready = true;
                     if (!pause && !speaking && !messageQueue.isEmpty()) speak();
                 });
                 if(TTSEngine.this.tts != null) {
